@@ -150,7 +150,7 @@ class RadarrScanner
       });
 
       for (const media of processingMovies) {
-        if (!this.scannedTmdbIds.has(media.tmdbId)) {
+        if (media.tmdbId != null && !this.scannedTmdbIds.has(media.tmdbId)) {
           media.status = MediaStatus.UNKNOWN;
           await mediaRepository.save(media);
           this.log(
@@ -175,7 +175,7 @@ class RadarrScanner
       });
 
       for (const media of processing4kMovies) {
-        if (!this.scanned4kTmdbIds.has(media.tmdbId)) {
+        if (media.tmdbId != null && !this.scanned4kTmdbIds.has(media.tmdbId)) {
           media.status4k = MediaStatus.UNKNOWN;
           await mediaRepository.save(media);
           this.log(

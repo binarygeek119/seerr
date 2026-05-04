@@ -1,3 +1,4 @@
+import LidarrAPI from '@server/api/servarr/lidarr';
 import RadarrAPI from '@server/api/servarr/radarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import { MediaStatus, MediaType } from '@server/constants/media';
@@ -31,30 +32,76 @@ import Season from './Season';
 class Media {
   public static async getRelatedMedia(
     user: User | undefined,
-    items: { tmdbId: number; mediaType: string }[]
+    items:
+      | { tmdbId: number; mediaType: MediaType }[]
+      | { mbId: string; mediaType: MediaType }[]
+      | string[]
   ): Promise<Media[]> {
     const mediaRepository = getRepository(Media);
 
     try {
-      if (items.length === 0) {
+      if (!Array.isArray(items) || items.length === 0) {
         return [];
       }
 
-      const finalIds = [...new Set(items.map((i) => i.tmdbId))];
+      const first = items[0];
+      if (typeof first === 'string') {
+        const mbIds = [...new Set(items as string[])];
+        const media = await mediaRepository
+          .createQueryBuilder('media')
+          .leftJoinAndSelect(
+            'media.watchlists',
+            'watchlist',
+            'media.id = watchlist.media and watchlist.requestedBy = :userId',
+            { userId: user?.id }
+          )
+          .where('media.mbId IN (:...mbIds)', { mbIds })
+          .andWhere('media.mediaType = :music', { music: MediaType.MUSIC })
+          .getMany();
+        return media.filter((m) => mbIds.includes(m.mbId ?? ''));
+      }
+
+      const refs = items as (
+        | { tmdbId: number; mediaType: MediaType }
+        | { mbId: string; mediaType: MediaType }
+      )[];
+
+      if ('mbId' in refs[0]) {
+        const mbRefs = refs as { mbId: string; mediaType: MediaType }[];
+        const mbIds = [...new Set(mbRefs.map((r) => r.mbId))];
+        const media = await mediaRepository
+          .createQueryBuilder('media')
+          .leftJoinAndSelect(
+            'media.watchlists',
+            'watchlist',
+            'media.id = watchlist.media and watchlist.requestedBy = :userId',
+            { userId: user?.id }
+          )
+          .where('media.mbId IN (:...mbIds)', { mbIds })
+          .getMany();
+        return media.filter((m) =>
+          mbRefs.some((r) => r.mbId === m.mbId && r.mediaType === m.mediaType)
+        );
+      }
+
+      const tmdbRefs = refs as { tmdbId: number; mediaType: MediaType }[];
+      const tmdbIds = [...new Set(tmdbRefs.map((r) => r.tmdbId))];
 
       const media = await mediaRepository
         .createQueryBuilder('media')
         .leftJoinAndSelect(
           'media.watchlists',
           'watchlist',
-          'media.id= watchlist.media and watchlist.requestedBy = :userId',
+          'media.id = watchlist.media and watchlist.requestedBy = :userId',
           { userId: user?.id }
-        ) //,
-        .where(' media.tmdbId in (:...finalIds)', { finalIds })
+        )
+        .where('media.tmdbId IN (:...tmdbIds)', { tmdbIds })
         .getMany();
 
       return media.filter((m) =>
-        items.some((i) => i.tmdbId === m.tmdbId && i.mediaType === m.mediaType)
+        tmdbRefs.some(
+          (i) => i.tmdbId === m.tmdbId && i.mediaType === m.mediaType
+        )
       );
     } catch (e) {
       logger.error(e.message);
@@ -63,14 +110,17 @@ class Media {
   }
 
   public static async getMedia(
-    id: number,
+    id: number | string,
     mediaType: MediaType
   ): Promise<Media | undefined> {
     const mediaRepository = getRepository(Media);
 
     try {
       const media = await mediaRepository.findOne({
-        where: { tmdbId: id, mediaType: mediaType },
+        where:
+          typeof id === 'string'
+            ? { mbId: id, mediaType }
+            : { tmdbId: id, mediaType },
         relations: { requests: true, issues: true },
       });
 
@@ -87,9 +137,9 @@ class Media {
   @Column({ type: 'varchar' })
   public mediaType: MediaType;
 
-  @Column()
+  @Column({ nullable: true })
   @Index()
-  public tmdbId: number;
+  public tmdbId?: number;
 
   @Column({ unique: true, nullable: true })
   @Index()
@@ -98,6 +148,10 @@ class Media {
   @Column({ nullable: true })
   @Index()
   public imdbId?: string;
+
+  @Column({ nullable: true })
+  @Index()
+  public mbId?: string;
 
   @Column({ type: 'int', default: MediaStatus.UNKNOWN })
   @Index()
@@ -155,7 +209,7 @@ class Media {
   })
   public mediaAddedAt: Date;
 
-  @Column({ nullable: true, type: 'int' })
+  @Column({ nullable: false, type: 'int', default: 0 })
   public serviceId?: number | null;
 
   @Column({ nullable: true, type: 'int' })
@@ -332,6 +386,21 @@ class Media {
         }
       }
     }
+
+    if (this.mediaType === MediaType.MUSIC) {
+      if (this.serviceId !== null && this.externalServiceSlug !== null) {
+        const settings = getSettings();
+        const server = settings.lidarr.find(
+          (lidarr) => lidarr.id === this.serviceId
+        );
+
+        if (server) {
+          this.serviceUrl = server.externalUrl
+            ? `${server.externalUrl}/album/${this.externalServiceSlug}`
+            : LidarrAPI.buildUrl(server, `/album/${this.externalServiceSlug}`);
+        }
+      }
+    }
   }
 
   @AfterLoad()
@@ -384,6 +453,20 @@ class Media {
         this.downloadStatus4k = downloadTracker.getSeriesProgress(
           this.serviceId4k,
           this.externalServiceId4k
+        );
+      }
+    }
+
+    if (this.mediaType === MediaType.MUSIC) {
+      if (
+        this.externalServiceId !== undefined &&
+        this.externalServiceId !== null &&
+        this.serviceId !== undefined &&
+        this.serviceId !== null
+      ) {
+        this.downloadStatus = downloadTracker.getMusicProgress(
+          this.serviceId,
+          this.externalServiceId
         );
       }
     }

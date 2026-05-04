@@ -37,6 +37,7 @@ watchlistRoutes.post<never, Watchlist, Watchlist>(
         case QueryFailedError:
           logger.warn('Something wrong with data watchlist', {
             tmdbId: req.body.tmdbId,
+            mbId: req.body.mbId,
             mediaType: req.body.mediaType,
             label: 'Watchlist',
           });
@@ -50,7 +51,7 @@ watchlistRoutes.post<never, Watchlist, Watchlist>(
   }
 );
 
-watchlistRoutes.delete('/:tmdbId', async (req, res, next) => {
+watchlistRoutes.delete('/:id', async (req, res, next) => {
   if (!req.user) {
     return next({
       status: 401,
@@ -59,18 +60,30 @@ watchlistRoutes.delete('/:tmdbId', async (req, res, next) => {
   }
   try {
     const mediaType = req.query.mediaType;
-    if (mediaType !== MediaType.MOVIE && mediaType !== MediaType.TV) {
+    if (
+      mediaType !== MediaType.MOVIE &&
+      mediaType !== MediaType.TV &&
+      mediaType !== MediaType.MUSIC
+    ) {
       return next({
         status: 400,
         message: 'Invalid mediaType query parameter.',
       });
     }
 
-    await Watchlist.deleteWatchlist(
-      Number(req.params.tmdbId),
-      mediaType,
-      req.user
-    );
+    const id =
+      mediaType === MediaType.MUSIC
+        ? req.params.id
+        : String(Number(req.params.id));
+
+    if (mediaType !== MediaType.MUSIC && Number.isNaN(Number(id))) {
+      return next({
+        status: 400,
+        message: 'Invalid id path parameter.',
+      });
+    }
+
+    await Watchlist.deleteWatchlist(id, mediaType, req.user);
     return res.status(204).send();
   } catch (e) {
     if (e instanceof NotFoundError) {

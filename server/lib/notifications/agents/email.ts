@@ -116,7 +116,9 @@ class EmailAgent
     const mediaType = payload.media
       ? payload.media.mediaType === MediaType.MOVIE
         ? intl.formatMessage(globalMessages.movie)
-        : intl.formatMessage(globalMessages.series)
+        : payload.media.mediaType === MediaType.TV
+          ? intl.formatMessage(globalMessages.series)
+          : intl.formatMessage(globalMessages.album)
       : undefined;
     const is4k = payload.request?.is4k;
 
@@ -168,7 +170,9 @@ class EmailAgent
               service:
                 payload.media?.mediaType === MediaType.MOVIE
                   ? 'Radarr'
-                  : 'Sonarr',
+                  : payload.media?.mediaType === MediaType.TV
+                    ? 'Sonarr'
+                    : 'Lidarr',
             }
           );
           break;
@@ -191,7 +195,11 @@ class EmailAgent
           timestamp: new Date().toTimeString(),
           requestedBy: payload.request.requestedBy.displayName,
           actionUrl: applicationUrl
-            ? `${applicationUrl}/${payload.media?.mediaType}/${payload.media?.tmdbId}`
+            ? `${applicationUrl}/${payload.media?.mediaType}/${
+                payload.media?.mediaType === MediaType.MUSIC
+                  ? payload.media?.mbId
+                  : payload.media?.tmdbId
+              }`
             : undefined,
           applicationUrl,
           applicationTitle,

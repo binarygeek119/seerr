@@ -5,14 +5,16 @@ import { Transition } from '@headlessui/react';
 
 import type { Collection } from '@server/models/Collection';
 import type { MovieDetails } from '@server/models/Movie';
+import type { MusicDetails } from '@server/models/Music';
 import type { TvDetails } from '@server/models/Tv';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 
 interface BlocklistModalProps {
-  tmdbId: number;
-  type: 'movie' | 'tv' | 'collection';
+  tmdbId?: number;
+  mbId?: string;
+  type: 'movie' | 'tv' | 'collection' | 'music';
   show: boolean;
   onComplete?: () => void;
   onCancel?: () => void;
@@ -23,9 +25,9 @@ const messages = defineMessages('component.BlocklistModal', {
   blocklisting: 'Blocklisting',
 });
 
-const isCollection = (
-  data: MovieDetails | TvDetails | Collection | null
-): data is Collection => {
+type ModalMedia = MovieDetails | TvDetails | Collection | MusicDetails;
+
+const isCollection = (data: ModalMedia | null): data is Collection => {
   return (
     data !== null &&
     data !== undefined &&
@@ -33,15 +35,21 @@ const isCollection = (
   );
 };
 
-const isMovie = (
-  movie: MovieDetails | TvDetails | Collection | null
-): movie is MovieDetails => {
-  if (!movie) return false;
-  return (movie as MovieDetails).title !== undefined;
+const isMusic = (data: ModalMedia | null): data is MusicDetails => {
+  if (!data) return false;
+  return (
+    'artist' in data && typeof (data as MusicDetails).artist?.name === 'string'
+  );
+};
+
+const isMovie = (data: ModalMedia | null): data is MovieDetails => {
+  if (!data || isCollection(data) || isMusic(data)) return false;
+  return (data as MovieDetails).title !== undefined;
 };
 
 const BlocklistModal = ({
   tmdbId,
+  mbId,
   type,
   show,
   onComplete,
@@ -49,9 +57,7 @@ const BlocklistModal = ({
   isUpdating,
 }: BlocklistModalProps) => {
   const intl = useIntl();
-  const [data, setData] = useState<
-    TvDetails | MovieDetails | Collection | null
-  >(null);
+  const [data, setData] = useState<ModalMedia | null>(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -59,13 +65,45 @@ const BlocklistModal = ({
       if (!show) return;
       try {
         setError(null);
-        const response = await axios.get(`/api/v1/${type}/${tmdbId}`);
+        const response = await axios.get(
+          `/api/v1/${type}/${type === 'music' ? mbId : tmdbId}`
+        );
         setData(response.data);
       } catch (err) {
         setError(err);
       }
     })();
-  }, [show, tmdbId, type]);
+  }, [show, tmdbId, mbId, type]);
+
+  const getTitle = () => {
+    if (!data) return '';
+    if (isCollection(data)) {
+      return data.name;
+    }
+    if (isMusic(data)) {
+      return `${data.artist.name} - ${data.title}`;
+    }
+    if (isMovie(data)) {
+      return data.title;
+    }
+    return data.name;
+  };
+
+  const modalKindLabel =
+    type === 'collection'
+      ? intl.formatMessage(globalMessages.collection)
+      : type === 'music'
+        ? intl.formatMessage(globalMessages.music)
+        : type === 'movie'
+          ? intl.formatMessage(globalMessages.movie)
+          : intl.formatMessage(globalMessages.tvshow);
+
+  const getBackdrop = () => {
+    if (isMusic(data)) {
+      return data.artistBackdrop;
+    }
+    return `https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/${data?.backdropPath}`;
+  };
 
   return (
     <Transition
@@ -81,20 +119,8 @@ const BlocklistModal = ({
       <Modal
         loading={!data && !error}
         backgroundClickable
-        title={`${intl.formatMessage(globalMessages.blocklist)} ${
-          type === 'collection'
-            ? intl.formatMessage(globalMessages.collection)
-            : isMovie(data)
-              ? intl.formatMessage(globalMessages.movie)
-              : intl.formatMessage(globalMessages.tvshow)
-        }`}
-        subTitle={`${
-          isCollection(data)
-            ? data.name
-            : isMovie(data)
-              ? data.title
-              : data?.name
-        }`}
+        title={`${intl.formatMessage(globalMessages.blocklist)} ${modalKindLabel}`}
+        subTitle={getTitle()}
         onCancel={onCancel}
         onOk={onComplete}
         okText={
@@ -104,7 +130,7 @@ const BlocklistModal = ({
         }
         okButtonType="danger"
         okDisabled={isUpdating}
-        backdrop={`https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/${data?.backdropPath}`}
+        backdrop={getBackdrop()}
       />
     </Transition>
   );

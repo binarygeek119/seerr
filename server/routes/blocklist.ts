@@ -92,7 +92,11 @@ blocklistRoutes.get(
   }),
   async (req, res, next) => {
     const mediaType = req.query.mediaType;
-    if (mediaType !== MediaType.MOVIE && mediaType !== MediaType.TV) {
+    if (
+      mediaType !== MediaType.MOVIE &&
+      mediaType !== MediaType.TV &&
+      mediaType !== MediaType.MUSIC
+    ) {
       return next({
         status: 400,
         message: 'Invalid or missing mediaType query parameter.',
@@ -102,11 +106,13 @@ blocklistRoutes.get(
     try {
       const blocklisteRepository = getRepository(Blocklist);
 
+      const where =
+        mediaType === MediaType.MUSIC
+          ? { mbId: req.params.id, mediaType }
+          : { tmdbId: Number(req.params.id), mediaType };
+
       const blocklistItem = await blocklisteRepository.findOneOrFail({
-        where: {
-          tmdbId: Number(req.params.id),
-          mediaType,
-        },
+        where,
       });
 
       return res.status(200).send(blocklistItem);
@@ -268,7 +274,11 @@ blocklistRoutes.delete(
   }),
   async (req, res, next) => {
     const mediaType = req.query.mediaType;
-    if (mediaType !== MediaType.MOVIE && mediaType !== MediaType.TV) {
+    if (
+      mediaType !== MediaType.MOVIE &&
+      mediaType !== MediaType.TV &&
+      mediaType !== MediaType.MUSIC
+    ) {
       return next({
         status: 400,
         message: 'Invalid or missing mediaType query parameter.',
@@ -278,22 +288,29 @@ blocklistRoutes.delete(
     try {
       const blocklisteRepository = getRepository(Blocklist);
 
+      const blocklistWhere =
+        mediaType === MediaType.MUSIC
+          ? { mbId: req.params.id, mediaType }
+          : { tmdbId: Number(req.params.id), mediaType };
+
       const blocklistItem = await blocklisteRepository.findOneOrFail({
-        where: {
-          tmdbId: Number(req.params.id),
-          mediaType,
-        },
+        where: blocklistWhere,
       });
 
       await blocklisteRepository.remove(blocklistItem);
 
       const mediaRepository = getRepository(Media);
 
+      const mediaWhere =
+        mediaType === MediaType.MUSIC
+          ? { mbId: req.params.id, mediaType: req.query.mediaType as MediaType }
+          : {
+              tmdbId: Number(req.params.id),
+              mediaType: req.query.mediaType as MediaType,
+            };
+
       const mediaItem = await mediaRepository.findOneOrFail({
-        where: {
-          tmdbId: Number(req.params.id),
-          mediaType: req.query.mediaType as MediaType,
-        },
+        where: mediaWhere,
       });
 
       await mediaRepository.remove(mediaItem);
