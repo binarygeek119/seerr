@@ -966,5 +966,7 @@
   "components.RequestList.unableToConnect": "Conexiunena cu {services} a eșuat. Unele informații ar putea deveni indisponibile.",
   "components.Settings.SettingsJobsCache.dnsNoCacheEntries": "Nici o căutare DNS nu a fost stocată în cache încă.",
   "i18n.removefromBlocklist": "Elimină din lista de materiale blocate",
-  "i18n.removeFromBlocklistSuccess": "<strong>{title}</strong>a fost eliminat cu succes din lista de materiale blocate."
+  "i18n.removeFromBlocklistSuccess": "<strong>{title}</strong>a fost eliminat cu succes din lista de materiale blocate.",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

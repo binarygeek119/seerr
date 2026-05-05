@@ -1666,5 +1666,7 @@
   "components.UserList.importedPlexUsersNoPassword": "Az importált felhasználóknak nincs beállítva {applicationTitle}-jelszavuk. Ha letiltod a Plex‑es bejelentkezést, jelszót kell majd beállítaniuk a profiljukban, vagy egy jelszó‑visszaállító linken keresztül.",
   "components.UserList.importedUsersNoPassword": "Az importált felhasználóknak nincs beállítva {applicationTitle}-jelszavuk. Ha letiltod a {mediaServerName}-es bejelentkezést, jelszót kell majd beállítaniuk a profiljukban, vagy egy jelszó‑visszaállító linken keresztül.",
   "components.UserProfile.UserSettings.UserPasswordChange.localPasswordDescription": "Ez a jelszó a {applicationTitle} helyi bejelentkezésénél kerül felhasználásra. Különbözik a médiaszerver jelszavától.",
-  "i18n.notificationLocale": "Értesítés nyelve"
+  "i18n.notificationLocale": "Értesítés nyelve",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

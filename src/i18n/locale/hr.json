@@ -1195,5 +1195,7 @@
   "components.Discover.createnewslider": "Stvori novi klizač",
   "components.Settings.SettingsMain.partialRequestsEnabled": "Dopusti djelomične zahtjeve za seriju",
   "components.Settings.SonarrModal.tagRequests": "Označi zahtjeve",
-  "components.Settings.RadarrModal.tagRequests": "Označi zahtjeve"
+  "components.Settings.RadarrModal.tagRequests": "Označi zahtjeve",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

@@ -1666,5 +1666,7 @@
   "components.UserList.importedPlexUsersNoPassword": "Импортированные пользователи не имеют пароля. Если вы выключите вход через Plex, им придётся установить пароль в профиле или через ссылку для сброса пароля.",
   "components.UserList.importedUsersNoPassword": "Импортированные пользователи не имеют пароля для {applicationTitle}. Если вы выключите вход через {mediaServerName}, им нужно будет установить пароль в профиле или через ссылку для сброса пароля.",
   "components.UserProfile.UserSettings.UserPasswordChange.localPasswordDescription": "Этот пароль будет использоваться для локального входа в {applicationTitle}. Он не связан с паролем от вашего медиа сервера.",
-  "i18n.notificationLocale": "Язык уведомлений"
+  "i18n.notificationLocale": "Язык уведомлений",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

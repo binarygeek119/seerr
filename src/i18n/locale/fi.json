@@ -946,5 +946,7 @@
   "i18n.addToBlocklist": "Lisää estolistalle",
   "i18n.blocklist": "Estolista",
   "i18n.blocklistError": "Jotain meni vikaan. Yritä uudelleen.",
-  "i18n.removeFromBlocklistSuccess": "<strong>{title}</strong> poistettu estolistalta."
+  "i18n.removeFromBlocklistSuccess": "<strong>{title}</strong> poistettu estolistalta.",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

@@ -718,5 +718,7 @@
   "components.PermissionEdit.autoapproveSeriesDescription": "Suteikite automatinį patvirtinimą ne 4K serialų rezervacijoms.",
   "components.Discover.emptywatchlist": "Čia bus rodoma medija, pridėta prie <PlexWatchlistSupportLink> Plex grojaraščio</PlexWatchlistSupportLink>.",
   "components.Discover.PlexWatchlistSlider.emptywatchlist": "Čia bus rodoma į <PlexWatchlistSupportLink> Plex grojaraštyje </PlexWatchlistSupportLink> pridėta medija.",
-  "components.Discover.FilterSlideover.voteCount": "Balsų skaičius nuo {minValue} iki {maxValue}"
+  "components.Discover.FilterSlideover.voteCount": "Balsų skaičius nuo {minValue} iki {maxValue}",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

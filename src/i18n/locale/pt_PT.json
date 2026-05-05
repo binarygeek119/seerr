@@ -1609,5 +1609,7 @@
   "components.Settings.SettingsNetwork.apiRequestTimeout": "Tempo limite da solicitação da API",
   "components.Settings.SettingsNetwork.apiRequestTimeoutTip": "Tempo máximo (em segundos) para aguardar respostas de serviços externos como o Radarr/Sonarr. Defina como 0 para nenhum tempo limite.",
   "components.Settings.SettingsNetwork.validationApiRequestTimeout": "Deve fornecer um valor de tempo limite válido",
-  "components.Settings.SonarrModal.monitorNewItems": "Acompanhe as novas temporadas"
+  "components.Settings.SonarrModal.monitorNewItems": "Acompanhe as novas temporadas",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

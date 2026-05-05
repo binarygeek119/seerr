@@ -72,5 +72,8 @@
   "components.UserProfile.UserSettings.UserPasswordChange.confirmpassword": "Sentem awal n uɛeddi",
   "components.UserProfile.UserSettings.UserPasswordChange.currentpassword": "Awal n uɛeddi amiran",
   "components.UserProfile.UserSettings.UserPasswordChange.newpassword": "Awal n uɛeddi amaynut",
-  "i18n.usersettings": "Iɣewwaren n useqdac"
+  "i18n.usersettings": "Iɣewwaren n useqdac",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests",
+  "components.Layout.SearchInput.searchPlaceholder": "Search Movies, TV, Music & Books"
 }

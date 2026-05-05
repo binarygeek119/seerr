@@ -1199,5 +1199,7 @@
   "components.Settings.Notifications.NotificationsPushover.sound": "Ήχος ειδοποίησης",
   "components.UserProfile.UserSettings.UserNotificationSettings.deviceDefault": "Προεπιλογή συσκευής",
   "components.UserProfile.UserSettings.UserNotificationSettings.sound": "Ήχος ειδοποίησης",
-  "components.Settings.Notifications.NotificationsPushover.deviceDefault": "Προεπιλογή συσκευής"
+  "components.Settings.Notifications.NotificationsPushover.deviceDefault": "Προεπιλογή συσκευής",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

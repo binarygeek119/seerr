@@ -732,5 +732,7 @@
   "components.Settings.Notifications.validationTypes": "יש לבחור לפחות סוג התראות אחד",
   "components.Settings.Notifications.validationUrl": "יש לספק כתובת URL תקינה",
   "components.Settings.Notifications.webhookUrl": "URL של ה-Webhook",
-  "components.Settings.Notifications.chatId": "מזהה צ'אט"
+  "components.Settings.Notifications.chatId": "מזהה צ'אט",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

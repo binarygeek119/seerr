@@ -1184,5 +1184,7 @@
   "components.Login.urlBaseHelp": "Si configuras una URL de base en Jellyfin (Panel > Red), ingrésala aquí (p. ej. /jellyfin). Déjala en blanco de lo contrario.",
   "components.RequestCard.failedmodify": "Algo salió mal al modificar la solicitud.",
   "components.RequestList.RequestItem.failedmodify": "Algo salió mal al modificar la solicitud.",
-  "i18n.notificationLocale": "Idioma de las notificationes"
+  "i18n.notificationLocale": "Idioma de las notificationes",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

@@ -1636,5 +1636,7 @@
   "i18n.error": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
   "i18n.partiallyblocklisted": "محظور جزئياً",
   "i18n.removeFromBlocklistSuccess": "تمت إزالة <strong>{title}</strong> من قائمة الحظر بنجاح.",
-  "i18n.removefromBlocklist": "إزالة من قائمة الحظر"
+  "i18n.removefromBlocklist": "إزالة من قائمة الحظر",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

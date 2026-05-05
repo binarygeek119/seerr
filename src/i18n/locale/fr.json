@@ -1666,5 +1666,7 @@
   "components.UserList.importedUsersNoPassword": "Les utilisateurs importés n'ont pas de mot de passe {applicationTitle}. Si vous désactivez la connexion via {mediaServerName}, ils devront en configurer un depuis leur profil Seerr ou avec un lien de réinitialisation.",
   "components.UserProfile.UserSettings.UserPasswordChange.localPasswordDescription": "Ce mot de passe permet de vous connecter localement à {applicationTitle}. Il est différent de celui de votre serveur multimédia.",
   "i18n.notificationLocale": "Langue des notifications",
-  "components.Settings.Notifications.useUserLocale": "Utiliser la langue du destinataire"
+  "components.Settings.Notifications.useUserLocale": "Utiliser la langue du destinataire",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

@@ -1317,5 +1317,7 @@
   "components.UserProfile.UserSettings.UserGeneralSettings.saving": "Запазване…",
   "components.UserProfile.UserSettings.UserLinkedAccountsSettings.errorUnknown": "Появи се непозната грешка",
   "components.UserProfile.UserSettings.UserLinkedAccountsSettings.linkedAccounts": "Свързани акаунти",
-  "i18n.specials": "Специални"
+  "i18n.specials": "Специални",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

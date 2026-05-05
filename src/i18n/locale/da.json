@@ -1666,5 +1666,7 @@
   "components.UserList.importedUsersNoPassword": "Importerede brugere har ikke en adgangskode til {applicationTitle}. Hvis du deaktiverer {mediaServerName}-login, skal de oprette en adgangskode i deres profil eller via et nulstillingslink.",
   "components.UserProfile.UserSettings.UserPasswordChange.localPasswordDescription": "Denne adgangskode bruges til login via {applicationTitle}s lokale loginformular. Den er adskilt fra din medieserver-adgangskode.",
   "components.Settings.Notifications.useUserLocale": "Brug modtagerens sprogindstilling til notifikationer",
-  "i18n.notificationLocale": "Sprog til notifikationer"
+  "i18n.notificationLocale": "Sprog til notifikationer",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

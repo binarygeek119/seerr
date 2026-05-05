@@ -1433,5 +1433,7 @@
   "components.UserProfile.UserSettings.UserNotificationSettings.telegramMessageThreadIdTip": "Grup sohbetinizde konular etkinleştirilmişse, burada bir konu başlığının/konunun kimliğini belirtebilirsiniz",
   "components.UserProfile.UserSettings.UserNotificationSettings.validationTelegramMessageThreadId": "Konu/konu kimliği pozitif bir tam sayı olmalıdır",
   "components.UserProfile.UserSettings.menuLinkedAccounts": "Bağlantılı Hesaplar",
-  "components.UserProfile.UserSettings.LinkJellyfinModal.passwordRequired": "Şifre sağlamanız gerekiyor"
+  "components.UserProfile.UserSettings.LinkJellyfinModal.passwordRequired": "Şifre sağlamanız gerekiyor",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

@@ -1666,5 +1666,7 @@
   "components.Settings.starttyping": "Zacznij pisać, aby wyszukać.",
   "components.UserProfile.UserSettings.UserNotificationSettings.telegramMessageThreadIdTip": "Jeśli w czacie grupowym włączono tematy, możesz tutaj podać ID wątku/tematu",
   "components.UserProfile.UserSettings.UserNotificationSettings.validationTelegramMessageThreadId": "ID wątku/tematu musi być dodatnią liczbą całkowitą",
-  "components.Settings.SettingsMain.blocklistRegionTip": "Region używany do skanowania zawartości czarnej listy (niezależnie od ustawień wykrywania)"
+  "components.Settings.SettingsMain.blocklistRegionTip": "Region używany do skanowania zawartości czarnej listy (niezależnie od ustawień wykrywania)",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

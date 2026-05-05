@@ -1652,5 +1652,7 @@
   "components.Settings.SonarrModal.externalUrlHelp": "Pro klikatelné odkazy na stránkách s médii v případě, že název hostitele není dostupný z vnější sítě.",
   "components.Settings.SonarrModal.monitorNewItemsHelp": "Zda má Sonarr při přidání seriálu sledovat (Všechny) nové sezóny, nebo ne (Žádné).",
   "components.Settings.SonarrModal.server4kHelp": "Pouze pokud máte samostatnou instanci 4K. V případě jediného serveru ponechte nezaškrtnuté.",
-  "components.Settings.SonarrModal.syncEnabledHelp": "Hledat v Sonarru existující média a z stav žádosti, aby uživatelé nemohli žádat o obsah, který je již dostupný."
+  "components.Settings.SonarrModal.syncEnabledHelp": "Hledat v Sonarru existující média a z stav žádosti, aby uživatelé nemohli žádat o obsah, který je již dostupný.",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

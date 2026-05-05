@@ -1003,5 +1003,7 @@
   "components.RequestBlock.lastmodifiedby": "Ndryshuar së fundi nga",
   "components.RequestBlock.requestdate": "Data e Kërkesës",
   "components.RequestBlock.requestedby": "Kërkuar nga",
-  "components.RequestCard.approverequest": "Mirato Kërkesën"
+  "components.RequestCard.approverequest": "Mirato Kërkesën",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

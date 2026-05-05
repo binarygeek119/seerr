@@ -614,5 +614,7 @@
   "components.Discover.DiscoverMovies.activefilters": "{count, plural, one {# Active Filter} остали {# Active Filters}}",
   "components.Discover.DiscoverMovies.sortPopularityAsc": "Популарност растућа",
   "components.Discover.DiscoverMovies.sortPopularityDesc": "Популарност опадајућа",
-  "components.Discover.DiscoverMovies.sortReleaseDateAsc": "Датум изласка растући"
+  "components.Discover.DiscoverMovies.sortReleaseDateAsc": "Датум изласка растући",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

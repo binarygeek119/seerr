@@ -1182,5 +1182,7 @@
   "components.Blocklist.mediaType": "Type",
   "components.Blocklist.showAllBlocklisted": "Vil alle skjulte medier",
   "components.Discover.RecentRequestsSlider.unableToConnect": "Kunne ikke koble til {services}. Noe information kan være utilgjengelig.",
-  "components.Blocklist.filterBlocklistedTags": "Skjulte tagger"
+  "components.Blocklist.filterBlocklistedTags": "Skjulte tagger",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

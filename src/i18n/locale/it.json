@@ -1636,5 +1636,7 @@
   "components.UserList.toggleSortDirection": "Clicca di nuovo per ordinare in modo {direction}",
   "components.UserList.toggleSortDirectionAria": "Inverti direzione di ordinamento",
   "i18n.error": "Qualcosa è andato storto. Prova di nuovo.",
-  "i18n.partiallyblocklisted": "Parzialmente Bloccato"
+  "i18n.partiallyblocklisted": "Parzialmente Bloccato",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

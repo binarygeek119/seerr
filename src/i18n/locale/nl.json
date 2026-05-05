@@ -1635,5 +1635,7 @@
   "components.UserList.toggleSortDirectionAria": "Sorteerrichting wijzigen",
   "i18n.error": "Er is iets misgegaan. Probeer het opnieuw.",
   "components.Login.tipEmailHasTrailingWhitespace": "De email eindigt met een witruimte",
-  "i18n.partiallyblocklisted": "Gedeeltelijk op de Blocklist"
+  "i18n.partiallyblocklisted": "Gedeeltelijk op de Blocklist",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

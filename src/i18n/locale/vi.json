@@ -33,5 +33,8 @@
   "components.Discover.DiscoverMovies.activefilters": "{count, plural, one {Dùng # bộ lọc} other {Dùng # bộ lọc}}",
   "components.Discover.DiscoverMovies.discovermovies": "Phim",
   "components.Discover.DiscoverMovies.sortPopularityAsc": "Phổ biến sắp xếp tăng dần",
-  "components.Discover.DiscoverMovies.sortPopularityDesc": "Phổ biến sắp xếp giảm dần"
+  "components.Discover.DiscoverMovies.sortPopularityDesc": "Phổ biến sắp xếp giảm dần",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests",
+  "components.Layout.SearchInput.searchPlaceholder": "Search Movies, TV, Music & Books"
 }

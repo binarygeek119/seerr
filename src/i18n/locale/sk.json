@@ -1,1 +1,5 @@
-{}
+{
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests",
+  "components.Layout.SearchInput.searchPlaceholder": "Search Movies, TV, Music & Books"
+}

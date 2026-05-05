@@ -1551,5 +1551,7 @@
   "components.Settings.SettingsNetwork.forceIpv4FirstTip": "Змусити Jellyseerr спершу резолвити адреси IPv4 замість IPv6",
   "components.Settings.SettingsNetwork.networkDisclaimer": "Параметри мережі з вашого контейнера/системи слід використовувати замість цих налаштувань. Дивіться {docs} для отримання додаткової інформації.",
   "components.Settings.SettingsNetwork.networksettingsDescription": "Налаштуйте параметри мережі для вашого екземпляра Jellyseerr.",
-  "components.Settings.SettingsNetwork.proxyBypassFilter": "Ігноровані адреси проксі"
+  "components.Settings.SettingsNetwork.proxyBypassFilter": "Ігноровані адреси проксі",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

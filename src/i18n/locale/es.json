@@ -1442,5 +1442,7 @@
   "components.Settings.SettingsJobsCache.dnsNoCacheEntries": "Aún no se ha agregado ninguna entrada DNS al caché.",
   "components.RequestCard.failedmodify": "Algo salió mal al modificar la solicitud.",
   "components.RequestList.RequestItem.failedmodify": "Algo salió mal al modificar la solicitud.",
-  "i18n.notificationLocale": "Idioma de las notificaciones"
+  "i18n.notificationLocale": "Idioma de las notificaciones",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

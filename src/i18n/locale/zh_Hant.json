@@ -1235,5 +1235,7 @@
   "i18n.blocklistError": "啊！出了點問題，請再試一次。",
   "i18n.blocklistDuplicateError": "<strong>{title}</strong> 已經在封鎖清單中",
   "i18n.blocklist": "封鎖",
-  "i18n.addToBlocklist": "加到封鎖清單"
+  "i18n.addToBlocklist": "加到封鎖清單",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

@@ -1641,5 +1641,7 @@
   "components.RequestList.RequestItem.failedmodify": "Midagi läks valesti. Proovi uuesti.",
   "components.Login.urlBaseHelp": "Kui Jellyfinis on määratud Base URL (Dashboard > Networking), sisesta see siia (nt /jellyfin). Vastasel juhul jäta väli tühjaks.",
   "components.Settings.RadarrModal.apiKeyHelp": "Leiad selle Radarris: Settings > General > Security > API Key",
-  "components.Settings.RadarrModal.baseUrlHelp": "Kui oled Radarris seadistanud URL Base’i (Settings > General > Host), sisesta see siia (nt /radarr). Kui ei ole seadistanud, jäta tühjaks."
+  "components.Settings.RadarrModal.baseUrlHelp": "Kui oled Radarris seadistanud URL Base’i (Settings > General > Host), sisesta see siia (nt /radarr). Kui ei ole seadistanud, jäta tühjaks.",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

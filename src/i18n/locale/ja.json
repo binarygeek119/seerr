@@ -1652,5 +1652,7 @@
   "components.Settings.SonarrModal.monitorNewItemsHelp": "シリーズを追加する際Sonarrが新しいシーズンを監視する（すべて）か、しない（なし）か。",
   "components.Settings.SonarrModal.server4kHelp": "別の4Kインスタンスがある場合のみ選択してください。単一サーバーの場合はチェックを外したままにしてください。",
   "components.Settings.SonarrModal.syncEnabledHelp": "Sonarrで既存のメディアとリクエスト状況を検索し、ユーザーがすでに利用可能なコンテンツをリクエストできないようにする。",
-  "i18n.partiallyblocklisted": "一部ブロックリストに登録されています"
+  "i18n.partiallyblocklisted": "一部ブロックリストに登録されています",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }

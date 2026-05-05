@@ -139,5 +139,8 @@
   "components.Discover.resetwarning": "सभी स्लाइडर्स को डिफ़ॉल्ट रूप से रीसेट करें। यह किसी भी कस्टम स्लाइडर को भी हटा देगा!",
   "components.Discover.tmdbtvgenre": "TMDB श्रृंखला शैली",
   "components.Discover.PlexWatchlistSlider.emptywatchlist": "आपकी <PlexWatchlistSupportLink>Plex वॉचलिस्ट</PlexWatchlistSupportLink> में जोड़ा गया मीडिया यहां दिखाई देगा.",
-  "components.Discover.discover": "खोज"
+  "components.Discover.discover": "खोज",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests",
+  "components.Layout.SearchInput.searchPlaceholder": "Search Movies, TV, Music & Books"
 }

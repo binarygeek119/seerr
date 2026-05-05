@@ -1666,5 +1666,7 @@
   "components.UserList.importedUsersNoPassword": "Importerade användare har inget lösenord för {applicationTitle} angivet. Om du inaktiverar inloggning via {mediaServerName} måste de ange ett lösenord i sin profil eller via en länk för återställning av lösenord.",
   "components.UserProfile.UserSettings.UserPasswordChange.localPasswordDescription": "Detta lösenord gäller för lokal inloggning med {applicationTitle}. Det är inte samma som ditt lösenord till medieservern.",
   "components.Settings.Notifications.useUserLocale": "Använd mottagarens valda språk",
-  "i18n.notificationLocale": "Språk för meddelanden"
+  "i18n.notificationLocale": "Språk för meddelanden",
+  "components.Discover.popularbooks": "Popular Books",
+  "components.Layout.UserDropdown.MiniQuotaDisplay.bookrequests": "Book Requests"
 }
