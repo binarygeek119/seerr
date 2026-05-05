@@ -416,6 +416,17 @@ const Discover = () => {
               />
             );
             break;
+          case DiscoverSliderType.POPULAR_BOOKS:
+            sliderComponent = (
+              <MediaSlider
+                sliderKey="popular-books"
+                title={intl.formatMessage(sliderTitles.popularbooks)}
+                url="/api/v1/discover/books"
+                linkUrl="/discover/books"
+                hideWhenEmpty
+              />
+            );
+            break;
         }
 
         if (isEditing) {

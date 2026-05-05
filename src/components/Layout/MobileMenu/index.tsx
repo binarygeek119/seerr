@@ -4,6 +4,7 @@ import useClickOutside from '@app/hooks/useClickOutside';
 import { Permission, useUser } from '@app/hooks/useUser';
 import { Transition } from '@headlessui/react';
 import {
+  BookOpenIcon,
   ClockIcon,
   CogIcon,
   EllipsisHorizontalIcon,
@@ -20,6 +21,7 @@ import {
   CogIcon as FilledCogIcon,
   ExclamationTriangleIcon as FilledExclamationTriangleIcon,
   EyeSlashIcon as FilledEyeSlashIcon,
+  BookOpenIcon as FilledBookOpenIcon,
   FilmIcon as FilledFilmIcon,
   MusicalNoteIcon as FilledMusicalNoteIcon,
   SparklesIcon as FilledSparklesIcon,
@@ -99,7 +101,14 @@ const MobileMenu = ({
       content: intl.formatMessage(menuMessages.browsemusic),
       svgIcon: <MusicalNoteIcon className="h-6 w-6" />,
       svgIconSelected: <FilledMusicalNoteIcon className="h-6 w-6" />,
-      activeRegExp: /^\/discover\/music$/,
+      activeRegExp: /^\/discover\/(music|albums|artists)$/,
+    },
+    {
+      href: '/discover/books',
+      content: intl.formatMessage(menuMessages.browsebooks),
+      svgIcon: <BookOpenIcon className="h-6 w-6" />,
+      svgIconSelected: <FilledBookOpenIcon className="h-6 w-6" />,
+      activeRegExp: /^\/discover\/books/,
     },
     {
       href: '/requests',
