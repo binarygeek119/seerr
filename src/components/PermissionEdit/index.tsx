@@ -28,6 +28,9 @@ export const messages = defineMessages('components.PermissionEdit', {
   requestMusic: 'Request Music',
   requestMusicDescription:
     'Grant permission to submit requests for music albums.',
+  requestBook: 'Request Books',
+  requestBookDescription:
+    'Grant permission to submit requests for books (via Readarr).',
   autoapprove: 'Auto-Approve',
   autoapproveDescription:
     'Grant automatic approval for all non-4K media requests.',
@@ -196,6 +199,12 @@ export const PermissionEdit = ({
           name: intl.formatMessage(messages.requestMusic),
           description: intl.formatMessage(messages.requestMusicDescription),
           permission: Permission.REQUEST_MUSIC,
+        },
+        {
+          id: 'request-book',
+          name: intl.formatMessage(messages.requestBook),
+          description: intl.formatMessage(messages.requestBookDescription),
+          permission: Permission.REQUEST_BOOK,
         },
       ],
     },

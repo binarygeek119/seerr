@@ -1,5 +1,6 @@
 import LidarrAPI from '@server/api/servarr/lidarr';
 import RadarrAPI from '@server/api/servarr/radarr';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import TheMovieDb from '@server/api/themoviedb';
 import type {
@@ -267,6 +268,75 @@ serviceRoutes.get<{ id: string }>('/lidarr/:id', async (req, res, next) => {
         activeProfileId: lidarrSettings.activeProfileId,
         activeMetadataProfileId: lidarrSettings.activeMetadataProfileId,
         activeTags: lidarrSettings.tags ?? [],
+      },
+      profiles,
+      metadataProfiles,
+      rootFolders: rootFolders.map((folder) => ({
+        id: folder.id,
+        path: folder.path,
+        freeSpace: folder.freeSpace,
+        totalSpace: folder.totalSpace,
+      })),
+      tags,
+    } as ServiceCommonServerWithDetails);
+  } catch (e) {
+    next({ status: 500, message: e.message });
+  }
+});
+
+serviceRoutes.get('/readarr', async (req, res) => {
+  const settings = getSettings();
+
+  const filteredReadarrServers: ServiceCommonServer[] = settings.readarr.map(
+    (readarr) => ({
+      id: readarr.id,
+      name: readarr.name,
+      activeDirectory: readarr.activeDirectory,
+      activeProfileId: readarr.activeProfileId,
+      activeTags: readarr.tags ?? [],
+      isDefault: readarr.isDefault,
+    })
+  );
+
+  return res.status(200).json(filteredReadarrServers);
+});
+
+serviceRoutes.get<{ id: string }>('/readarr/:id', async (req, res, next) => {
+  const settings = getSettings();
+
+  const readarrSettings = settings.readarr.find(
+    (readarr) => readarr.id === Number(req.params.id)
+  );
+
+  if (!readarrSettings) {
+    return next({
+      status: 404,
+      message: 'Readarr server not found.',
+    });
+  }
+
+  const readarr = new ReadarrAPI({
+    apiKey: readarrSettings.apiKey,
+    url: ReadarrAPI.buildUrl(readarrSettings, '/api/v1'),
+  });
+
+  try {
+    const [profiles, metadataProfiles, rootFolders, tags] = await Promise.all([
+      readarr.getProfiles(),
+      readarr.getMetadataProfiles(),
+      readarr.getRootFolders(),
+      readarr.getTags(),
+    ]);
+
+    return res.status(200).json({
+      server: {
+        id: readarrSettings.id,
+        name: readarrSettings.name,
+        isDefault: readarrSettings.isDefault,
+        activeDirectory: readarrSettings.activeDirectory,
+        activeProfileId: readarrSettings.activeProfileId,
+        activeMetadataProfileId: readarrSettings.activeMetadataProfileId,
+        activeTags: readarrSettings.tags ?? [],
       },
       profiles,
       metadataProfiles,

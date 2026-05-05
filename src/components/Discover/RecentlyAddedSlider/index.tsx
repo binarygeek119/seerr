@@ -44,6 +44,7 @@ const RecentlyAddedSlider = () => {
             tmdbId={item.tmdbId}
             tvdbId={item.tvdbId}
             mbId={item.mbId}
+            foreignBookId={item.foreignBookId}
             type={item.mediaType}
           />
         ))}

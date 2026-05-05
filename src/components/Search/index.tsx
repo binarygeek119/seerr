@@ -6,6 +6,7 @@ import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
 import type {
   AlbumResult,
+  BookResult,
   MovieResult,
   PersonResult,
   TvResult,
@@ -30,7 +31,9 @@ const Search = () => {
     titles,
     fetchMore,
     error,
-  } = useDiscover<MovieResult | TvResult | PersonResult | AlbumResult>(
+  } = useDiscover<
+    MovieResult | TvResult | PersonResult | AlbumResult | BookResult
+  >(
     `/api/v1/search`,
     {
       query: router.query.query,

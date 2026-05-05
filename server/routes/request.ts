@@ -1,5 +1,6 @@
 import LidarrAPI from '@server/api/servarr/lidarr';
 import RadarrAPI from '@server/api/servarr/radarr';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import {
   MediaRequestStatus,
@@ -174,6 +175,16 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
             type: MediaType.TV,
           });
           break;
+        case 'music':
+          query = query.andWhere('request.type = :type', {
+            type: MediaType.MUSIC,
+          });
+          break;
+        case 'book':
+          query = query.andWhere('request.type = :type', {
+            type: MediaType.BOOK,
+          });
+          break;
       }
 
       const [requests, requestCount] = await query
@@ -229,6 +240,20 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
         })
       );
 
+      const readarrServers = await Promise.all(
+        settings.readarr.map(async (readarrSetting) => {
+          const readarr = new ReadarrAPI({
+            apiKey: readarrSetting.apiKey,
+            url: ReadarrAPI.buildUrl(readarrSetting, '/api/v1'),
+          });
+
+          return {
+            id: readarrSetting.id,
+            profiles: await readarr.getProfiles().catch(() => undefined),
+          };
+        })
+      );
+
       // add profile names to the media requests, with undefined if not found
       let mappedRequests = requests.map((r) => {
         switch (r.type) {
@@ -254,6 +279,14 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
             return {
               ...r,
               profileName: lidarrServers
+                .find((serverr) => serverr.id === r.serverId)
+                ?.profiles?.find((profile) => profile.id === r.profileId)?.name,
+            };
+          }
+          case MediaType.BOOK: {
+            return {
+              ...r,
+              profileName: readarrServers
                 .find((serverr) => serverr.id === r.serverId)
                 ?.profiles?.find((profile) => profile.id === r.profileId)?.name,
             };
@@ -296,6 +329,14 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
                 ),
               };
             }
+            case MediaType.BOOK: {
+              return {
+                ...r,
+                canRemove: readarrServers.some(
+                  (server) => server.id === r.media.serviceId
+                ),
+              };
+            }
             default:
               return r;
           }
@@ -326,6 +367,22 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
               name:
                 settings.sonarr.find((r) => r.id === s.id)?.name ||
                 `Sonarr ${s.id}`,
+            })),
+          lidarr: lidarrServers
+            .filter((s) => !s.profiles)
+            .map((s) => ({
+              id: s.id,
+              name:
+                settings.lidarr.find((l) => l.id === s.id)?.name ||
+                `Lidarr ${s.id}`,
+            })),
+          readarr: readarrServers
+            .filter((s) => !s.profiles)
+            .map((s) => ({
+              id: s.id,
+              name:
+                settings.readarr.find((r) => r.id === s.id)?.name ||
+                `Readarr ${s.id}`,
             })),
         },
       });

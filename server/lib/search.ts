@@ -3,6 +3,7 @@ import type {
   MbAlbumResult,
   MbArtistResult,
 } from '@server/api/musicbrainz/interfaces';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import TheMovieDb from '@server/api/themoviedb';
 import type {
   TmdbCollectionResult,
@@ -15,6 +16,9 @@ import type {
   TmdbTvDetails,
   TmdbTvResult,
 } from '@server/api/themoviedb/interfaces';
+import { getSettings } from '@server/lib/settings';
+import { pickReadarrBookCover } from '@server/models/Book';
+import type { ReadarrBookSearchResult } from '@server/models/Search';
 import {
   mapMovieDetailsToResult,
   mapPersonDetailsToResult,
@@ -37,6 +41,7 @@ export type CombinedSearchResponse = {
     | TmdbTvResult
     | TmdbPersonResult
     | TmdbCollectionResult
+    | ReadarrBookSearchResult
   )[];
 };
 interface SearchProvider {
@@ -255,6 +260,85 @@ searchProviders.push({
         total_pages: 1,
         total_results: results.length,
         results,
+      };
+    } catch {
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 0,
+        results: [],
+      };
+    }
+  },
+});
+
+searchProviders.push({
+  pattern: new RegExp(/(?<=readarr:)\S+/),
+  search: async ({ query }) => {
+    const match = query?.trim().match(/^readarr:(\S+)/i);
+    const foreignBookIdRaw = match?.[1];
+    if (!foreignBookIdRaw) {
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 0,
+        results: [],
+      };
+    }
+
+    const settings = getSettings();
+    const readarrServer =
+      settings.readarr.find((s) => s.isDefault) ?? settings.readarr[0];
+    if (!readarrServer) {
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 0,
+        results: [],
+      };
+    }
+
+    let foreignBookId: string;
+    try {
+      foreignBookId = decodeURIComponent(foreignBookIdRaw);
+    } catch {
+      foreignBookId = foreignBookIdRaw;
+    }
+
+    try {
+      const readarr = new ReadarrAPI({
+        apiKey: readarrServer.apiKey,
+        url: ReadarrAPI.buildUrl(readarrServer, '/api/v1'),
+      });
+      const books = await readarr.lookupBooks(foreignBookId);
+      const book =
+        books.find((b) => b.foreignBookId === foreignBookId) ?? books[0];
+      if (!book?.foreignBookId) {
+        return {
+          page: 1,
+          total_pages: 1,
+          total_results: 0,
+          results: [],
+        };
+      }
+
+      const raw: ReadarrBookSearchResult = {
+        media_type: 'book',
+        id: book.foreignBookId,
+        title: book.title,
+        foreignBookId: book.foreignBookId,
+        authorName: book.author?.authorName,
+        posterPath: pickReadarrBookCover(book),
+        monitored: book.monitored,
+        hasFile: book.hasFile,
+        score: 100,
+      };
+
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 1,
+        results: [raw],
       };
     } catch {
       return {

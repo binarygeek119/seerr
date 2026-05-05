@@ -11,6 +11,7 @@ import { Permission } from '@server/lib/permissions';
 import type {
   AlbumResult,
   ArtistResult,
+  BookResult,
   MovieResult,
   PersonResult,
   TvResult,
@@ -29,6 +30,7 @@ interface MixedResult {
     | PersonResult
     | AlbumResult
     | ArtistResult
+    | BookResult
   )[];
 }
 
@@ -46,6 +48,7 @@ interface MediaSliderProps {
     | PersonResult
     | AlbumResult
     | ArtistResult
+    | BookResult
   )[];
   totalItems?: number;
 }
@@ -80,7 +83,14 @@ const MediaSlider = ({
 
   let titles = (data ?? []).reduce(
     (a, v) => [...a, ...v.results],
-    [] as (MovieResult | TvResult | PersonResult | AlbumResult | ArtistResult)[]
+    [] as (
+      | MovieResult
+      | TvResult
+      | PersonResult
+      | AlbumResult
+      | ArtistResult
+      | BookResult
+    )[]
   );
 
   if (settings.currentSettings.hideAvailable) {
@@ -116,7 +126,7 @@ const MediaSlider = ({
     }
   }, [titles, setSize, size, data, onNewTitles]);
 
-  if (hideWhenEmpty && (data?.[0].results ?? []).length === 0) {
+  if (hideWhenEmpty && (data?.[0]?.results ?? []).length === 0) {
     return null;
   }
 
@@ -130,8 +140,8 @@ const MediaSlider = ({
     .filter((title) => {
       if (!blocklistVisibility)
         return (
-          (title as TvResult | MovieResult | AlbumResult).mediaInfo?.status !==
-          MediaStatus.BLOCKLISTED
+          (title as TvResult | MovieResult | AlbumResult | BookResult).mediaInfo
+            ?.status !== MediaStatus.BLOCKLISTED
         );
       return title;
     })
@@ -194,6 +204,22 @@ const MediaSlider = ({
               needsCoverArt={title.needsCoverArt}
             />
           );
+        case 'book':
+          return (
+            <TitleCard
+              key={title.id}
+              id={title.id}
+              isAddedToWatchlist={title.mediaInfo?.watchlists?.length ?? 0}
+              image={title.posterPath}
+              status={title.mediaInfo?.status}
+              title={title.title}
+              year={undefined}
+              mediaType={title.mediaType}
+              artist={title.authorName}
+              inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
+              needsCoverArt={title.needsCoverArt}
+            />
+          );
         case 'artist':
           return title.tmdbPersonId ? (
             <PersonCard
@@ -219,11 +245,15 @@ const MediaSlider = ({
         url={linkUrl}
         posters={titles
           .slice(20, 24)
-          .map((title) =>
-            title.mediaType !== 'person' && title.mediaType !== 'album'
-              ? (title as MovieResult | TvResult).posterPath
-              : undefined
-          )}
+          .map((title) => {
+            if (title.mediaType === 'person') {
+              return undefined;
+            }
+            if (title.mediaType === 'album' || title.mediaType === 'book') {
+              return title.posterPath;
+            }
+            return (title as MovieResult | TvResult).posterPath;
+          })}
       />
     );
   }

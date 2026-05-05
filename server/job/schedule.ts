@@ -9,6 +9,7 @@ import {
   jellyfinRecentScanner,
 } from '@server/lib/scanners/jellyfin';
 import { lidarrScanner } from '@server/lib/scanners/lidarr';
+import { readarrScanner } from '@server/lib/scanners/readarr';
 import { plexFullScanner, plexRecentScanner } from '@server/lib/scanners/plex';
 import { radarrScanner } from '@server/lib/scanners/radarr';
 import { sonarrScanner } from '@server/lib/scanners/sonarr';
@@ -191,6 +192,20 @@ export const startJobs = (): void => {
     }),
     running: () => lidarrScanner.status().running,
     cancelFn: () => lidarrScanner.cancel(),
+  });
+
+  scheduledJobs.push({
+    id: 'readarr-scan',
+    name: 'Readarr Scan',
+    type: 'process',
+    interval: 'hours',
+    cronSchedule: jobs['readarr-scan'].schedule,
+    job: schedule.scheduleJob(jobs['readarr-scan'].schedule, () => {
+      logger.info('Starting scheduled job: Readarr Scan', { label: 'Jobs' });
+      readarrScanner.run();
+    }),
+    running: () => readarrScanner.status().running,
+    cancelFn: () => readarrScanner.cancel(),
   });
 
   // Checks if media is still available in plex/sonarr/radarr libs

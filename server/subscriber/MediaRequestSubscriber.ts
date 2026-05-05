@@ -3,6 +3,7 @@ import ListenBrainzAPI from '@server/api/listenbrainz';
 import MusicBrainz from '@server/api/musicbrainz';
 import type { LidarrAlbumOptions } from '@server/api/servarr/lidarr';
 import LidarrAPI from '@server/api/servarr/lidarr';
+import { sendApprovedBookToReadarr } from '@server/lib/readarr/sendApprovedRequest';
 import type { RadarrMovieOptions } from '@server/api/servarr/radarr';
 import RadarrAPI from '@server/api/servarr/radarr';
 import type {
@@ -1355,6 +1356,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
       await this.sendToRadarr(event.entity as MediaRequest);
       await this.sendToSonarr(event.entity as MediaRequest);
       await this.sendToLidarr(event.entity as MediaRequest);
+      await sendApprovedBookToReadarr(event.entity as MediaRequest);
     } catch (e) {
       logger.error('Error while sending to *arr in afterUpdate subscriber', {
         label: 'Media Request',
@@ -1398,6 +1400,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
       await this.sendToRadarr(event.entity as MediaRequest);
       await this.sendToSonarr(event.entity as MediaRequest);
       await this.sendToLidarr(event.entity as MediaRequest);
+      await sendApprovedBookToReadarr(event.entity as MediaRequest);
     } catch (e) {
       logger.error('Error while sending to *arr in afterInsert subscriber', {
         label: 'Media Request',

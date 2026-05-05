@@ -12,6 +12,8 @@ const messages = defineMessages('components.RequestModal.QuotaDisplay', {
   movielimit: '{limit, plural, one {movie} other {movies}}',
   seasonlimit: '{limit, plural, one {season} other {seasons}}',
   musiclimit: '{limit, plural, one {album} other {albums}}',
+  booklimit: '{limit, plural, one {book} other {books}}',
+  book: 'book',
   allowedRequests:
     'You are allowed to request <strong>{limit}</strong> {type}{days, plural, =0 {} one { every day} other { every <strong>{days}</strong> days}}.',
   allowedRequestsUser:
@@ -32,7 +34,7 @@ const messages = defineMessages('components.RequestModal.QuotaDisplay', {
 
 interface QuotaDisplayProps {
   quota?: QuotaStatus;
-  mediaType: 'movie' | 'tv' | 'music';
+  mediaType: 'movie' | 'tv' | 'music' | 'book';
   userOverride?: number | null;
   remaining?: number;
   overLimit?: number;
@@ -80,7 +82,13 @@ const QuotaDisplay = ({
               : intl.formatMessage(messages.requestsremaining, {
                   remaining: remaining ?? quota?.remaining ?? 0,
                   type: intl.formatMessage(
-                    mediaType === 'movie' ? messages.movie : messages.season
+                    mediaType === 'movie'
+                      ? messages.movie
+                      : mediaType === 'tv'
+                        ? messages.season
+                        : mediaType === 'book'
+                          ? messages.book
+                          : messages.album
                   ),
                   strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
                 })}
@@ -122,7 +130,9 @@ const QuotaDisplay = ({
                     ? messages.movielimit
                     : mediaType === 'tv'
                       ? messages.seasonlimit
-                      : messages.musiclimit,
+                      : mediaType === 'book'
+                        ? messages.booklimit
+                        : messages.musiclimit,
                   { limit: quota?.limit }
                 ),
                 strong: (msg: React.ReactNode) => <strong>{msg}</strong>,

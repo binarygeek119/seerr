@@ -1,8 +1,9 @@
 import MusicBrainz from '@server/api/musicbrainz';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import TheAudioDb from '@server/api/theaudiodb';
 import TheMovieDb from '@server/api/themoviedb';
 import TmdbPersonMapper from '@server/api/themoviedb/personMapper';
-import type { MediaType } from '@server/constants/media';
+import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import MetadataAlbum from '@server/entity/MetadataAlbum';
@@ -11,8 +12,10 @@ import {
   findSearchProvider,
   type CombinedSearchResponse,
 } from '@server/lib/search';
+import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
-import { mapSearchResults } from '@server/models/Search';
+import { pickReadarrBookCover } from '@server/models/Book';
+import { mapSearchResults, type ReadarrBookSearchResult } from '@server/models/Search';
 import { Router } from 'express';
 import { In } from 'typeorm';
 
@@ -259,7 +262,68 @@ searchRoutes.get('/', async (req, res, next) => {
         (a, b) => (b.score || 0) - (a.score || 0)
       );
 
-      const totalItems = tmdbResults.total_results + musicResults.length;
+      let bookSearchRaw: ReadarrBookSearchResult[] = [];
+      if (page === 1 && queryString.trim()) {
+        const settings = getSettings();
+        const readarrServer =
+          settings.readarr.find((s) => s.isDefault) ?? settings.readarr[0];
+        if (readarrServer) {
+          try {
+            const readarr = new ReadarrAPI({
+              apiKey: readarrServer.apiKey,
+              url: ReadarrAPI.buildUrl(readarrServer, '/api/v1'),
+            });
+            const books = await readarr.lookupBooks(queryString.trim());
+            const seenIds = new Set<string>();
+            const queryLower = queryString.trim().toLowerCase();
+            bookSearchRaw = books
+              .filter((b) => {
+                if (!b.foreignBookId || seenIds.has(b.foreignBookId)) {
+                  return false;
+                }
+                seenIds.add(b.foreignBookId);
+                return true;
+              })
+              .slice(0, 20)
+              .map((b) => ({
+                media_type: 'book' as const,
+                id: b.foreignBookId,
+                title: b.title,
+                foreignBookId: b.foreignBookId,
+                authorName: b.author?.authorName,
+                posterPath: pickReadarrBookCover(b),
+                monitored: b.monitored,
+                hasFile: b.hasFile,
+                score: (() => {
+                  const title = b.title.toLowerCase();
+                  const author = (b.author?.authorName ?? '').toLowerCase();
+                  if (title === queryLower || author === queryLower) {
+                    return 100;
+                  }
+                  if (title.startsWith(queryLower) || author.startsWith(queryLower)) {
+                    return 80;
+                  }
+                  if (title.includes(queryLower) || author.includes(queryLower)) {
+                    return 60;
+                  }
+                  return 30;
+                })(),
+              }))
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 20);
+          } catch (err) {
+            logger.debug('Readarr book search failed', {
+              label: 'API',
+              errorMessage: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+      }
+
+      const totalItems =
+        tmdbResults.total_results +
+        musicResults.length +
+        bookSearchRaw.length;
       const totalPages = Math.max(
         tmdbResults.total_pages,
         Math.ceil(totalItems / 20)
@@ -267,7 +331,7 @@ searchRoutes.get('/', async (req, res, next) => {
 
       const combinedResults =
         page === 1
-          ? [...tmdbResults.results, ...musicResults]
+          ? [...tmdbResults.results, ...musicResults, ...bookSearchRaw]
           : tmdbResults.results;
 
       results = {
@@ -294,14 +358,22 @@ searchRoutes.get('/', async (req, res, next) => {
       )
       .map((result) => result.id.toString());
 
-    const [movieTvMedia, musicMedia] = await Promise.all([
+    const bookRefs = results.results
+      .filter((result) => result.media_type === 'book')
+      .map((result) => ({
+        foreignBookId: (result as ReadarrBookSearchResult).foreignBookId,
+        mediaType: MediaType.BOOK,
+      }));
+
+    const [movieTvMedia, musicMedia, bookMedia] = await Promise.all([
       movieTvItems.length > 0
         ? Media.getRelatedMedia(req.user, movieTvItems)
         : [],
       musicMbIds.length > 0 ? Media.getRelatedMedia(req.user, musicMbIds) : [],
+      bookRefs.length > 0 ? Media.getRelatedMedia(req.user, bookRefs) : [],
     ]);
 
-    const media = [...movieTvMedia, ...musicMedia];
+    const media = [...movieTvMedia, ...musicMedia, ...bookMedia];
 
     const mappedResults = await mapSearchResults(results.results, media);
 

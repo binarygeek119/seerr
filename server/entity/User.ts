@@ -140,6 +140,12 @@ export class User {
   @Column({ nullable: true })
   public musicQuotaDays?: number;
 
+  @Column({ nullable: true })
+  public bookQuotaLimit?: number;
+
+  @Column({ nullable: true })
+  public bookQuotaDays?: number;
+
   @OneToOne(() => UserSettings, (settings) => settings.user, {
     cascade: true,
     eager: true,
@@ -377,6 +383,29 @@ export class User {
         })
       : 0;
 
+    const bookQuotaLimit = !canBypass
+      ? (this.bookQuotaLimit ?? defaultQuotas.book.quotaLimit)
+      : 0;
+    const bookQuotaDays = this.bookQuotaDays ?? defaultQuotas.book.quotaDays;
+
+    const bookDate = new Date();
+    if (bookQuotaDays) {
+      bookDate.setDate(bookDate.getDate() - bookQuotaDays);
+    }
+
+    const bookQuotaUsed = bookQuotaLimit
+      ? await requestRepository.count({
+          where: {
+            requestedBy: {
+              id: this.id,
+            },
+            createdAt: AfterDate(bookDate),
+            type: MediaType.BOOK,
+            status: Not(MediaRequestStatus.DECLINED),
+          },
+        })
+      : 0;
+
     return {
       movie: {
         days: movieQuotaDays,
@@ -409,6 +438,17 @@ export class User {
           musicQuotaLimit && musicQuotaLimit - musicQuotaUsed <= 0
             ? true
             : false,
+      },
+      book: {
+        days: bookQuotaDays,
+        limit: bookQuotaLimit,
+        used: bookQuotaUsed,
+        remaining: bookQuotaLimit
+          ? Math.max(0, bookQuotaLimit - bookQuotaUsed)
+          : undefined,
+        restricted: !!(
+          bookQuotaLimit && bookQuotaLimit - bookQuotaUsed <= 0
+        ),
       },
     };
   }

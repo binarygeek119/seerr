@@ -28,6 +28,7 @@ export class NotFoundError extends Error {
 @Entity()
 @Unique('UNIQUE_USER_TMDB', ['tmdbId', 'mediaType', 'requestedBy'])
 @Unique('UNIQUE_USER_MB', ['mbId', 'requestedBy'])
+@Unique('UNIQUE_USER_FOREIGN_BOOK', ['foreignBookId', 'requestedBy'])
 export class Watchlist implements WatchlistItem {
   @PrimaryGeneratedColumn()
   id: number;
@@ -48,6 +49,10 @@ export class Watchlist implements WatchlistItem {
   @Column({ nullable: true })
   @Index()
   public mbId?: string;
+
+  @Column({ nullable: true })
+  @Index()
+  public foreignBookId?: string;
 
   @ManyToOne(() => User, (user) => user.watchlists, {
     eager: true,
@@ -87,6 +92,7 @@ export class Watchlist implements WatchlistItem {
       title?: ZodOptional<ZodString>['_output'];
       tmdbId?: ZodNumber['_output'];
       mbId?: ZodOptional<ZodString>['_output'];
+      foreignBookId?: ZodOptional<ZodString>['_output'];
     };
     user: User;
   }): Promise<Watchlist> {
@@ -128,6 +134,45 @@ export class Watchlist implements WatchlistItem {
         media = new Media({
           mbId: watchlistRequest.mbId,
           mediaType: MediaType.MUSIC,
+        });
+      }
+    } else if (watchlistRequest.mediaType === MediaType.BOOK) {
+      if (!watchlistRequest.foreignBookId) {
+        throw new Error('Foreign book ID is required for book media type');
+      }
+
+      const existing = await watchlistRepository
+        .createQueryBuilder('watchlist')
+        .leftJoinAndSelect('watchlist.requestedBy', 'user')
+        .where('user.id = :userId', { userId: user.id })
+        .andWhere('watchlist.foreignBookId = :foreignBookId', {
+          foreignBookId: watchlistRequest.foreignBookId,
+        })
+        .andWhere('watchlist.mediaType = :mediaType', {
+          mediaType: watchlistRequest.mediaType,
+        })
+        .getMany();
+
+      if (existing && existing.length > 0) {
+        logger.warn('Duplicate request for watchlist blocked', {
+          foreignBookId: watchlistRequest.foreignBookId,
+          mediaType: watchlistRequest.mediaType,
+          label: 'Watchlist',
+        });
+        throw new DuplicateWatchlistRequestError();
+      }
+
+      media = await mediaRepository.findOne({
+        where: {
+          foreignBookId: watchlistRequest.foreignBookId,
+          mediaType: MediaType.BOOK,
+        },
+      });
+
+      if (!media) {
+        media = new Media({
+          foreignBookId: watchlistRequest.foreignBookId,
+          mediaType: MediaType.BOOK,
         });
       }
     } else {
@@ -203,11 +248,17 @@ export class Watchlist implements WatchlistItem {
             mediaType,
             requestedBy: { id: user.id },
           }
-        : {
-            tmdbId: Number(id),
-            mediaType,
-            requestedBy: { id: user.id },
-          };
+        : mediaType === MediaType.BOOK
+          ? {
+              foreignBookId: id,
+              mediaType,
+              requestedBy: { id: user.id },
+            }
+          : {
+              tmdbId: Number(id),
+              mediaType,
+              requestedBy: { id: user.id },
+            };
 
     const watchlist = await watchlistRepository.findOneBy(whereClause);
     if (!watchlist) {

@@ -63,10 +63,17 @@ const PlexWatchlistSlider = () => {
         })}
         items={watchlistItems?.results.map((item) => (
           <AddedCard
-            id={item.mediaType === 'music' ? item.mbId : item.tmdbId}
+            id={
+              item.mediaType === 'music'
+                ? item.mbId
+                : item.mediaType === 'book'
+                  ? item.foreignBookId
+                  : item.tmdbId
+            }
             key={`watchlist-slider-item-${item.ratingKey}`}
             tmdbId={item.tmdbId}
             mbId={item.mbId}
+            foreignBookId={item.foreignBookId}
             type={item.mediaType}
             isAddedToWatchlist={true}
           />

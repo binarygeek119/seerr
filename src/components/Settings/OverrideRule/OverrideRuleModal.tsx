@@ -11,7 +11,11 @@ import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
 import { Transition } from '@headlessui/react';
 import type OverrideRule from '@server/entity/OverrideRule';
-import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
+import type {
+  RadarrSettings,
+  ReadarrSettings,
+  SonarrSettings,
+} from '@server/lib/settings';
 import axios from 'axios';
 import { Field, Formik } from 'formik';
 import { useCallback, useEffect, useState } from 'react';
@@ -57,6 +61,7 @@ interface OverrideRuleModalProps {
   onClose: () => void;
   radarrServices: RadarrSettings[];
   sonarrServices: SonarrSettings[];
+  readarrServices: ReadarrSettings[];
 }
 
 const OverrideRuleModal = ({
@@ -64,6 +69,7 @@ const OverrideRuleModal = ({
   rule,
   radarrServices,
   sonarrServices,
+  readarrServices,
 }: OverrideRuleModalProps) => {
   const intl = useIntl();
   const { addToast } = useToasts();
@@ -91,23 +97,28 @@ const OverrideRuleModal = ({
         baseUrl?: string;
         useSsl?: boolean;
       },
-      type: 'radarr' | 'sonarr'
+      type: 'radarr' | 'sonarr' | 'readarr'
     ) => {
       setIsTesting(true);
       try {
-        const response = await axios.post<DVRTestResponse>(
-          `/api/v1/settings/${type}/test`,
-          {
-            hostname,
-            apiKey,
-            port: Number(port),
-            baseUrl,
-            useSsl,
-          }
-        );
+        const url =
+          type === 'readarr'
+            ? '/api/v1/settings/readarr/test'
+            : `/api/v1/settings/${type}/test`;
+        const response = await axios.post<DVRTestResponse>(url, {
+          hostname,
+          apiKey,
+          port: Number(port),
+          baseUrl,
+          useSsl,
+        });
 
         setIsValidated(true);
-        setTestResponse(response.data);
+        setTestResponse({
+          profiles: response.data.profiles ?? [],
+          rootFolders: response.data.rootFolders ?? [],
+          tags: response.data.tags ?? [],
+        });
       } catch {
         setIsValidated(false);
       } finally {
@@ -127,10 +138,17 @@ const OverrideRuleModal = ({
       (s) => s.id === rule?.sonarrServiceId
     );
     if (sonarrMatch) getServiceInfos(sonarrMatch, 'sonarr');
+
+    const readarrMatch = readarrServices.find(
+      (s) => s.id === rule?.readarrServiceId
+    );
+    if (readarrMatch) getServiceInfos(readarrMatch, 'readarr');
   }, [
     getServiceInfos,
     radarrServices,
+    readarrServices,
     rule?.radarrServiceId,
+    rule?.readarrServiceId,
     rule?.sonarrServiceId,
     sonarrServices,
   ]);
@@ -151,6 +169,7 @@ const OverrideRuleModal = ({
         initialValues={{
           radarrServiceId: rule?.radarrServiceId,
           sonarrServiceId: rule?.sonarrServiceId,
+          readarrServiceId: rule?.readarrServiceId,
           users: rule?.users,
           genre: rule?.genre,
           language: rule?.language,
@@ -169,8 +188,10 @@ const OverrideRuleModal = ({
               profileId: Number(values.profileId) || null,
               rootFolder: values.rootFolder || null,
               tags: values.tags || null,
-              radarrServiceId: values.radarrServiceId,
-              sonarrServiceId: values.sonarrServiceId,
+              radarrServiceId: values.radarrServiceId ?? null,
+              sonarrServiceId: values.sonarrServiceId ?? null,
+              readarrServiceId: values.readarrServiceId ?? null,
+              lidarrServiceId: rule?.lidarrServiceId ?? null,
             };
             if (!rule) {
               await axios.post('/api/v1/overrideRule', submission);
@@ -244,15 +265,20 @@ const OverrideRuleModal = ({
                         id="service"
                         name="service"
                         defaultValue={
-                          values.radarrServiceId !== null
+                          values.radarrServiceId != null
                             ? `radarr-${values.radarrServiceId}`
-                            : `sonarr-${values.sonarrServiceId}`
+                            : values.sonarrServiceId != null
+                              ? `sonarr-${values.sonarrServiceId}`
+                              : values.readarrServiceId != null
+                                ? `readarr-${values.readarrServiceId}`
+                                : ''
                         }
                         onChange={(e) => {
                           const id = Number(e.target.value.split('-')[1]);
                           if (e.target.value.startsWith('radarr-')) {
                             setFieldValue('radarrServiceId', id);
                             setFieldValue('sonarrServiceId', null);
+                            setFieldValue('readarrServiceId', null);
                             const match = radarrServices.find(
                               (s) => s.id === id
                             );
@@ -262,15 +288,27 @@ const OverrideRuleModal = ({
                           } else if (e.target.value.startsWith('sonarr-')) {
                             setFieldValue('radarrServiceId', null);
                             setFieldValue('sonarrServiceId', id);
+                            setFieldValue('readarrServiceId', null);
                             const match = sonarrServices.find(
                               (s) => s.id === id
                             );
                             if (match) {
                               getServiceInfos(match, 'sonarr');
                             }
+                          } else if (e.target.value.startsWith('readarr-')) {
+                            setFieldValue('radarrServiceId', null);
+                            setFieldValue('sonarrServiceId', null);
+                            setFieldValue('readarrServiceId', id);
+                            const match = readarrServices.find(
+                              (s) => s.id === id
+                            );
+                            if (match) {
+                              getServiceInfos(match, 'readarr');
+                            }
                           } else {
                             setFieldValue('radarrServiceId', null);
                             setFieldValue('sonarrServiceId', null);
+                            setFieldValue('readarrServiceId', null);
                             setIsValidated(false);
                           }
                         }}
@@ -292,6 +330,14 @@ const OverrideRuleModal = ({
                             value={`sonarr-${sonarr.id}`}
                           >
                             {sonarr.name}
+                          </option>
+                        ))}
+                        {readarrServices.map((readarr) => (
+                          <option
+                            key={`readarr-${readarr.id}`}
+                            value={`readarr-${readarr.id}`}
+                          >
+                            {readarr.name}
                           </option>
                         ))}
                       </select>
@@ -344,9 +390,11 @@ const OverrideRuleModal = ({
                         type={
                           values.radarrServiceId != null
                             ? 'movie'
-                            : values.sonarrServiceId != null
-                              ? 'tv'
-                              : 'tv'
+                            : values.readarrServiceId != null
+                              ? 'movie'
+                              : values.sonarrServiceId != null
+                                ? 'tv'
+                                : 'tv'
                         }
                         defaultValue={values.genre}
                         isMulti

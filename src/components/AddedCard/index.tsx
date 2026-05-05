@@ -1,6 +1,7 @@
 import TitleCard from '@app/components/TitleCard';
 import { useProgressiveCovers } from '@app/hooks/useProgressiveCovers';
 import { Permission, useUser } from '@app/hooks/useUser';
+import type { BookDetails } from '@server/models/Book';
 import type { MovieDetails } from '@server/models/Movie';
 import type { MusicDetails } from '@server/models/Music';
 import type { TvDetails } from '@server/models/Tv';
@@ -12,7 +13,8 @@ export interface AddedCardProps {
   tmdbId?: number;
   tvdbId?: number;
   mbId?: string;
-  type: 'movie' | 'tv' | 'music';
+  foreignBookId?: string;
+  type: 'movie' | 'tv' | 'music' | 'book';
   canExpand?: boolean;
   isAddedToWatchlist?: boolean;
   mutateParent?: () => void;
@@ -20,15 +22,27 @@ export interface AddedCardProps {
   needsCoverArt?: boolean;
 }
 
+const isBook = (
+  media: MovieDetails | TvDetails | MusicDetails | BookDetails
+): media is BookDetails => {
+  return (media as BookDetails).mediaType === 'book';
+};
+
 const isMovie = (
-  media: MovieDetails | TvDetails | MusicDetails
+  media: MovieDetails | TvDetails | MusicDetails | BookDetails
 ): media is MovieDetails => {
+  if (isBook(media)) {
+    return false;
+  }
   return (media as MovieDetails).title !== undefined;
 };
 
 const isMusic = (
-  media: MovieDetails | TvDetails | MusicDetails
+  media: MovieDetails | TvDetails | MusicDetails | BookDetails
 ): media is MusicDetails => {
+  if (isBook(media)) {
+    return false;
+  }
   return (media as MusicDetails).artist !== undefined;
 };
 
@@ -37,6 +51,7 @@ const AddedCard = ({
   tmdbId,
   tvdbId,
   mbId,
+  foreignBookId,
   type,
   canExpand,
   isAddedToWatchlist = false,
@@ -51,18 +66,22 @@ const AddedCard = ({
   });
 
   const url =
-    type === 'music'
-      ? `/api/v1/music/${mbId}`
-      : type === 'movie'
-        ? `/api/v1/movie/${tmdbId}`
-        : `/api/v1/tv/${tmdbId}`;
+    type === 'book'
+      ? foreignBookId
+        ? `/api/v1/book/${encodeURIComponent(foreignBookId)}`
+        : null
+      : type === 'music'
+        ? `/api/v1/music/${mbId}`
+        : type === 'movie'
+          ? `/api/v1/movie/${tmdbId}`
+          : `/api/v1/tv/${tmdbId}`;
 
   const { data: titleData, error } = useSWR<
-    MovieDetails | TvDetails | MusicDetails
+    MovieDetails | TvDetails | MusicDetails | BookDetails
   >(inView ? url : null);
 
   const title =
-    useProgressiveCovers<MovieDetails | TvDetails | MusicDetails>(
+    useProgressiveCovers<MovieDetails | TvDetails | MusicDetails | BookDetails>(
       type === 'music' &&
         titleData &&
         isMusic(titleData) &&
@@ -90,16 +109,38 @@ const AddedCard = ({
     );
   }
 
-  if (!title) {
+    if (!title) {
     return hasPermission(Permission.ADMIN) && id ? (
       <TitleCard.ErrorCard
         id={id}
         tmdbId={tmdbId}
         tvdbId={tvdbId}
         mbId={mbId}
+        foreignBookId={foreignBookId}
         type={type}
       />
     ) : null;
+  }
+
+  if (isBook(title)) {
+    return (
+      <TitleCard
+        key={title.id}
+        id={title.foreignBookId}
+        isAddedToWatchlist={
+          title.mediaInfo?.watchlists?.length || isAddedToWatchlist
+        }
+        image={title.posterPath}
+        status={title.mediaInfo?.status}
+        summary={title.overview}
+        title={title.title}
+        artist={title.author.authorName}
+        year={title.releaseDate}
+        mediaType={'book'}
+        canExpand={canExpand}
+        mutateParent={mutateParent}
+      />
+    );
   }
 
   if (isMusic(title)) {

@@ -81,8 +81,17 @@ const RequestBlock = ({ request, onUpdate }: RequestBlockProps) => {
       {request.media && (
         <RequestModal
           show={showEditModal}
-          tmdbId={request.type === 'music' ? undefined : request.media.tmdbId}
+          tmdbId={
+            request.type === 'music' || request.type === 'book'
+              ? undefined
+              : request.media.tmdbId
+          }
           mbId={request.type === 'music' ? request.media.mbId : undefined}
+          foreignBookId={
+            request.type === 'book'
+              ? request.media.foreignBookId
+              : undefined
+          }
           type={request.type}
           is4k={request.is4k}
           editRequest={request}

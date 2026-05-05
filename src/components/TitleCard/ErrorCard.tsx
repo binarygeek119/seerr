@@ -11,7 +11,8 @@ interface ErrorCardProps {
   tmdbId?: number;
   tvdbId?: number;
   mbId?: string;
-  type: 'movie' | 'tv' | 'music';
+  foreignBookId?: string;
+  type: 'movie' | 'tv' | 'music' | 'book';
   canExpand?: boolean;
 }
 
@@ -20,6 +21,7 @@ const messages = defineMessages('components.TitleCard', {
   tmdbid: 'TMDB ID',
   tvdbid: 'TheTVDB ID',
   mbId: 'MusicBrainz ID',
+  foreignBookId: 'Book ID',
   cleardata: 'Clear Data',
 });
 
@@ -28,6 +30,7 @@ const ErrorCard = ({
   tmdbId,
   tvdbId,
   mbId,
+  foreignBookId,
   type,
   canExpand,
 }: ErrorCardProps) => {
@@ -58,7 +61,9 @@ const ErrorCard = ({
                   ? 'bg-blue-500'
                   : type === 'tv'
                     ? 'bg-purple-600'
-                    : 'bg-emerald-500'
+                    : type === 'book'
+                      ? 'bg-amber-800'
+                      : 'bg-emerald-500'
               }`}
             >
               <div className="flex h-4 items-center px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-white sm:h-5">
@@ -66,7 +71,9 @@ const ErrorCard = ({
                   ? intl.formatMessage(globalMessages.movie)
                   : type === 'tv'
                     ? intl.formatMessage(globalMessages.tvshow)
-                    : intl.formatMessage(globalMessages.music)}
+                    : type === 'book'
+                      ? intl.formatMessage(globalMessages.book)
+                      : intl.formatMessage(globalMessages.music)}
               </div>
             </div>
             <div className="pointer-events-none z-40">
@@ -93,7 +100,11 @@ const ErrorCard = ({
                   mediaType: intl.formatMessage(
                     type === 'movie'
                       ? globalMessages.movie
-                      : globalMessages.tvshow
+                      : type === 'tv'
+                        ? globalMessages.tvshow
+                        : type === 'book'
+                          ? globalMessages.book
+                          : globalMessages.music
                   ),
                 })}
               </h1>
@@ -113,6 +124,13 @@ const ErrorCard = ({
                       {intl.formatMessage(messages.mbId)}:
                     </span>{' '}
                     {mbId}
+                  </div>
+                ) : type === 'book' ? (
+                  <div className="px-2 text-xs">
+                    <span className="font-bold">
+                      {intl.formatMessage(messages.foreignBookId)}:
+                    </span>{' '}
+                    {foreignBookId}
                   </div>
                 ) : (
                   <div className="px-2 text-xs">

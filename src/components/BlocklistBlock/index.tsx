@@ -24,6 +24,7 @@ const messages = defineMessages('component.BlocklistBlock', {
 interface BlocklistBlockProps {
   tmdbId?: number;
   mbId?: string;
+  foreignBookId?: string;
   mediaType: MediaType;
   onUpdate?: () => void;
   onDelete?: () => void;
@@ -32,6 +33,7 @@ interface BlocklistBlockProps {
 const BlocklistBlock = ({
   tmdbId,
   mbId,
+  foreignBookId,
   mediaType,
   onUpdate,
   onDelete,
@@ -45,16 +47,19 @@ const BlocklistBlock = ({
     if (mbId != null && mediaType === 'music') {
       return `/api/v1/blocklist/${encodeURIComponent(mbId)}?mediaType=${mediaType}`;
     }
+    if (foreignBookId != null && mediaType === 'book') {
+      return `/api/v1/blocklist/${encodeURIComponent(foreignBookId)}?mediaType=${mediaType}`;
+    }
     if (tmdbId != null) {
       return `/api/v1/blocklist/${tmdbId}?mediaType=${mediaType}`;
     }
     return null;
-  }, [tmdbId, mbId, mediaType]);
+  }, [tmdbId, mbId, foreignBookId, mediaType]);
 
   const { data } = useSWR<Blocklist>(swrKey);
 
   const removeFromBlocklist = async () => {
-    const id = mbId ?? tmdbId;
+    const id = mbId ?? foreignBookId ?? tmdbId;
     if (id === undefined) {
       return;
     }

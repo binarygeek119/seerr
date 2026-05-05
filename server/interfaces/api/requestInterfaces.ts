@@ -10,12 +10,15 @@ export interface RequestResultsResponse extends PaginatedResponse {
   serviceErrors: {
     radarr: { id: number; name: string }[];
     sonarr: { id: number; name: string }[];
+    lidarr: { id: number; name: string }[];
+    readarr: { id: number; name: string }[];
   };
 }
 
 export type MediaRequestBody = {
   mediaType: MediaType;
-  mediaId: number;
+  /** TMDB id for movies/TV; MusicBrainz release group id for music; lookup term or foreign id for books. */
+  mediaId: number | string;
   tvdbId?: number;
   seasons?: number[] | 'all';
   is4k?: boolean;

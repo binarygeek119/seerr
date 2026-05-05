@@ -29,8 +29,10 @@ import type { DownloadingItem } from '@server/lib/downloadtracker';
 import type {
   LidarrSettings,
   RadarrSettings,
+  ReadarrSettings,
   SonarrSettings,
 } from '@server/lib/settings';
+import type { BookDetails } from '@server/models/Book';
 import type { MovieDetails } from '@server/models/Movie';
 import type { MusicDetails } from '@server/models/Music';
 import type { TvDetails } from '@server/models/Tv';
@@ -83,9 +85,18 @@ const messages = defineMessages('components.ManageSlideOver', {
   album: 'album',
 });
 
+const isBook = (
+  media: MovieDetails | TvDetails | MusicDetails | BookDetails
+): media is BookDetails => {
+  return (media as BookDetails).mediaType === 'book';
+};
+
 const isMovie = (
-  media: MovieDetails | TvDetails | MusicDetails
+  media: MovieDetails | TvDetails | MusicDetails | BookDetails
 ): media is MovieDetails => {
+  if (isBook(media)) {
+    return false;
+  }
   return (
     (media as MovieDetails).title !== undefined &&
     (media as MusicDetails).artist === undefined
@@ -93,8 +104,11 @@ const isMovie = (
 };
 
 const isMusic = (
-  media: MovieDetails | TvDetails | MusicDetails
+  media: MovieDetails | TvDetails | MusicDetails | BookDetails
 ): media is MusicDetails => {
+  if (isBook(media)) {
+    return false;
+  }
   return (media as MusicDetails).artist !== undefined;
 };
 
@@ -120,6 +134,11 @@ interface ManageSlideOverMusicProps extends ManageSlideOverProps {
   data: MusicDetails;
 }
 
+interface ManageSlideOverBookProps extends ManageSlideOverProps {
+  mediaType: 'book';
+  data: BookDetails;
+}
+
 const ManageSlideOver = ({
   show,
   mediaType,
@@ -129,7 +148,8 @@ const ManageSlideOver = ({
 }:
   | ManageSlideOverMovieProps
   | ManageSlideOverTvProps
-  | ManageSlideOverMusicProps) => {
+  | ManageSlideOverMusicProps
+  | ManageSlideOverBookProps) => {
   const { user: currentUser, hasPermission } = useUser();
   const intl = useIntl();
   const settings = useSettings();
@@ -148,6 +168,9 @@ const ManageSlideOver = ({
   );
   const { data: lidarrData } = useSWR<LidarrSettings[]>(
     hasPermission(Permission.ADMIN) ? '/api/v1/settings/lidarr' : null
+  );
+  const { data: readarrData } = useSWR<ReadarrSettings[]>(
+    hasPermission(Permission.ADMIN) ? '/api/v1/settings/readarr' : null
   );
 
   const deleteMedia = async () => {
@@ -183,6 +206,13 @@ const ManageSlideOver = ({
           lidarrData?.find(
             (lidarr) =>
               lidarr.isDefault && lidarr.id === data.mediaInfo?.serviceId
+          ) !== undefined
+        );
+      } else if (data.mediaInfo.mediaType === MediaType.BOOK) {
+        return (
+          readarrData?.find(
+            (readarr) =>
+              readarr.isDefault && readarr.id === data.mediaInfo?.serviceId
           ) !== undefined
         );
       } else {
@@ -266,16 +296,22 @@ const ManageSlideOver = ({
             ? globalMessages.movie
             : mediaType === 'music'
               ? globalMessages.album
-              : globalMessages.tvshow
+              : mediaType === 'book'
+                ? globalMessages.book
+                : globalMessages.tvshow
         ),
       })}
       onClose={() => onClose()}
       subText={
-        isMovie(data)
-          ? data.title
-          : isMusic(data)
-            ? `${data.title} - ${data.artist.name}`
-            : data.name
+        isBook(data)
+          ? data.author.authorName
+            ? `${data.title} - ${data.author.authorName}`
+            : data.title
+          : isMovie(data)
+            ? data.title
+            : isMusic(data)
+              ? `${data.title} - ${data.artist.name}`
+              : data.name
       }
     >
       <div className="space-y-6">
@@ -368,6 +404,7 @@ const ManageSlideOver = ({
               <BlocklistBlock
                 tmdbId={data.mediaInfo.tmdbId}
                 mbId={data.mediaInfo.mbId}
+                foreignBookId={data.mediaInfo.foreignBookId}
                 mediaType={data.mediaInfo.mediaType}
                 onUpdate={() => revalidate()}
                 onDelete={() => onClose()}
@@ -497,7 +534,9 @@ const ManageSlideOver = ({
                               ? 'Radarr'
                               : mediaType === 'music'
                                 ? 'Lidarr'
-                                : 'Sonarr',
+                                : mediaType === 'book'
+                                  ? 'Readarr'
+                                  : 'Sonarr',
                         })}
                       </span>
                     </Button>
@@ -523,7 +562,9 @@ const ManageSlideOver = ({
                                 ? 'Radarr'
                                 : mediaType === 'music'
                                   ? 'Lidarr'
-                                  : 'Sonarr',
+                                  : mediaType === 'book'
+                                    ? 'Readarr'
+                                    : 'Sonarr',
                           })}
                         </span>
                       </ConfirmButton>
@@ -536,14 +577,18 @@ const ManageSlideOver = ({
                                 ? messages.movie
                                 : mediaType === 'music'
                                   ? messages.album
-                                  : messages.tvshow
+                                  : mediaType === 'book'
+                                    ? globalMessages.book
+                                    : messages.tvshow
                             ),
                             arr:
                               mediaType === 'movie'
                                 ? 'Radarr'
                                 : mediaType === 'music'
                                   ? 'Lidarr'
-                                  : 'Sonarr',
+                                  : mediaType === 'book'
+                                    ? 'Readarr'
+                                    : 'Sonarr',
                           }
                         )}
                       </div>
@@ -738,7 +783,9 @@ const ManageSlideOver = ({
                   </Button>
                 )}
                 {data?.mediaInfo.status4k !== MediaStatus.AVAILABLE &&
-                  settings.currentSettings.series4kEnabled && (
+                  settings.currentSettings.series4kEnabled &&
+                  mediaType !== 'book' &&
+                  mediaType !== 'music' && (
                     <Button
                       onClick={() => markAvailable(true)}
                       className="w-full"
@@ -772,7 +819,9 @@ const ManageSlideOver = ({
                           ? messages.movie
                           : mediaType === 'music'
                             ? messages.album
-                            : messages.tvshow
+                            : mediaType === 'book'
+                              ? globalMessages.book
+                              : messages.tvshow
                       ),
                       mediaServerName:
                         settings.currentSettings.mediaServerType ===

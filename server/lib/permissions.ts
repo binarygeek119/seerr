@@ -1,5 +1,7 @@
 export enum Permission {
   NONE = 0,
+  /** Bit 0 — book requests (Readarr); previously unused in the 32-bit permission mask. */
+  REQUEST_BOOK = 1,
   ADMIN = 2,
   MANAGE_SETTINGS = 4,
   MANAGE_USERS = 8,

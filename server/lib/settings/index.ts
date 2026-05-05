@@ -108,6 +108,8 @@ export interface LidarrSettings extends DVRSettings {
   activeMetadataProfileName?: string;
 }
 
+export type ReadarrSettings = LidarrSettings;
+
 interface Quota {
   quotaLimit?: number;
   quotaDays?: number;
@@ -144,6 +146,7 @@ export interface MainSettings {
     movie: Quota;
     tv: Quota;
     music: Quota;
+    book: Quota;
   };
   hideAvailable: boolean;
   hideBlocklisted: boolean;
@@ -366,6 +369,7 @@ export type JobId =
   | 'radarr-scan'
   | 'sonarr-scan'
   | 'lidarr-scan'
+  | 'readarr-scan'
   | 'download-sync'
   | 'download-sync-reset'
   | 'jellyfin-recently-added-scan'
@@ -386,6 +390,7 @@ export interface AllSettings {
   radarr: RadarrSettings[];
   sonarr: SonarrSettings[];
   lidarr: LidarrSettings[];
+  readarr: ReadarrSettings[];
   public: PublicSettings;
   notifications: NotificationSettings;
   jobs: Record<JobId, JobSettings>;
@@ -418,6 +423,7 @@ class Settings {
           movie: {},
           tv: {},
           music: {},
+          book: {},
         },
         hideAvailable: false,
         hideBlocklisted: false,
@@ -463,6 +469,7 @@ class Settings {
       },
       radarr: [],
       lidarr: [],
+      readarr: [],
       sonarr: [],
       public: {
         initialized: false,
@@ -595,6 +602,9 @@ class Settings {
         'lidarr-scan': {
           schedule: '0 30 4 * * *',
         },
+        'readarr-scan': {
+          schedule: '0 45 4 * * *',
+        },
         'availability-sync': {
           schedule: '0 0 5 * * *',
         },
@@ -702,6 +712,14 @@ class Settings {
 
   set lidarr(data: LidarrSettings[]) {
     this.data.lidarr = data;
+  }
+
+  get readarr(): ReadarrSettings[] {
+    return this.data.readarr;
+  }
+
+  set readarr(data: ReadarrSettings[]) {
+    this.data.readarr = data;
   }
 
   get sonarr(): SonarrSettings[] {

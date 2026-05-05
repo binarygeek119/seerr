@@ -30,6 +30,7 @@ import { isPerson } from '@server/utils/typeHelpers';
 import { Router } from 'express';
 import artistRoutes from './artist';
 import authRoutes from './auth';
+import bookRoutes from './book';
 import blocklistRoutes from './blocklist';
 import collectionRoutes from './collection';
 import coverArtRoutes from './coverart';
@@ -169,6 +170,7 @@ router.use(
 router.use('/movie', isAuthenticated(), movieRoutes);
 router.use('/tv', isAuthenticated(), tvRoutes);
 router.use('/music', isAuthenticated(), musicRoutes);
+router.use('/book', isAuthenticated(), bookRoutes);
 router.use('/media', isAuthenticated(), mediaRoutes);
 router.use('/person', isAuthenticated(), personRoutes);
 router.use('/artist', isAuthenticated(), artistRoutes);

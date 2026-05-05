@@ -11,5 +11,6 @@ export const watchlistCreate = z
     z.union([
       z.object({ tmdbId: z.coerce.number() }),
       z.object({ mbId: z.coerce.string() }),
+      z.object({ foreignBookId: z.coerce.string() }),
     ])
   );

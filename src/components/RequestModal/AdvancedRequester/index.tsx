@@ -40,6 +40,21 @@ const messages = defineMessages('components.RequestModal.AdvancedRequester', {
   notagoptions: 'No tags.',
 });
 
+const servicePathForType = (
+  type: 'movie' | 'tv' | 'music' | 'book'
+): 'radarr' | 'sonarr' | 'lidarr' | 'readarr' => {
+  if (type === 'movie') {
+    return 'radarr';
+  }
+  if (type === 'tv') {
+    return 'sonarr';
+  }
+  if (type === 'book') {
+    return 'readarr';
+  }
+  return 'lidarr';
+};
+
 export type RequestOverrides = {
   server?: number;
   profile?: number;
@@ -50,7 +65,7 @@ export type RequestOverrides = {
 };
 
 interface AdvancedRequesterProps {
-  type: 'movie' | 'tv' | 'music';
+  type: 'movie' | 'tv' | 'music' | 'book';
   is4k: boolean;
   isAnime?: boolean;
   defaultOverrides?: RequestOverrides;
@@ -69,9 +84,7 @@ const AdvancedRequester = ({
   const intl = useIntl();
   const { user: currentUser, hasPermission: currentHasPermission } = useUser();
   const { data, error } = useSWR<ServiceCommonServer[]>(
-    `/api/v1/service/${
-      type === 'movie' ? 'radarr' : type === 'tv' ? 'sonarr' : 'lidarr'
-    }`,
+    `/api/v1/service/${servicePathForType(type)}`,
     {
       refreshInterval: 0,
       refreshWhenHidden: false,
@@ -102,9 +115,7 @@ const AdvancedRequester = ({
   const { data: serverData, isValidating } =
     useSWR<ServiceCommonServerWithDetails>(
       selectedServer !== null
-        ? `/api/v1/service/${
-            type === 'movie' ? 'radarr' : type === 'tv' ? 'sonarr' : 'lidarr'
-          }/${selectedServer}`
+        ? `/api/v1/service/${servicePathForType(type)}/${selectedServer}`
         : null,
       {
         refreshInterval: 0,
@@ -139,7 +150,9 @@ const AdvancedRequester = ({
                   ? Permission.REQUEST_MOVIE
                   : type === 'tv'
                     ? Permission.REQUEST_TV
-                    : Permission.REQUEST_MUSIC,
+                    : type === 'book'
+                      ? Permission.REQUEST_BOOK
+                      : Permission.REQUEST_MUSIC,
               ],
           user.permissions,
           { type: 'or' }
@@ -158,7 +171,9 @@ const AdvancedRequester = ({
 
   useEffect(() => {
     let defaultServer = data?.find(
-      (server) => server.isDefault && (type === 'music' || is4k === server.is4k)
+      (server) =>
+        server.isDefault &&
+        (type === 'music' || type === 'book' || is4k === server.is4k)
     );
 
     if (!defaultServer && (data ?? []).length > 0) {
@@ -299,8 +314,9 @@ const AdvancedRequester = ({
   if (
     (!data ||
       selectedServer === null ||
-      (data.filter((server) => type === 'music' || server.is4k === is4k)
-        .length < 2 &&
+      (data.filter(
+        (server) => type === 'music' || type === 'book' || server.is4k === is4k
+      ).length < 2 &&
         (!serverData ||
           (serverData.profiles.length < 2 &&
             serverData.rootFolders.length < 2 &&
@@ -319,8 +335,9 @@ const AdvancedRequester = ({
       <div className="rounded-md">
         {!!data && selectedServer !== null && (
           <div className="flex flex-col md:flex-row">
-            {((type === 'music' && data.length > 1) ||
+            {(((type === 'music' || type === 'book') && data.length > 1) ||
               (type !== 'music' &&
+                type !== 'book' &&
                 data.filter((server) => server.is4k === is4k).length > 1)) && (
               <div className="mb-3 w-full flex-shrink-0 flex-grow last:pr-0 md:w-1/4 md:pr-4">
                 <label htmlFor="server">
@@ -334,7 +351,7 @@ const AdvancedRequester = ({
                   onBlur={(e) => setSelectedServer(Number(e.target.value))}
                   className="border-gray-700 bg-gray-800"
                 >
-                  {(type === 'music'
+                  {(type === 'music' || type === 'book'
                     ? data
                     : data.filter((server) => server.is4k === is4k)
                   ).map((server) => (
@@ -352,7 +369,8 @@ const AdvancedRequester = ({
             {(isValidating ||
               !serverData ||
               (serverData.profiles.length > 1 &&
-                (!serverData.server.isDefault || type !== 'music'))) && (
+                (!serverData.server.isDefault ||
+                  (type !== 'music' && type !== 'book')))) && (
               <div className="mb-3 w-full flex-shrink-0 flex-grow last:pr-0 md:w-1/4 md:pr-4">
                 <label htmlFor="profile">
                   {intl.formatMessage(messages.qualityprofile)}

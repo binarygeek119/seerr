@@ -3,6 +3,7 @@ import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
 import { Transition } from '@headlessui/react';
 
+import type { BookDetails } from '@server/models/Book';
 import type { Collection } from '@server/models/Collection';
 import type { MovieDetails } from '@server/models/Movie';
 import type { MusicDetails } from '@server/models/Music';
@@ -14,7 +15,8 @@ import { useIntl } from 'react-intl';
 interface BlocklistModalProps {
   tmdbId?: number;
   mbId?: string;
-  type: 'movie' | 'tv' | 'collection' | 'music';
+  foreignBookId?: string;
+  type: 'movie' | 'tv' | 'collection' | 'music' | 'book';
   show: boolean;
   onComplete?: () => void;
   onCancel?: () => void;
@@ -25,7 +27,7 @@ const messages = defineMessages('component.BlocklistModal', {
   blocklisting: 'Blocklisting',
 });
 
-type ModalMedia = MovieDetails | TvDetails | Collection | MusicDetails;
+type ModalMedia = MovieDetails | TvDetails | Collection | MusicDetails | BookDetails;
 
 const isCollection = (data: ModalMedia | null): data is Collection => {
   return (
@@ -42,14 +44,21 @@ const isMusic = (data: ModalMedia | null): data is MusicDetails => {
   );
 };
 
+const isBook = (data: ModalMedia | null): data is BookDetails => {
+  if (!data) return false;
+  return (data as BookDetails).mediaType === 'book';
+};
+
 const isMovie = (data: ModalMedia | null): data is MovieDetails => {
-  if (!data || isCollection(data) || isMusic(data)) return false;
+  if (!data || isCollection(data) || isMusic(data) || isBook(data))
+    return false;
   return (data as MovieDetails).title !== undefined;
 };
 
 const BlocklistModal = ({
   tmdbId,
   mbId,
+  foreignBookId,
   type,
   show,
   onComplete,
@@ -65,15 +74,19 @@ const BlocklistModal = ({
       if (!show) return;
       try {
         setError(null);
-        const response = await axios.get(
-          `/api/v1/${type}/${type === 'music' ? mbId : tmdbId}`
-        );
+        const path =
+          type === 'music'
+            ? mbId
+            : type === 'book'
+              ? encodeURIComponent(String(foreignBookId ?? ''))
+              : tmdbId;
+        const response = await axios.get(`/api/v1/${type}/${path}`);
         setData(response.data);
       } catch (err) {
         setError(err);
       }
     })();
-  }, [show, tmdbId, mbId, type]);
+  }, [show, tmdbId, mbId, foreignBookId, type]);
 
   const getTitle = () => {
     if (!data) return '';
@@ -82,6 +95,11 @@ const BlocklistModal = ({
     }
     if (isMusic(data)) {
       return `${data.artist.name} - ${data.title}`;
+    }
+    if (isBook(data)) {
+      return data.author.authorName
+        ? `${data.title} — ${data.author.authorName}`
+        : data.title;
     }
     if (isMovie(data)) {
       return data.title;
@@ -94,13 +112,18 @@ const BlocklistModal = ({
       ? intl.formatMessage(globalMessages.collection)
       : type === 'music'
         ? intl.formatMessage(globalMessages.music)
-        : type === 'movie'
-          ? intl.formatMessage(globalMessages.movie)
-          : intl.formatMessage(globalMessages.tvshow);
+        : type === 'book'
+          ? intl.formatMessage(globalMessages.book)
+          : type === 'movie'
+            ? intl.formatMessage(globalMessages.movie)
+            : intl.formatMessage(globalMessages.tvshow);
 
   const getBackdrop = () => {
     if (isMusic(data)) {
       return data.artistBackdrop;
+    }
+    if (isBook(data)) {
+      return data.posterPath;
     }
     return `https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/${data?.backdropPath}`;
   };

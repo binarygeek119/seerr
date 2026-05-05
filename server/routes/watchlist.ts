@@ -63,7 +63,8 @@ watchlistRoutes.delete('/:id', async (req, res, next) => {
     if (
       mediaType !== MediaType.MOVIE &&
       mediaType !== MediaType.TV &&
-      mediaType !== MediaType.MUSIC
+      mediaType !== MediaType.MUSIC &&
+      mediaType !== MediaType.BOOK
     ) {
       return next({
         status: 400,
@@ -72,11 +73,15 @@ watchlistRoutes.delete('/:id', async (req, res, next) => {
     }
 
     const id =
-      mediaType === MediaType.MUSIC
+      mediaType === MediaType.MUSIC || mediaType === MediaType.BOOK
         ? req.params.id
         : String(Number(req.params.id));
 
-    if (mediaType !== MediaType.MUSIC && Number.isNaN(Number(id))) {
+    if (
+      mediaType !== MediaType.MUSIC &&
+      mediaType !== MediaType.BOOK &&
+      Number.isNaN(Number(id))
+    ) {
       return next({
         status: 400,
         message: 'Invalid id path parameter.',

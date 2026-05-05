@@ -45,11 +45,12 @@ interface ButtonOption {
 }
 
 interface RequestButtonProps {
-  mediaType: 'movie' | 'tv' | 'music';
+  mediaType: 'movie' | 'tv' | 'music' | 'book';
   onUpdate: () => void;
   tmdbId?: number;
   media?: Media;
   mbId?: string;
+  foreignBookId?: string;
   isShowComplete?: boolean;
   is4kShowComplete?: boolean;
 }
@@ -60,6 +61,7 @@ const RequestButton = ({
   media,
   mediaType,
   mbId,
+  foreignBookId,
   isShowComplete = false,
   is4kShowComplete = false,
 }: RequestButtonProps) => {
@@ -158,7 +160,7 @@ const RequestButton = ({
     if (
       activeRequest &&
       hasPermission(Permission.MANAGE_REQUESTS) &&
-      mediaType === 'movie'
+      (mediaType === 'movie' || mediaType === 'book')
     ) {
       buttons.push(
         {
@@ -291,7 +293,9 @@ const RequestButton = ({
           ? Permission.REQUEST_MOVIE
           : mediaType === 'music'
             ? Permission.REQUEST_MUSIC
-            : Permission.REQUEST_TV,
+            : mediaType === 'book'
+              ? Permission.REQUEST_BOOK
+              : Permission.REQUEST_TV,
       ],
       { type: 'or' }
     )
@@ -385,6 +389,7 @@ const RequestButton = ({
       <RequestModal
         tmdbId={tmdbId}
         mbId={mbId}
+        foreignBookId={foreignBookId}
         show={showRequestModal}
         type={mediaType}
         editRequest={editRequest ? activeRequest : undefined}
@@ -394,7 +399,7 @@ const RequestButton = ({
         }}
         onCancel={() => setShowRequestModal(false)}
       />
-      {mediaType !== 'music' && (
+      {mediaType !== 'music' && mediaType !== 'book' && (
         <RequestModal
           tmdbId={tmdbId}
           show={showRequest4kModal}

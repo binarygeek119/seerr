@@ -1,5 +1,6 @@
 import ListenBrainzAPI from '@server/api/listenbrainz';
 import PlexTvAPI from '@server/api/plextv';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import TheAudioDb from '@server/api/theaudiodb';
 import type { SortOptions } from '@server/api/themoviedb';
 import TheMovieDb from '@server/api/themoviedb';
@@ -18,12 +19,15 @@ import type {
 } from '@server/interfaces/api/discoverInterfaces';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
+import { pickReadarrBookCover } from '@server/models/Book';
 import { mapProductionCompany } from '@server/models/Movie';
 import {
   mapCollectionResult,
   mapMovieResult,
   mapPersonResult,
+  mapSearchResults,
   mapTvResult,
+  type ReadarrBookSearchResult,
 } from '@server/models/Search';
 import { mapNetwork } from '@server/models/Tv';
 import { isCollection, isMovie, isPerson } from '@server/utils/typeHelpers';
@@ -1159,6 +1163,94 @@ discoverRoutes.get('/music', async (req, res, next) => {
     return next({
       status: 500,
       message: 'Unable to retrieve fresh music releases.',
+    });
+  }
+});
+
+discoverRoutes.get('/books', async (req, res, next) => {
+  const settings = getSettings();
+  const readarrServer =
+    settings.readarr.find((s) => s.isDefault) ?? settings.readarr[0];
+
+  if (!readarrServer) {
+    return next({
+      status: 503,
+      message: 'Readarr is not configured.',
+    });
+  }
+
+  try {
+    const page = Number(req.query.page) || 1;
+    const pageSize = 20;
+    const sortBy = (req.query.sortBy as string) || 'title.asc';
+
+    const readarr = new ReadarrAPI({
+      apiKey: readarrServer.apiKey,
+      url: ReadarrAPI.buildUrl(readarrServer, '/api/v1'),
+    });
+
+    const allBooks = (await readarr.getBooks()).filter((b) => b.foreignBookId);
+    const [field, direction] = sortBy.split('.');
+    const multiplier = direction === 'desc' ? -1 : 1;
+    const sorted = [...allBooks].sort((a, b) => {
+      switch (field) {
+        case 'author': {
+          const authorA = a.author?.authorName ?? '';
+          const authorB = b.author?.authorName ?? '';
+          return authorA.localeCompare(authorB) * multiplier;
+        }
+        case 'monitored':
+          return (Number(Boolean(a.monitored)) - Number(Boolean(b.monitored))) * multiplier;
+        case 'hasFile':
+          return (Number(Boolean(a.hasFile)) - Number(Boolean(b.hasFile))) * multiplier;
+        case 'title':
+        default:
+          return a.title.localeCompare(b.title) * multiplier;
+      }
+    });
+
+    const totalResults = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+    const offset = (page - 1) * pageSize;
+    const pageSlice = sorted.slice(offset, offset + pageSize);
+
+    const bookSearchRaw: ReadarrBookSearchResult[] = pageSlice.map((b) => ({
+      media_type: 'book',
+      id: b.foreignBookId,
+      title: b.title,
+      foreignBookId: b.foreignBookId,
+      authorName: b.author?.authorName,
+      posterPath: pickReadarrBookCover(b),
+      monitored: b.monitored,
+      hasFile: b.hasFile,
+      score: 0,
+    }));
+
+    const bookRefs = pageSlice.map((b) => ({
+      foreignBookId: b.foreignBookId,
+      mediaType: MediaType.BOOK,
+    }));
+
+    const bookMedia =
+      bookRefs.length > 0
+        ? await Media.getRelatedMedia(req.user, bookRefs)
+        : [];
+    const results = await mapSearchResults(bookSearchRaw, bookMedia);
+
+    return res.status(200).json({
+      page,
+      totalPages,
+      totalResults,
+      results,
+    });
+  } catch (e) {
+    logger.error('Failed to retrieve books from Readarr', {
+      label: 'API',
+      error: e instanceof Error ? e.message : 'Unknown error',
+    });
+    return next({
+      status: 500,
+      message: 'Unable to retrieve books.',
     });
   }
 });

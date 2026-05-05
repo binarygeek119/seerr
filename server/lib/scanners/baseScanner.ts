@@ -95,6 +95,8 @@ class BaseScanner<T> {
 
     if (mediaType === MediaType.MUSIC) {
       query.mbId = id.toString();
+    } else if (mediaType === MediaType.BOOK) {
+      query.foreignBookId = id.toString();
     } else {
       query.tmdbId = Number(id);
     }
@@ -716,6 +718,93 @@ class BaseScanner<T> {
             this.log(`Updated existing media: ${title}`);
           } catch (err) {
             this.log('Failed to update existing media', 'error', {
+              title,
+              error: err.message,
+            });
+          }
+        }
+      }
+    });
+  }
+
+  protected async processBook(
+    foreignBookId: string,
+    {
+      serviceId,
+      externalServiceId,
+      externalServiceSlug,
+      mediaAddedAt,
+      ratingKey,
+      processing = false,
+      title = 'Unknown Title',
+    }: ProcessOptions = {}
+  ): Promise<void> {
+    const mediaRepository = getRepository(Media);
+
+    await this.asyncLock.dispatch(foreignBookId, async () => {
+      const existing = await mediaRepository.findOne({
+        where: { foreignBookId, mediaType: MediaType.BOOK },
+      });
+
+      if (!existing) {
+        const newMedia = new Media();
+        newMedia.foreignBookId = foreignBookId;
+        newMedia.status = processing
+          ? MediaStatus.PROCESSING
+          : MediaStatus.AVAILABLE;
+        newMedia.mediaType = MediaType.BOOK;
+        newMedia.mediaAddedAt = mediaAddedAt ?? newMedia.mediaAddedAt;
+        newMedia.ratingKey = ratingKey ?? newMedia.ratingKey;
+        newMedia.serviceId = serviceId ?? newMedia.serviceId;
+        newMedia.externalServiceId =
+          externalServiceId ?? newMedia.externalServiceId;
+        newMedia.externalServiceSlug =
+          externalServiceSlug ?? newMedia.externalServiceSlug;
+
+        try {
+          await mediaRepository.save(newMedia);
+          this.log(`Saved new book media: ${title}`);
+        } catch (err) {
+          this.log('Failed to save new book media', 'error', {
+            title,
+            error: err.message,
+          });
+        }
+      } else {
+        let hasChanges = false;
+
+        if (existing.status !== MediaStatus.AVAILABLE && !processing) {
+          existing.status = MediaStatus.AVAILABLE;
+          hasChanges = true;
+        }
+
+        if (serviceId && !existing.serviceId) {
+          existing.serviceId = serviceId;
+          hasChanges = true;
+        }
+        if (externalServiceId && !existing.externalServiceId) {
+          existing.externalServiceId = externalServiceId;
+          hasChanges = true;
+        }
+        if (externalServiceSlug && !existing.externalServiceSlug) {
+          existing.externalServiceSlug = externalServiceSlug;
+          hasChanges = true;
+        }
+        if (mediaAddedAt && !existing.mediaAddedAt) {
+          existing.mediaAddedAt = mediaAddedAt;
+          hasChanges = true;
+        }
+        if (ratingKey && !existing.ratingKey) {
+          existing.ratingKey = ratingKey;
+          hasChanges = true;
+        }
+
+        if (hasChanges) {
+          try {
+            await mediaRepository.save(existing);
+            this.log(`Updated existing book media: ${title}`);
+          } catch (err) {
+            this.log('Failed to update existing book media', 'error', {
               title,
               error: err.message,
             });

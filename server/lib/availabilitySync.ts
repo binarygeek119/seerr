@@ -3,6 +3,7 @@ import JellyfinAPI from '@server/api/jellyfin';
 import type { PlexMetadata } from '@server/api/plexapi';
 import PlexAPI from '@server/api/plexapi';
 import LidarrAPI, { type LidarrAlbum } from '@server/api/servarr/lidarr';
+import ReadarrAPI, { type ReadarrBook } from '@server/api/servarr/readarr';
 import RadarrAPI, { type RadarrMovie } from '@server/api/servarr/radarr';
 import type { SonarrSeason, SonarrSeries } from '@server/api/servarr/sonarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
@@ -16,6 +17,7 @@ import { User } from '@server/entity/User';
 import type {
   LidarrSettings,
   RadarrSettings,
+  ReadarrSettings,
   SonarrSettings,
 } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
@@ -36,6 +38,7 @@ class AvailabilitySync {
   private radarrServers: RadarrSettings[];
   private sonarrServers: SonarrSettings[];
   private lidarrServers: LidarrSettings[];
+  private readarrServers: ReadarrSettings[];
 
   async run() {
     const settings = getSettings();
@@ -49,6 +52,7 @@ class AvailabilitySync {
     this.radarrServers = settings.radarr.filter((server) => server.syncEnabled);
     this.sonarrServers = settings.sonarr.filter((server) => server.syncEnabled);
     this.lidarrServers = settings.lidarr.filter((server) => server.syncEnabled);
+    this.readarrServers = settings.readarr.filter((server) => server.syncEnabled);
 
     try {
       logger.info(`Starting availability sync...`, {
@@ -446,6 +450,13 @@ class AvailabilitySync {
           }
 
           if (!musicExists && media.status === MediaStatus.AVAILABLE) {
+            await this.mediaUpdater(media, false, mediaServerType);
+          }
+        }
+
+        if (media.mediaType === 'book') {
+          const existsInReadarr = await this.mediaExistsInReadarr(media);
+          if (!existsInReadarr && media.status === MediaStatus.AVAILABLE) {
             await this.mediaUpdater(media, false, mediaServerType);
           }
         }
@@ -913,6 +924,43 @@ class AvailabilitySync {
     }
 
     return existsInLidarr;
+  }
+
+  private async mediaExistsInReadarr(media: Media): Promise<boolean> {
+    let existsInReadarr = false;
+
+    for (const server of this.readarrServers) {
+      const readarrAPI = new ReadarrAPI({
+        apiKey: server.apiKey,
+        url: ReadarrAPI.buildUrl(server, '/api/v1'),
+      });
+
+      try {
+        let readarrBook: ReadarrBook | undefined;
+
+        if (media.externalServiceId) {
+          readarrBook = await readarrAPI.getBookById(media.externalServiceId);
+        }
+
+        if (readarrBook?.hasFile) {
+          existsInReadarr = true;
+          break;
+        }
+      } catch (ex) {
+        if (!ex.message.includes('404')) {
+          existsInReadarr = true;
+          logger.debug(
+            `Failed to retrieve book [Foreign ID ${media.foreignBookId}] from Readarr.`,
+            {
+              errorMessage: ex.message,
+              label: 'AvailabilitySync',
+            }
+          );
+        }
+      }
+    }
+
+    return existsInReadarr;
   }
 
   // Plex

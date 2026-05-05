@@ -19,7 +19,8 @@ export type MediaType =
   | 'person'
   | 'collection'
   | 'artist'
-  | 'album';
+  | 'album'
+  | 'book';
 
 interface TmdbSearchResult {
   id: number;
@@ -114,13 +115,38 @@ export interface AlbumResult extends MbSearchResult {
   mediaInfo?: Media;
 }
 
+/** Raw shape produced by search/discover before mapSearchResults */
+export interface ReadarrBookSearchResult {
+  media_type: 'book';
+  id: string;
+  title: string;
+  foreignBookId: string;
+  authorName?: string;
+  posterPath?: string;
+  monitored?: boolean;
+  hasFile?: boolean;
+  score: number;
+}
+
+export interface BookResult extends MbSearchResult {
+  mediaType: 'book';
+  title: string;
+  authorName?: string;
+  posterPath?: string;
+  needsCoverArt?: boolean;
+  monitored?: boolean;
+  hasFile?: boolean;
+  mediaInfo?: Media;
+}
+
 export type Results =
   | MovieResult
   | TvResult
   | PersonResult
   | CollectionResult
   | ArtistResult
-  | AlbumResult;
+  | AlbumResult
+  | BookResult;
 
 export const mapMovieResult = (
   movieResult: TmdbMovieResult,
@@ -229,6 +255,22 @@ export const mapAlbumResult = (
   mediaInfo: media,
 });
 
+export const mapBookResult = (
+  result: ReadarrBookSearchResult,
+  media?: Media
+): BookResult => ({
+  id: result.foreignBookId,
+  score: result.score,
+  mediaType: 'book',
+  title: result.title,
+  authorName: result.authorName,
+  posterPath: result.posterPath,
+  needsCoverArt: !result.posterPath,
+  monitored: result.monitored,
+  hasFile: result.hasFile,
+  mediaInfo: media,
+});
+
 const isTmdbMovie = (
   result:
     | TmdbMovieResult
@@ -237,6 +279,7 @@ const isTmdbMovie = (
     | TmdbCollectionResult
     | MbArtistResult
     | MbAlbumResult
+    | ReadarrBookSearchResult
 ): result is TmdbMovieResult => {
   return result.media_type === 'movie';
 };
@@ -249,6 +292,7 @@ const isTmdbTv = (
     | TmdbCollectionResult
     | MbArtistResult
     | MbAlbumResult
+    | ReadarrBookSearchResult
 ): result is TmdbTvResult => {
   return result.media_type === 'tv';
 };
@@ -261,6 +305,7 @@ const isTmdbPerson = (
     | TmdbCollectionResult
     | MbArtistResult
     | MbAlbumResult
+    | ReadarrBookSearchResult
 ): result is TmdbPersonResult => {
   return result.media_type === 'person';
 };
@@ -273,6 +318,7 @@ const isTmdbCollection = (
     | TmdbCollectionResult
     | MbArtistResult
     | MbAlbumResult
+    | ReadarrBookSearchResult
 ): result is TmdbCollectionResult => {
   return result.media_type === 'collection';
 };
@@ -285,6 +331,7 @@ const isMbArtist = (
     | TmdbCollectionResult
     | MbArtistResult
     | MbAlbumResult
+    | ReadarrBookSearchResult
 ): result is MbArtistResult => {
   return result.media_type === 'artist';
 };
@@ -297,8 +344,22 @@ const isMbAlbum = (
     | TmdbCollectionResult
     | MbArtistResult
     | MbAlbumResult
+    | ReadarrBookSearchResult
 ): result is MbAlbumResult => {
   return result.media_type === 'album';
+};
+
+const isReadarrBookSearchResult = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is ReadarrBookSearchResult => {
+  return result.media_type === 'book';
 };
 
 export const mapSearchResults = async (
@@ -309,11 +370,22 @@ export const mapSearchResults = async (
     | TmdbCollectionResult
     | MbArtistResult
     | MbAlbumResult
+    | ReadarrBookSearchResult
   )[],
   media?: Media[]
 ): Promise<Results[]> =>
   Promise.all(
     results.map(async (result) => {
+      if (isReadarrBookSearchResult(result)) {
+        return mapBookResult(
+          result,
+          media?.find(
+            (req) =>
+              req.foreignBookId === result.foreignBookId &&
+              req.mediaType === MainMediaType.BOOK
+          )
+        );
+      }
       if (isTmdbMovie(result)) {
         return mapMovieResult(
           result,

@@ -30,7 +30,8 @@ interface StatusBadgeProps {
   serviceUrl?: string;
   tmdbId?: number;
   mbId?: string;
-  mediaType?: 'movie' | 'tv' | 'music';
+  foreignBookId?: string;
+  mediaType?: 'movie' | 'tv' | 'music' | 'book';
   title?: string | string[];
   statusLabelOverride?: string;
 }
@@ -44,6 +45,7 @@ const StatusBadge = ({
   serviceUrl,
   tmdbId,
   mbId,
+  foreignBookId,
   mediaType,
   title,
   statusLabelOverride,
@@ -65,19 +67,21 @@ const StatusBadge = ({
     hasPermission(
       mediaType === 'music'
         ? [Permission.REQUEST, Permission.REQUEST_MUSIC]
-        : is4k
-          ? [
-              Permission.REQUEST_4K,
-              mediaType === 'movie'
-                ? Permission.REQUEST_4K_MOVIE
-                : Permission.REQUEST_4K_TV,
-            ]
-          : [
-              Permission.REQUEST,
-              mediaType === 'movie'
-                ? Permission.REQUEST_MOVIE
-                : Permission.REQUEST_TV,
-            ],
+        : mediaType === 'book'
+          ? [Permission.REQUEST, Permission.REQUEST_BOOK]
+          : is4k
+            ? [
+                Permission.REQUEST_4K,
+                mediaType === 'movie'
+                  ? Permission.REQUEST_4K_MOVIE
+                  : Permission.REQUEST_4K_TV,
+              ]
+            : [
+                Permission.REQUEST,
+                mediaType === 'movie'
+                  ? Permission.REQUEST_MOVIE
+                  : Permission.REQUEST_TV,
+              ],
       {
         type: 'or',
       }
@@ -97,9 +101,13 @@ const StatusBadge = ({
             : 'Jellyfin',
     });
   } else if (hasPermission(Permission.MANAGE_REQUESTS)) {
-    if (mediaType && (tmdbId || mbId)) {
+    if (mediaType && (tmdbId || mbId || foreignBookId)) {
       mediaLink = `/${mediaType}/${
-        mediaType === 'music' ? mbId : tmdbId
+        mediaType === 'music'
+          ? mbId
+          : mediaType === 'book'
+            ? foreignBookId
+            : tmdbId
       }?manage=1`;
       mediaLinkDescription = intl.formatMessage(messages.managemedia, {
         mediaType: intl.formatMessage(
@@ -107,7 +115,9 @@ const StatusBadge = ({
             ? globalMessages.movie
             : mediaType === 'tv'
               ? globalMessages.tvshow
-              : globalMessages.album
+              : mediaType === 'book'
+                ? globalMessages.book
+                : globalMessages.album
         ),
       });
     } else if (hasPermission(Permission.ADMIN) && serviceUrl) {
@@ -118,7 +128,9 @@ const StatusBadge = ({
             ? 'Radarr'
             : mediaType === 'tv'
               ? 'Sonarr'
-              : 'Lidarr',
+              : mediaType === 'book'
+                ? 'Readarr'
+                : 'Lidarr',
       });
     }
   }

@@ -56,6 +56,12 @@ components:
         tmdbId:
           type: number
           example: 1
+        mbId:
+          type: string
+        foreignBookId:
+          type: string
+        mediaType:
+          type: string
         title:
           type: string
         media:
@@ -73,6 +79,12 @@ components:
         tmdbId:
           type: number
           example: 1
+        mbId:
+          type: string
+        foreignBookId:
+          type: string
+        mediaType:
+          type: string
         ratingKey:
           type: string
         type:
@@ -4926,7 +4938,7 @@ paths:
       parameters:
         - in: path
           name: tmdbId
-          description: tmdbId ID
+          description: tmdbId, mbId, or foreignBookId (URL-encoded) depending on mediaType
           required: true
           example: '1'
           schema:
@@ -4939,6 +4951,8 @@ paths:
             enum:
               - movie
               - tv
+              - music
+              - book
       responses:
         '200':
           description: Blocklist details in JSON
@@ -4949,7 +4963,7 @@ paths:
       parameters:
         - in: path
           name: tmdbId
-          description: tmdbId ID
+          description: tmdbId, mbId, or foreignBookId (URL-encoded) depending on mediaType
           required: true
           example: '1'
           schema:
@@ -4962,6 +4976,8 @@ paths:
             enum:
               - movie
               - tv
+              - music
+              - book
       responses:
         '204':
           description: Succesfully removed media item
@@ -5184,6 +5200,8 @@ paths:
             enum:
               - movie
               - tv
+              - music
+              - book
       responses:
         '204':
           description: Succesfully removed watchlist item
@@ -7718,6 +7736,30 @@ paths:
                   message:
                     type: string
                     example: 'Unable to retrieve artist.'
+  /book/{foreignBookId}:
+    get:
+      summary: Get book details
+      description: Returns book details from Readarr with local request/watchlist state.
+      tags:
+        - book
+      parameters:
+        - in: path
+          name: foreignBookId
+          required: true
+          schema:
+            type: string
+          description: Readarr/Open Library foreign book identifier (URL-encoded when needed)
+      responses:
+        '200':
+          description: Book details
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Book not found
+        '503':
+          description: Readarr not configured
   /music/{mbId}:
     get:
       summary: Get album details

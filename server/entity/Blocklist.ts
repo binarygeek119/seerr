@@ -35,6 +35,10 @@ export class Blocklist implements BlocklistItem {
   @Index()
   public mbId?: string;
 
+  @Column({ nullable: true })
+  @Index()
+  public foreignBookId?: string;
+
   @ManyToOne(() => User, (user) => user.id, {
     eager: true,
   })
@@ -66,6 +70,7 @@ export class Blocklist implements BlocklistItem {
         title?: ZodOptional<ZodString>['_output'];
         tmdbId?: ZodNumber['_output'];
         mbId?: ZodOptional<ZodString>['_output'];
+        foreignBookId?: ZodOptional<ZodString>['_output'];
         blocklistedTags?: string;
       };
     },
@@ -80,10 +85,16 @@ export class Blocklist implements BlocklistItem {
     const where =
       blocklistRequest.mediaType === MediaType.MUSIC && blocklistRequest.mbId
         ? { mbId: blocklistRequest.mbId, mediaType: blocklistRequest.mediaType }
-        : {
-            tmdbId: blocklistRequest.tmdbId,
-            mediaType: blocklistRequest.mediaType,
-          };
+        : blocklistRequest.mediaType === MediaType.BOOK &&
+            blocklistRequest.foreignBookId
+          ? {
+              foreignBookId: blocklistRequest.foreignBookId,
+              mediaType: blocklistRequest.mediaType,
+            }
+          : {
+              tmdbId: blocklistRequest.tmdbId,
+              mediaType: blocklistRequest.mediaType,
+            };
     let media = await mediaRepository.findOne({
       where,
     });
@@ -96,6 +107,7 @@ export class Blocklist implements BlocklistItem {
       media = new Media({
         tmdbId: blocklistRequest.tmdbId,
         mbId: blocklistRequest.mbId,
+        foreignBookId: blocklistRequest.foreignBookId,
         status: MediaStatus.BLOCKLISTED,
         status4k: MediaStatus.BLOCKLISTED,
         mediaType: blocklistRequest.mediaType,

@@ -44,9 +44,6 @@ export class AddMusicSupport1762648503371 implements MigrationInterface {
       `ALTER TABLE "media" ALTER COLUMN "tmdbId" DROP NOT NULL`
     );
     await queryRunner.query(
-      `ALTER TABLE "media" ALTER COLUMN "serviceId" SET NOT NULL`
-    );
-    await queryRunner.query(
       `ALTER TABLE "media" ALTER COLUMN "serviceId" SET DEFAULT '0'`
     );
     await queryRunner.query(

@@ -1,5 +1,6 @@
 import LidarrLogo from '@app/assets/services/lidarr.svg';
 import RadarrLogo from '@app/assets/services/radarr.svg';
+import ReadarrLogo from '@app/assets/services/readarr.svg';
 import SonarrLogo from '@app/assets/services/sonarr.svg';
 import Alert from '@app/components/Common/Alert';
 import Badge from '@app/components/Common/Badge';
@@ -8,6 +9,7 @@ import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import Modal from '@app/components/Common/Modal';
 import PageTitle from '@app/components/Common/PageTitle';
 import LidarrModal from '@app/components/Settings/LidarrModal';
+import ReadarrModal from '@app/components/Settings/ReadarrModal';
 import OverrideRuleModal from '@app/components/Settings/OverrideRule/OverrideRuleModal';
 import OverrideRuleTiles from '@app/components/Settings/OverrideRule/OverrideRuleTiles';
 import RadarrModal from '@app/components/Settings/RadarrModal';
@@ -21,6 +23,7 @@ import type { OverrideRuleResultsResponse } from '@server/interfaces/api/overrid
 import type {
   LidarrSettings,
   RadarrSettings,
+  ReadarrSettings,
   SonarrSettings,
 } from '@server/lib/settings';
 import axios from 'axios';
@@ -33,6 +36,7 @@ const messages = defineMessages('components.Settings', {
   radarrsettings: 'Radarr Settings',
   sonarrsettings: 'Sonarr Settings',
   lidarrsettings: 'Lidarr Settings',
+  readarrsettings: 'Readarr Settings',
   videoServiceSettingsDescription:
     'Configure your {serverType} server(s) below. You can connect multiple {serverType} servers, but only two of them can be marked as defaults (one non-4K and one 4K). Administrators are able to override the server used to process new requests prior to approval.',
   musicServiceSettingsDescription:
@@ -47,6 +51,7 @@ const messages = defineMessages('components.Settings', {
   addradarr: 'Add Radarr Server',
   addsonarr: 'Add Sonarr Server',
   addlidarr: 'Add Lidarr Server',
+  addreadarr: 'Add Readarr Server',
   noDefaultServer:
     'At least one {serverType} server must be marked as default in order for {mediaType} requests to be processed.',
   noDefaultNon4kServer:
@@ -56,6 +61,7 @@ const messages = defineMessages('components.Settings', {
   mediaTypeMovie: 'movie',
   mediaTypeSeries: 'series',
   mediaTypeMusic: 'music',
+  mediaTypeBook: 'book',
   deleteServer: 'Delete {serverType} Server',
   overrideRules: 'Override Rules',
   overrideRulesDescription:
@@ -74,6 +80,7 @@ interface ServerInstanceProps {
   profileName: string;
   isSonarr?: boolean;
   isLidarr?: boolean;
+  isReadarr?: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -115,6 +122,7 @@ const ServerInstance = ({
   isSSL = false,
   isSonarr = false,
   isLidarr = false,
+  isReadarr = false,
   externalUrl,
   onEdit,
   onDelete,
@@ -187,6 +195,8 @@ const ServerInstance = ({
             <SonarrLogo className="h-10 w-10 flex-shrink-0" />
           ) : isLidarr ? (
             <LidarrLogo className="h-10 w-10 flex-shrink-0" />
+          ) : isReadarr ? (
+            <ReadarrLogo className="h-10 w-10 flex-shrink-0" />
           ) : (
             <RadarrLogo className="h-10 w-10 flex-shrink-0" />
           )}
@@ -235,6 +245,11 @@ const SettingsServices = () => {
     error: lidarrError,
     mutate: revalidateLidarr,
   } = useSWR<LidarrSettings[]>('/api/v1/settings/lidarr');
+  const {
+    data: readarrData,
+    error: readarrError,
+    mutate: revalidateReadarr,
+  } = useSWR<ReadarrSettings[]>('/api/v1/settings/readarr');
   const { data: rules, mutate: revalidate } =
     useSWR<OverrideRuleResultsResponse>('/api/v1/overrideRule');
   const [editRadarrModal, setEditRadarrModal] = useState<{
@@ -258,9 +273,16 @@ const SettingsServices = () => {
     open: false,
     lidarr: null,
   });
+  const [editReadarrModal, setEditReadarrModal] = useState<{
+    open: boolean;
+    readarr: ReadarrSettings | null;
+  }>({
+    open: false,
+    readarr: null,
+  });
   const [deleteServerModal, setDeleteServerModal] = useState<{
     open: boolean;
-    type: 'radarr' | 'sonarr' | 'lidarr';
+    type: 'radarr' | 'sonarr' | 'lidarr' | 'readarr';
     serverId: number | null;
   }>({
     open: false,
@@ -282,6 +304,8 @@ const SettingsServices = () => {
     setDeleteServerModal({ open: false, serverId: null, type: 'radarr' });
     revalidateRadarr();
     revalidateSonarr();
+    revalidateLidarr();
+    revalidateReadarr();
     mutate('/api/v1/settings/public');
   };
 
@@ -342,6 +366,17 @@ const SettingsServices = () => {
           }}
         />
       )}
+      {editReadarrModal.open && (
+        <ReadarrModal
+          readarr={editReadarrModal.readarr}
+          onClose={() => setEditReadarrModal({ open: false, readarr: null })}
+          onSave={() => {
+            revalidateReadarr();
+            mutate('/api/v1/settings/public');
+            setEditReadarrModal({ open: false, readarr: null });
+          }}
+        />
+      )}
       <Transition
         as={Fragment}
         show={deleteServerModal.open}
@@ -369,7 +404,9 @@ const SettingsServices = () => {
                 ? 'Radarr'
                 : deleteServerModal.type === 'sonarr'
                   ? 'Sonarr'
-                  : 'Lidarr',
+                  : deleteServerModal.type === 'lidarr'
+                    ? 'Lidarr'
+                    : 'Readarr',
           })}
         >
           {intl.formatMessage(messages.deleteserverconfirm)}
@@ -605,6 +642,68 @@ const SettingsServices = () => {
       </div>
       <div className="mb-6 mt-10">
         <h3 className="heading">
+          {intl.formatMessage(messages.readarrsettings)}
+        </h3>
+        <p className="description">
+          {intl.formatMessage(messages.musicServiceSettingsDescription, {
+            serverType: 'Readarr',
+          })}
+        </p>
+      </div>
+      <div className="section">
+        {!readarrData && !readarrError && <LoadingSpinner />}
+        {readarrData && !readarrError && (
+          <>
+            {readarrData.length > 0 &&
+              (!readarrData.some((readarr) => readarr.isDefault) ? (
+                <Alert
+                  title={intl.formatMessage(messages.noDefaultServer, {
+                    serverType: 'Readarr',
+                    mediaType: intl.formatMessage(messages.mediaTypeBook),
+                  })}
+                />
+              ) : null)}
+            <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              {readarrData.map((readarr) => (
+                <ServerInstance
+                  key={`readarr-config-${readarr.id}`}
+                  name={readarr.name}
+                  hostname={readarr.hostname}
+                  port={readarr.port}
+                  profileName={readarr.activeProfileName}
+                  isSSL={readarr.useSsl}
+                  isReadarr
+                  isDefault={readarr.isDefault}
+                  externalUrl={readarr.externalUrl}
+                  onEdit={() => setEditReadarrModal({ open: true, readarr })}
+                  onDelete={() =>
+                    setDeleteServerModal({
+                      open: true,
+                      serverId: readarr.id,
+                      type: 'readarr',
+                    })
+                  }
+                />
+              ))}
+              <li className="col-span-1 h-32 rounded-lg border-2 border-dashed border-gray-400 shadow sm:h-44">
+                <div className="flex h-full w-full items-center justify-center">
+                  <Button
+                    buttonType="ghost"
+                    onClick={() =>
+                      setEditReadarrModal({ open: true, readarr: null })
+                    }
+                  >
+                    <PlusIcon />
+                    <span>{intl.formatMessage(messages.addreadarr)}</span>
+                  </Button>
+                </div>
+              </li>
+            </ul>
+          </>
+        )}
+      </div>
+      <div className="mb-6 mt-10">
+        <h3 className="heading">
           {intl.formatMessage(messages.overrideRules)}
         </h3>
         <p className="description">
@@ -615,11 +714,12 @@ const SettingsServices = () => {
       </div>
       <div className="section">
         <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {rules && radarrData && sonarrData && (
+          {rules && radarrData && sonarrData && readarrData != null && (
             <OverrideRuleTiles
               rules={rules}
               radarrServices={radarrData}
               sonarrServices={sonarrData}
+              readarrServices={readarrData}
               setOverrideRuleModal={setOverrideRuleModal}
               revalidate={revalidate}
             />
@@ -628,7 +728,11 @@ const SettingsServices = () => {
             <div className="flex h-full w-full items-center justify-center">
               <Button
                 buttonType="ghost"
-                disabled={!radarrData?.length && !sonarrData?.length}
+                disabled={
+                  !radarrData?.length &&
+                  !sonarrData?.length &&
+                  !readarrData?.length
+                }
                 onClick={() =>
                   setOverrideRuleModal({
                     open: true,
@@ -643,7 +747,7 @@ const SettingsServices = () => {
           </li>
         </ul>
       </div>
-      {overrideRuleModal.open && radarrData && sonarrData && (
+      {overrideRuleModal.open && radarrData && sonarrData && readarrData != null && (
         <OverrideRuleModal
           rule={overrideRuleModal.rule}
           onClose={() => {
@@ -655,6 +759,7 @@ const SettingsServices = () => {
           }}
           radarrServices={radarrData}
           sonarrServices={sonarrData}
+          readarrServices={readarrData}
         />
       )}
     </>

@@ -13,13 +13,41 @@ import { z } from 'zod';
 
 const blocklistRoutes = Router();
 
-export const blocklistAdd = z.object({
-  tmdbId: z.coerce.number(),
-  mediaType: z.nativeEnum(MediaType),
-  title: z.coerce.string().optional(),
-  user: z.coerce.number(),
-  blocklistedTags: z.string().optional(),
-});
+export const blocklistAdd = z
+  .object({
+    mediaType: z.nativeEnum(MediaType),
+    title: z.coerce.string().optional(),
+    user: z.coerce.number(),
+    blocklistedTags: z.string().optional(),
+    tmdbId: z.coerce.number().optional(),
+    mbId: z.string().optional(),
+    foreignBookId: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.mediaType === MediaType.MUSIC) {
+      if (!data.mbId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'mbId is required for music',
+          path: ['mbId'],
+        });
+      }
+    } else if (data.mediaType === MediaType.BOOK) {
+      if (!data.foreignBookId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'foreignBookId is required for book',
+          path: ['foreignBookId'],
+        });
+      }
+    } else if (data.tmdbId == null || Number.isNaN(Number(data.tmdbId))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'tmdbId is required for movie and TV',
+        path: ['tmdbId'],
+      });
+    }
+  });
 
 const blocklistGet = z.object({
   take: z.coerce.number().int().positive().default(25),
@@ -95,7 +123,8 @@ blocklistRoutes.get(
     if (
       mediaType !== MediaType.MOVIE &&
       mediaType !== MediaType.TV &&
-      mediaType !== MediaType.MUSIC
+      mediaType !== MediaType.MUSIC &&
+      mediaType !== MediaType.BOOK
     ) {
       return next({
         status: 400,
@@ -109,7 +138,9 @@ blocklistRoutes.get(
       const where =
         mediaType === MediaType.MUSIC
           ? { mbId: req.params.id, mediaType }
-          : { tmdbId: Number(req.params.id), mediaType };
+          : mediaType === MediaType.BOOK
+            ? { foreignBookId: decodeURIComponent(req.params.id), mediaType }
+            : { tmdbId: Number(req.params.id), mediaType };
 
       const blocklistItem = await blocklisteRepository.findOneOrFail({
         where,
@@ -277,7 +308,8 @@ blocklistRoutes.delete(
     if (
       mediaType !== MediaType.MOVIE &&
       mediaType !== MediaType.TV &&
-      mediaType !== MediaType.MUSIC
+      mediaType !== MediaType.MUSIC &&
+      mediaType !== MediaType.BOOK
     ) {
       return next({
         status: 400,
@@ -291,7 +323,12 @@ blocklistRoutes.delete(
       const blocklistWhere =
         mediaType === MediaType.MUSIC
           ? { mbId: req.params.id, mediaType }
-          : { tmdbId: Number(req.params.id), mediaType };
+          : mediaType === MediaType.BOOK
+            ? {
+                foreignBookId: decodeURIComponent(req.params.id),
+                mediaType,
+              }
+            : { tmdbId: Number(req.params.id), mediaType };
 
       const blocklistItem = await blocklisteRepository.findOneOrFail({
         where: blocklistWhere,
@@ -304,10 +341,15 @@ blocklistRoutes.delete(
       const mediaWhere =
         mediaType === MediaType.MUSIC
           ? { mbId: req.params.id, mediaType: req.query.mediaType as MediaType }
-          : {
-              tmdbId: Number(req.params.id),
-              mediaType: req.query.mediaType as MediaType,
-            };
+          : mediaType === MediaType.BOOK
+            ? {
+                foreignBookId: decodeURIComponent(req.params.id),
+                mediaType: req.query.mediaType as MediaType,
+              }
+            : {
+                tmdbId: Number(req.params.id),
+                mediaType: req.query.mediaType as MediaType,
+              };
 
       const mediaItem = await mediaRepository.findOneOrFail({
         where: mediaWhere,

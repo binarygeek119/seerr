@@ -9,6 +9,7 @@ import type {
   DVRSettings,
   Language,
   RadarrSettings,
+  ReadarrSettings,
   SonarrSettings,
 } from '@server/lib/settings';
 import type { Keyword } from '@server/models/common';
@@ -41,6 +42,7 @@ interface OverrideRuleTilesProps {
   revalidate: () => void;
   radarrServices: RadarrSettings[];
   sonarrServices: SonarrSettings[];
+  readarrServices: ReadarrSettings[];
 }
 
 const OverrideRuleTiles = ({
@@ -49,6 +51,7 @@ const OverrideRuleTiles = ({
   revalidate,
   radarrServices,
   sonarrServices,
+  readarrServices,
 }: OverrideRuleTilesProps) => {
   const intl = useIntl();
   const [users, setUsers] = useState<User[] | null>(null);
@@ -61,36 +64,40 @@ const OverrideRuleTiles = ({
 
   const getServiceInfos = useCallback(async () => {
     const results: (DVRTestResponse & { type: string; id: number })[] = [];
-    const services: DVRSettings[] = [...radarrServices, ...sonarrServices];
+    const services: DVRSettings[] = [
+      ...radarrServices,
+      ...sonarrServices,
+      ...readarrServices,
+    ];
     for (const service of services) {
       const { hostname, port, apiKey, baseUrl, useSsl = false } = service;
+      const arrType = radarrServices.includes(service as RadarrSettings)
+        ? 'radarr'
+        : sonarrServices.includes(service as SonarrSettings)
+          ? 'sonarr'
+          : 'readarr';
       try {
-        const response = await axios.post<DVRTestResponse>(
-          `/api/v1/settings/${
-            radarrServices.includes(service as RadarrSettings)
-              ? 'radarr'
-              : 'sonarr'
-          }/test`,
-          {
-            hostname,
-            apiKey,
-            port: Number(port),
-            baseUrl,
-            useSsl,
-          }
-        );
+        const url =
+          arrType === 'readarr'
+            ? '/api/v1/settings/readarr/test'
+            : `/api/v1/settings/${arrType}/test`;
+        const response = await axios.post<DVRTestResponse>(url, {
+          hostname,
+          apiKey,
+          port: Number(port),
+          baseUrl,
+          useSsl,
+        });
         results.push({
-          type: radarrServices.includes(service as RadarrSettings)
-            ? 'radarr'
-            : 'sonarr',
+          type: arrType,
           id: service.id,
-          ...response.data,
+          profiles: response.data.profiles ?? [],
+          rootFolders: response.data.rootFolders ?? [],
+          tags: response.data.tags ?? [],
         });
       } catch {
         results.push({
-          type: radarrServices.includes(service as RadarrSettings)
-            ? 'radarr'
-            : 'sonarr',
+          type: arrType,
           id: service.id,
           profiles: [],
           rootFolders: [],
@@ -99,7 +106,7 @@ const OverrideRuleTiles = ({
       }
     }
     setTestResponses(results);
-  }, [radarrServices, sonarrServices]);
+  }, [radarrServices, sonarrServices, readarrServices]);
 
   useEffect(() => {
     getServiceInfos();
@@ -236,7 +243,10 @@ const OverrideRuleTiles = ({
                       (r) =>
                         (r.id === rule.radarrServiceId &&
                           r.type === 'radarr') ||
-                        (r.id === rule.sonarrServiceId && r.type === 'sonarr')
+                        (r.id === rule.sonarrServiceId &&
+                          r.type === 'sonarr') ||
+                        (r.id === rule.readarrServiceId &&
+                          r.type === 'readarr')
                     )
                     ?.profiles.find((profile) => rule.profileId === profile.id)
                     ?.name || rule.profileId}
@@ -264,7 +274,9 @@ const OverrideRuleTiles = ({
                               (r.id === rule.radarrServiceId &&
                                 r.type === 'radarr') ||
                               (r.id === rule.sonarrServiceId &&
-                                r.type === 'sonarr')
+                                r.type === 'sonarr') ||
+                              (r.id === rule.readarrServiceId &&
+                                r.type === 'readarr')
                           )
                           ?.tags?.find((t) => t.id === Number(tag))?.label ||
                           tag}

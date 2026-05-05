@@ -1,4 +1,5 @@
 import LidarrAPI from '@server/api/servarr/lidarr';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import RadarrAPI from '@server/api/servarr/radarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import { MediaStatus, MediaType } from '@server/constants/media';
@@ -35,6 +36,7 @@ class Media {
     items:
       | { tmdbId: number; mediaType: MediaType }[]
       | { mbId: string; mediaType: MediaType }[]
+      | { foreignBookId: string; mediaType: MediaType }[]
       | string[]
   ): Promise<Media[]> {
     const mediaRepository = getRepository(Media);
@@ -64,7 +66,36 @@ class Media {
       const refs = items as (
         | { tmdbId: number; mediaType: MediaType }
         | { mbId: string; mediaType: MediaType }
+        | { foreignBookId: string; mediaType: MediaType }
       )[];
+
+      if ('foreignBookId' in refs[0]) {
+        const bookRefs = refs as {
+          foreignBookId: string;
+          mediaType: MediaType;
+        }[];
+        const foreignBookIds = [...new Set(bookRefs.map((r) => r.foreignBookId))];
+        const media = await mediaRepository
+          .createQueryBuilder('media')
+          .leftJoinAndSelect(
+            'media.watchlists',
+            'watchlist',
+            'media.id = watchlist.media and watchlist.requestedBy = :userId',
+            { userId: user?.id }
+          )
+          .where('media.foreignBookId IN (:...foreignBookIds)', {
+            foreignBookIds,
+          })
+          .andWhere('media.mediaType = :book', { book: MediaType.BOOK })
+          .getMany();
+        return media.filter((m) =>
+          bookRefs.some(
+            (r) =>
+              r.foreignBookId === m.foreignBookId &&
+              r.mediaType === m.mediaType
+          )
+        );
+      }
 
       if ('mbId' in refs[0]) {
         const mbRefs = refs as { mbId: string; mediaType: MediaType }[];
@@ -119,7 +150,9 @@ class Media {
       const media = await mediaRepository.findOne({
         where:
           typeof id === 'string'
-            ? { mbId: id, mediaType }
+            ? mediaType === MediaType.BOOK
+              ? { foreignBookId: id, mediaType }
+              : { mbId: id, mediaType }
             : { tmdbId: id, mediaType },
         relations: { requests: true, issues: true },
       });
@@ -152,6 +185,10 @@ class Media {
   @Column({ nullable: true })
   @Index()
   public mbId?: string;
+
+  @Column({ nullable: true })
+  @Index()
+  public foreignBookId?: string;
 
   @Column({ type: 'int', default: MediaStatus.UNKNOWN })
   @Index()
@@ -209,7 +246,7 @@ class Media {
   })
   public mediaAddedAt: Date;
 
-  @Column({ nullable: false, type: 'int', default: 0 })
+  @Column({ nullable: true, type: 'int', default: 0 })
   public serviceId?: number | null;
 
   @Column({ nullable: true, type: 'int' })
@@ -398,6 +435,21 @@ class Media {
           this.serviceUrl = server.externalUrl
             ? `${server.externalUrl}/album/${this.externalServiceSlug}`
             : LidarrAPI.buildUrl(server, `/album/${this.externalServiceSlug}`);
+        }
+      }
+    }
+
+    if (this.mediaType === MediaType.BOOK) {
+      if (this.serviceId !== null && this.externalServiceSlug !== null) {
+        const settings = getSettings();
+        const server = settings.readarr.find(
+          (readarr) => readarr.id === this.serviceId
+        );
+
+        if (server) {
+          this.serviceUrl = server.externalUrl
+            ? `${server.externalUrl}/book/${this.externalServiceSlug}`
+            : ReadarrAPI.buildUrl(server, `/book/${this.externalServiceSlug}`);
         }
       }
     }

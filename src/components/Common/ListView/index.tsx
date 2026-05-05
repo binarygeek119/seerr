@@ -10,6 +10,7 @@ import type { WatchlistItem } from '@server/interfaces/api/discoverInterfaces';
 import type {
   AlbumResult,
   ArtistResult,
+  BookResult,
   CollectionResult,
   MovieResult,
   PersonResult,
@@ -25,6 +26,7 @@ type ListViewProps = {
     | CollectionResult
     | ArtistResult
     | AlbumResult
+    | BookResult
   )[];
   plexItems?: WatchlistItem[];
   isEmpty?: boolean;
@@ -67,6 +69,7 @@ const ListView = ({
                 id={title.tmdbId ?? 0}
                 tmdbId={title.tmdbId ?? 0}
                 mbId={title.mbId}
+                foreignBookId={title.foreignBookId}
                 type={title.mediaType}
                 isAddedToWatchlist={true}
                 canExpand
@@ -79,8 +82,8 @@ const ListView = ({
           ?.filter((title) => {
             if (!blocklistVisibility)
               return (
-                (title as TvResult | MovieResult | AlbumResult).mediaInfo
-                  ?.status !== MediaStatus.BLOCKLISTED
+                (title as TvResult | MovieResult | AlbumResult | BookResult)
+                  .mediaInfo?.status !== MediaStatus.BLOCKLISTED
               );
             return title;
           })
@@ -172,6 +175,28 @@ const ListView = ({
                         ? title.releaseDate.split('-')[0]
                         : title['first-release-date']?.split('-')[0]
                     }
+                    mediaType={title.mediaType}
+                    inProgress={
+                      (title.mediaInfo?.downloadStatus ?? []).length > 0
+                    }
+                    needsCoverArt={title.needsCoverArt}
+                    canExpand
+                  />
+                );
+                break;
+              case 'book':
+                titleCard = (
+                  <TitleCard
+                    key={title.id}
+                    id={title.id}
+                    isAddedToWatchlist={
+                      title.mediaInfo?.watchlists?.length ?? 0
+                    }
+                    image={title.posterPath}
+                    status={title.mediaInfo?.status}
+                    title={title.title}
+                    artist={title.authorName}
+                    year={undefined}
                     mediaType={title.mediaType}
                     inProgress={
                       (title.mediaInfo?.downloadStatus ?? []).length > 0

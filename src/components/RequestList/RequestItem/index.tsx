@@ -188,6 +188,22 @@ const RequestItemError = ({
                       ).length > 0
                     }
                     is4k={requestData.is4k}
+                    tmdbId={
+                      requestData.type === 'music' ||
+                      requestData.type === 'book'
+                        ? undefined
+                        : requestData.media.tmdbId
+                    }
+                    mbId={
+                      requestData.type === 'music'
+                        ? requestData.media.mbId
+                        : undefined
+                    }
+                    foreignBookId={
+                      requestData.type === 'book'
+                        ? requestData.media.foreignBookId
+                        : undefined
+                    }
                     mediaType={requestData.type}
                     plexUrl={requestData.is4k ? plexUrl4k : plexUrl}
                     serviceUrl={
@@ -465,8 +481,15 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
     <>
       <RequestModal
         show={showEditModal}
-        tmdbId={request.media.tmdbId}
-        mbId={request.media.mbId}
+        tmdbId={
+          request.type === 'music' || request.type === 'book'
+            ? undefined
+            : request.media.tmdbId
+        }
+        mbId={request.type === 'music' ? request.media.mbId : undefined}
+        foreignBookId={
+          request.type === 'book' ? request.media.foreignBookId : undefined
+        }
         type={request.type}
         is4k={request.is4k}
         editRequest={request}
@@ -511,9 +534,11 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
               href={
                 requestData.type === 'music'
                   ? `/music/${requestData.media.mbId}`
-                  : requestData.type === 'movie'
-                    ? `/movie/${requestData.media.tmdbId}`
-                    : `/tv/${requestData.media.tmdbId}`
+                  : requestData.type === 'book'
+                    ? `/book/${requestData.media.foreignBookId}`
+                    : requestData.type === 'movie'
+                      ? `/movie/${requestData.media.tmdbId}`
+                      : `/tv/${requestData.media.tmdbId}`
               }
               className="relative h-auto w-12 flex-shrink-0 scale-100 transform-gpu overflow-hidden rounded-md transition duration-300 hover:scale-105"
             >
@@ -548,9 +573,11 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                 href={
                   requestData.type === 'music'
                     ? `/music/${requestData.media.mbId}`
-                    : requestData.type === 'movie'
-                      ? `/movie/${requestData.media.tmdbId}`
-                      : `/tv/${requestData.media.tmdbId}`
+                    : requestData.type === 'book'
+                      ? `/book/${requestData.media.foreignBookId}`
+                      : requestData.type === 'movie'
+                        ? `/movie/${requestData.media.tmdbId}`
+                        : `/tv/${requestData.media.tmdbId}`
                 }
                 className="mr-2 min-w-0 truncate text-lg font-bold text-white hover:underline xl:text-xl"
               >
@@ -606,7 +633,9 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                   href={`/${requestData.type}/${
                     requestData.type === 'music'
                       ? requestData.media.mbId
-                      : requestData.media.tmdbId
+                      : requestData.type === 'book'
+                        ? requestData.media.foreignBookId
+                        : requestData.media.tmdbId
                   }?manage=1`}
                 >
                   {intl.formatMessage(globalMessages.failed)}
@@ -619,7 +648,9 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                   href={`/${requestData.type}/${
                     requestData.type === 'music'
                       ? requestData.media.mbId
-                      : requestData.media.tmdbId
+                      : requestData.type === 'book'
+                        ? requestData.media.foreignBookId
+                        : requestData.media.tmdbId
                   }?manage=1`}
                 >
                   {intl.formatMessage(globalMessages.pending)}
@@ -649,7 +680,21 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                     ).length > 0
                   }
                   is4k={requestData.is4k}
-                  tmdbId={requestData.media.tmdbId}
+                  tmdbId={
+                    requestData.type === 'music' || requestData.type === 'book'
+                      ? undefined
+                      : requestData.media.tmdbId
+                  }
+                  mbId={
+                    requestData.type === 'music'
+                      ? requestData.media.mbId
+                      : undefined
+                  }
+                  foreignBookId={
+                    requestData.type === 'book'
+                      ? requestData.media.foreignBookId
+                      : undefined
+                  }
                   mediaType={requestData.type}
                   plexUrl={requestData.is4k ? plexUrl4k : plexUrl}
                   serviceUrl={
