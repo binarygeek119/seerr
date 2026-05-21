@@ -1,13 +1,22 @@
-import type { ReadarrAddBookInput, ReadarrBook } from '@server/api/servarr/readarr';
+import type {
+  ReadarrAddBookInput,
+  ReadarrBook,
+} from '@server/api/servarr/readarr';
 import ReadarrAPI from '@server/api/servarr/readarr';
-import { MediaRequestStatus, MediaStatus, MediaType } from '@server/constants/media';
+import {
+  MediaRequestStatus,
+  MediaStatus,
+  MediaType,
+} from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import { MediaRequest } from '@server/entity/MediaRequest';
+import { Notification } from '@server/lib/notifications';
+import { getReadarrServer } from '@server/lib/readarr/getReadarrServer';
+import { lookupBookInReadarr } from '@server/lib/readarr/lookupBook';
 import type { ReadarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
-import { Notification } from '@server/lib/notifications';
 
 function buildAddBookPayload(
   book: ReadarrBook,
@@ -77,15 +86,18 @@ export async function sendApprovedBookToReadarr(
   const settings = getSettings();
 
   if (!settings.readarr?.length) {
-    logger.info('No Readarr server configured, skipping book request processing', {
-      label: 'Media Request',
-      requestId: entity.id,
-      mediaId: entity.media.id,
-    });
+    logger.info(
+      'No Readarr server configured, skipping book request processing',
+      {
+        label: 'Media Request',
+        requestId: entity.id,
+        mediaId: entity.media.id,
+      }
+    );
     return;
   }
 
-  let readarrSettings = settings.readarr.find((r) => r.isDefault);
+  let readarrSettings = getReadarrServer(settings.readarr, entity.is4k);
 
   if (
     entity.serverId !== null &&
@@ -117,7 +129,9 @@ export async function sendApprovedBookToReadarr(
     return;
   }
 
-  if (media.status === MediaStatus.AVAILABLE) {
+  const currentStatus = entity.is4k ? media.status4k : media.status;
+
+  if (currentStatus === MediaStatus.AVAILABLE) {
     logger.warn('Book media already available, skipping Readarr send', {
       label: 'Media Request',
       requestId: entity.id,
@@ -135,9 +149,7 @@ export async function sendApprovedBookToReadarr(
     url: ReadarrAPI.buildUrl(readarrSettings, '/api/v1'),
   });
 
-  const lookup = await readarr.lookupBooks(media.foreignBookId);
-  const book =
-    lookup.find((b) => b.foreignBookId === media.foreignBookId) ?? lookup[0];
+  const book = await lookupBookInReadarr(readarr, media.foreignBookId);
 
   if (!book) {
     throw new Error('Book not found in Readarr lookup');
@@ -170,9 +182,17 @@ export async function sendApprovedBookToReadarr(
       if (!latest) {
         throw new Error('Media data not found');
       }
-      latest.externalServiceId = result.id;
-      latest.externalServiceSlug = result.titleSlug;
-      latest.serviceId = readarrSettings.id;
+      if (entity.is4k) {
+        latest.externalServiceId4k = result.id;
+        latest.externalServiceSlug4k = result.titleSlug;
+        latest.serviceId4k = readarrSettings.id;
+        latest.status4k = MediaStatus.PROCESSING;
+      } else {
+        latest.externalServiceId = result.id;
+        latest.externalServiceSlug = result.titleSlug;
+        latest.serviceId = readarrSettings.id;
+        latest.status = MediaStatus.PROCESSING;
+      }
       await mediaRepository.save(latest);
     })
     .catch(async (error) => {

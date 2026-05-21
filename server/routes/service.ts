@@ -295,6 +295,7 @@ serviceRoutes.get('/readarr', async (req, res) => {
       activeProfileId: readarr.activeProfileId,
       activeTags: readarr.tags ?? [],
       isDefault: readarr.isDefault,
+      is4k: readarr.isAudiobook ?? false,
     })
   );
 

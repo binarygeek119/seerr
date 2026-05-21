@@ -18,6 +18,7 @@ services:
       - .:/app:rw,cached
       - /app/node_modules
       - /app/.next
+      - ./config:/app/config
     depends_on:
       - postgres
     links:

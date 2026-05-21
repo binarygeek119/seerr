@@ -21,6 +21,7 @@ import { mutate } from 'swr';
 const messages = defineMessages('components.RequestButton', {
   viewrequest: 'View Request',
   viewrequest4k: 'View 4K Request',
+  viewrequestaudiobook: 'View Audiobook Request',
   requestmore: 'Request More',
   requestmore4k: 'Request More in 4K',
   approverequest: 'Approve Request',
@@ -137,6 +138,20 @@ const RequestButton = ({
   };
 
   const buttons: ButtonOption[] = [];
+
+  const audiobookBookMode =
+    mediaType === 'book' && settings.currentSettings.bookAudiobookEnabled;
+
+  const canRequestBookEbook =
+    !media ||
+    media.status === MediaStatus.UNKNOWN ||
+    (media.status === MediaStatus.DELETED && !activeRequest);
+
+  const canRequestBookAudiobook =
+    audiobookBookMode &&
+    (!media ||
+      media.status4k === MediaStatus.UNKNOWN ||
+      (media.status4k === MediaStatus.DELETED && !active4kRequest));
 
   // If there are pending requests, show request management options first
   if (activeRequest || active4kRequest) {
@@ -281,11 +296,30 @@ const RequestButton = ({
     }
   }
 
-  // Standard request button
+  // Book: single Request button when ebook + audiobook servers are configured
   if (
-    (!media ||
-      media.status === MediaStatus.UNKNOWN ||
-      (media.status === MediaStatus.DELETED && !activeRequest)) &&
+    audiobookBookMode &&
+    (canRequestBookEbook || canRequestBookAudiobook) &&
+    hasPermission(
+      [Permission.REQUEST, Permission.REQUEST_BOOK, Permission.REQUEST_4K],
+      { type: 'or' }
+    )
+  ) {
+    buttons.push({
+      id: 'request-book',
+      text: intl.formatMessage(globalMessages.request),
+      action: () => {
+        setEditRequest(false);
+        setShowRequestModal(true);
+      },
+      svg: <ArrowDownTrayIcon />,
+    });
+  }
+
+  // Standard ebook request button
+  if (
+    !audiobookBookMode &&
+    canRequestBookEbook &&
     hasPermission(
       [
         Permission.REQUEST,
@@ -330,8 +364,9 @@ const RequestButton = ({
     });
   }
 
-  // 4K request button
+  // 4K / audiobook request button
   if (
+    !audiobookBookMode &&
     (!media ||
       media.status4k === MediaStatus.UNKNOWN ||
       (media.status4k === MediaStatus.DELETED && !active4kRequest)) &&
@@ -340,16 +375,23 @@ const RequestButton = ({
         Permission.REQUEST_4K,
         mediaType === 'movie'
           ? Permission.REQUEST_4K_MOVIE
-          : Permission.REQUEST_4K_TV,
+          : mediaType === 'book'
+            ? Permission.REQUEST_BOOK
+            : Permission.REQUEST_4K_TV,
       ],
       { type: 'or' }
     ) &&
     ((settings.currentSettings.movie4kEnabled && mediaType === 'movie') ||
-      (settings.currentSettings.series4kEnabled && mediaType === 'tv'))
+      (settings.currentSettings.series4kEnabled && mediaType === 'tv') ||
+      (settings.currentSettings.bookAudiobookEnabled && mediaType === 'book'))
   ) {
     buttons.push({
       id: 'request4k',
-      text: intl.formatMessage(globalMessages.request4k),
+      text: intl.formatMessage(
+        mediaType === 'book'
+          ? globalMessages.requestAudiobook
+          : globalMessages.request4k
+      ),
       action: () => {
         setEditRequest(false);
         setShowRequest4kModal(true);
@@ -387,9 +429,11 @@ const RequestButton = ({
   return (
     <>
       <RequestModal
+        key={showRequestModal ? 'book-request-open' : 'book-request-closed'}
         tmdbId={tmdbId}
         mbId={mbId}
         foreignBookId={foreignBookId}
+        media={media}
         show={showRequestModal}
         type={mediaType}
         editRequest={editRequest ? activeRequest : undefined}
@@ -399,9 +443,17 @@ const RequestButton = ({
         }}
         onCancel={() => setShowRequestModal(false)}
       />
-      {mediaType !== 'music' && mediaType !== 'book' && (
+      {mediaType !== 'music' && (
         <RequestModal
+          key={
+            showRequest4kModal
+              ? 'book-request-4k-open'
+              : 'book-request-4k-closed'
+          }
           tmdbId={tmdbId}
+          mbId={mbId}
+          foreignBookId={foreignBookId}
+          media={media}
           show={showRequest4kModal}
           type={mediaType}
           editRequest={editRequest ? active4kRequest : undefined}

@@ -8,16 +8,34 @@ const readarrRoutes = Router();
 
 readarrRoutes.get('/', (_req, res) => {
   const settings = getSettings();
-
+  // Older settings files may not have readarr initialized yet.
+  if (!Array.isArray(settings.readarr)) {
+    settings.readarr = [];
+  }
   res.status(200).json(settings.readarr);
 });
 
 readarrRoutes.post('/', (req, res) => {
   const settings = getSettings();
 
-  const newReadarr = req.body as ReadarrSettings;
+  const newReadarr = {
+    ...req.body,
+    isAudiobook: req.body.isAudiobook ?? false,
+    is4k: false,
+  } as ReadarrSettings;
   const lastItem = settings.readarr[settings.readarr.length - 1];
   newReadarr.id = lastItem ? lastItem.id + 1 : 0;
+
+  if (newReadarr.isDefault) {
+    settings.readarr
+      .filter(
+        (readarrInstance) =>
+          readarrInstance.isAudiobook === newReadarr.isAudiobook
+      )
+      .forEach((readarrInstance) => {
+        readarrInstance.isDefault = false;
+      });
+  }
 
   settings.readarr = [...settings.readarr, newReadarr];
   settings.save();
@@ -77,10 +95,26 @@ readarrRoutes.put<{ id: string }, ReadarrSettings, ReadarrSettings>(
       return next({ status: '404', message: 'Settings instance not found' });
     }
 
-    settings.readarr[readarrIndex] = {
+    const updatedReadarr = {
       ...req.body,
+      isAudiobook: req.body.isAudiobook ?? false,
+      is4k: false,
       id: Number(req.params.id),
     } as ReadarrSettings;
+
+    if (updatedReadarr.isDefault) {
+      settings.readarr
+        .filter(
+          (readarrInstance) =>
+            readarrInstance.id !== updatedReadarr.id &&
+            readarrInstance.isAudiobook === updatedReadarr.isAudiobook
+        )
+        .forEach((readarrInstance) => {
+          readarrInstance.isDefault = false;
+        });
+    }
+
+    settings.readarr[readarrIndex] = updatedReadarr;
     settings.save();
 
     return res.status(200).json(settings.readarr[readarrIndex]);

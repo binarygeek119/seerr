@@ -40,6 +40,20 @@ const messages = defineMessages('components.RequestModal.AdvancedRequester', {
   notagoptions: 'No tags.',
 });
 
+const serverMatchesRequestType = (
+  type: 'movie' | 'tv' | 'music' | 'book',
+  server: ServiceCommonServer,
+  is4k: boolean
+): boolean => {
+  if (type === 'music') {
+    return true;
+  }
+  if (type === 'book') {
+    return (server.is4k ?? false) === is4k;
+  }
+  return server.is4k === is4k;
+};
+
 const servicePathForType = (
   type: 'movie' | 'tv' | 'music' | 'book'
 ): 'radarr' | 'sonarr' | 'lidarr' | 'readarr' => {
@@ -172,8 +186,7 @@ const AdvancedRequester = ({
   useEffect(() => {
     let defaultServer = data?.find(
       (server) =>
-        server.isDefault &&
-        (type === 'music' || type === 'book' || is4k === server.is4k)
+        server.isDefault && serverMatchesRequestType(type, server, is4k)
     );
 
     if (!defaultServer && (data ?? []).length > 0) {
@@ -314,9 +327,8 @@ const AdvancedRequester = ({
   if (
     (!data ||
       selectedServer === null ||
-      (data.filter(
-        (server) => type === 'music' || type === 'book' || server.is4k === is4k
-      ).length < 2 &&
+      (data.filter((server) => serverMatchesRequestType(type, server, is4k))
+        .length < 2 &&
         (!serverData ||
           (serverData.profiles.length < 2 &&
             serverData.rootFolders.length < 2 &&
@@ -335,10 +347,9 @@ const AdvancedRequester = ({
       <div className="rounded-md">
         {!!data && selectedServer !== null && (
           <div className="flex flex-col md:flex-row">
-            {(((type === 'music' || type === 'book') && data.length > 1) ||
-              (type !== 'music' &&
-                type !== 'book' &&
-                data.filter((server) => server.is4k === is4k).length > 1)) && (
+            {data.filter((server) =>
+              serverMatchesRequestType(type, server, is4k)
+            ).length > 1 && (
               <div className="mb-3 w-full flex-shrink-0 flex-grow last:pr-0 md:w-1/4 md:pr-4">
                 <label htmlFor="server">
                   {intl.formatMessage(messages.destinationserver)}
@@ -351,18 +362,22 @@ const AdvancedRequester = ({
                   onBlur={(e) => setSelectedServer(Number(e.target.value))}
                   className="border-gray-700 bg-gray-800"
                 >
-                  {(type === 'music' || type === 'book'
-                    ? data
-                    : data.filter((server) => server.is4k === is4k)
-                  ).map((server) => (
-                    <option key={`server-list-${server.id}`} value={server.id}>
-                      {server.isDefault
-                        ? intl.formatMessage(messages.default, {
-                            name: server.name,
-                          })
-                        : server.name}
-                    </option>
-                  ))}
+                  {data
+                    .filter((server) =>
+                      serverMatchesRequestType(type, server, is4k)
+                    )
+                    .map((server) => (
+                      <option
+                        key={`server-list-${server.id}`}
+                        value={server.id}
+                      >
+                        {server.isDefault
+                          ? intl.formatMessage(messages.default, {
+                              name: server.name,
+                            })
+                          : server.name}
+                      </option>
+                    ))}
                 </select>
               </div>
             )}

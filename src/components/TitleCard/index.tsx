@@ -164,8 +164,7 @@ const TitleCard = ({
   const onClickDeleteWatchlistBtn = async (): Promise<void> => {
     setIsUpdating(true);
     try {
-      const watchlistMediaType =
-        mediaType === 'album' ? 'music' : mediaType;
+      const watchlistMediaType = mediaType === 'album' ? 'music' : mediaType;
       const response = await axios.delete<Watchlist>(
         `/api/v1/watchlist/${id}?mediaType=${watchlistMediaType}`
       );
@@ -365,9 +364,7 @@ const TitleCard = ({
     >
       <RequestModal
         tmdbId={typeof id === 'number' ? id : undefined}
-        mbId={
-          mediaType === 'album' && typeof id === 'string' ? id : undefined
-        }
+        mbId={mediaType === 'album' && typeof id === 'string' ? id : undefined}
         foreignBookId={
           mediaType === 'book' && typeof id === 'string' ? id : undefined
         }
@@ -444,7 +441,7 @@ const TitleCard = ({
                   src={
                     displayImage
                       ? displayImage
-                      : '/images/seerr_poster_not_found_square.png'
+                      : '/images/jellyseerr_poster_not_found_square.png'
                   }
                   fill
                 />

@@ -4,8 +4,17 @@ services:
       context: .
       dockerfile: Dockerfile.local
     ports:
-      - 5055:5055
+      - '5055:5055'
+    environment:
+      # Optional: increase timeouts for slow *arr instances (value in ms)
+      # API_REQUEST_TIMEOUT: '120000'
+      TZ: UTC
     volumes:
+      # Source bind mount for hot reload
       - .:/app:rw,cached
+      # Preserve container deps/build output
       - /app/node_modules
       - /app/.next
+      # Persist settings, sqlite DB, logs, and image cache
+      - ./config:/app/config
+    restart: unless-stopped

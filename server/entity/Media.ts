@@ -1,6 +1,6 @@
 import LidarrAPI from '@server/api/servarr/lidarr';
-import ReadarrAPI from '@server/api/servarr/readarr';
 import RadarrAPI from '@server/api/servarr/radarr';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import { MediaStatus, MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
@@ -74,7 +74,9 @@ class Media {
           foreignBookId: string;
           mediaType: MediaType;
         }[];
-        const foreignBookIds = [...new Set(bookRefs.map((r) => r.foreignBookId))];
+        const foreignBookIds = [
+          ...new Set(bookRefs.map((r) => r.foreignBookId)),
+        ];
         const media = await mediaRepository
           .createQueryBuilder('media')
           .leftJoinAndSelect(
@@ -91,8 +93,7 @@ class Media {
         return media.filter((m) =>
           bookRefs.some(
             (r) =>
-              r.foreignBookId === m.foreignBookId &&
-              r.mediaType === m.mediaType
+              r.foreignBookId === m.foreignBookId && r.mediaType === m.mediaType
           )
         );
       }
@@ -440,8 +441,8 @@ class Media {
     }
 
     if (this.mediaType === MediaType.BOOK) {
+      const settings = getSettings();
       if (this.serviceId !== null && this.externalServiceSlug !== null) {
-        const settings = getSettings();
         const server = settings.readarr.find(
           (readarr) => readarr.id === this.serviceId
         );
@@ -450,6 +451,20 @@ class Media {
           this.serviceUrl = server.externalUrl
             ? `${server.externalUrl}/book/${this.externalServiceSlug}`
             : ReadarrAPI.buildUrl(server, `/book/${this.externalServiceSlug}`);
+        }
+      }
+      if (this.serviceId4k !== null && this.externalServiceSlug4k !== null) {
+        const server = settings.readarr.find(
+          (readarr) => readarr.id === this.serviceId4k
+        );
+
+        if (server) {
+          this.serviceUrl4k = server.externalUrl
+            ? `${server.externalUrl}/book/${this.externalServiceSlug4k}`
+            : ReadarrAPI.buildUrl(
+                server,
+                `/book/${this.externalServiceSlug4k}`
+              );
         }
       }
     }

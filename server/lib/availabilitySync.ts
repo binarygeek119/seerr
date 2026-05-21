@@ -3,8 +3,8 @@ import JellyfinAPI from '@server/api/jellyfin';
 import type { PlexMetadata } from '@server/api/plexapi';
 import PlexAPI from '@server/api/plexapi';
 import LidarrAPI, { type LidarrAlbum } from '@server/api/servarr/lidarr';
-import ReadarrAPI, { type ReadarrBook } from '@server/api/servarr/readarr';
 import RadarrAPI, { type RadarrMovie } from '@server/api/servarr/radarr';
+import ReadarrAPI, { type ReadarrBook } from '@server/api/servarr/readarr';
 import type { SonarrSeason, SonarrSeries } from '@server/api/servarr/sonarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import { MediaRequestStatus, MediaStatus } from '@server/constants/media';
@@ -52,7 +52,9 @@ class AvailabilitySync {
     this.radarrServers = settings.radarr.filter((server) => server.syncEnabled);
     this.sonarrServers = settings.sonarr.filter((server) => server.syncEnabled);
     this.lidarrServers = settings.lidarr.filter((server) => server.syncEnabled);
-    this.readarrServers = settings.readarr.filter((server) => server.syncEnabled);
+    this.readarrServers = settings.readarr.filter(
+      (server) => server.syncEnabled
+    );
 
     try {
       logger.info(`Starting availability sync...`, {
@@ -455,9 +457,13 @@ class AvailabilitySync {
         }
 
         if (media.mediaType === 'book') {
-          const existsInReadarr = await this.mediaExistsInReadarr(media);
-          if (!existsInReadarr && media.status === MediaStatus.AVAILABLE) {
+          const existsEbook = await this.mediaExistsInReadarr(media, false);
+          if (!existsEbook && media.status === MediaStatus.AVAILABLE) {
             await this.mediaUpdater(media, false, mediaServerType);
+          }
+          const existsAudiobook = await this.mediaExistsInReadarr(media, true);
+          if (!existsAudiobook && media.status4k === MediaStatus.AVAILABLE) {
+            await this.mediaUpdater(media, true, mediaServerType);
           }
         }
       }
@@ -926,10 +932,17 @@ class AvailabilitySync {
     return existsInLidarr;
   }
 
-  private async mediaExistsInReadarr(media: Media): Promise<boolean> {
+  private async mediaExistsInReadarr(
+    media: Media,
+    isAudiobook: boolean
+  ): Promise<boolean> {
     let existsInReadarr = false;
 
-    for (const server of this.readarrServers) {
+    const servers = this.readarrServers.filter(
+      (server) => (server.isAudiobook ?? false) === isAudiobook
+    );
+
+    for (const server of servers) {
       const readarrAPI = new ReadarrAPI({
         apiKey: server.apiKey,
         url: ReadarrAPI.buildUrl(server, '/api/v1'),

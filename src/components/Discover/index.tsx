@@ -423,7 +423,6 @@ const Discover = () => {
                 title={intl.formatMessage(sliderTitles.popularbooks)}
                 url="/api/v1/discover/books"
                 linkUrl="/discover/books"
-                hideWhenEmpty
               />
             );
             break;

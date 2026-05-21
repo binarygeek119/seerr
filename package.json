@@ -30,7 +30,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/seerr-team/seerr.git"
+    "url": "https://github.com/binarygeek119/seerr.git"
+  },
+  "homepage": "https://github.com/binarygeek119/seerr",
+  "bugs": {
+    "url": "https://github.com/binarygeek119/seerr/issues"
   },
   "license": "MIT",
   "dependencies": {

@@ -1,12 +1,15 @@
 import Alert from '@app/components/Common/Alert';
+import Button from '@app/components/Common/Button';
 import Modal from '@app/components/Common/Modal';
 import type { RequestOverrides } from '@app/components/RequestModal/AdvancedRequester';
 import AdvancedRequester from '@app/components/RequestModal/AdvancedRequester';
 import QuotaDisplay from '@app/components/RequestModal/QuotaDisplay';
+import useSettings from '@app/hooks/useSettings';
 import { useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
-import { MediaStatus } from '@server/constants/media';
+import { MediaRequestStatus, MediaStatus } from '@server/constants/media';
+import type Media from '@server/entity/Media';
 import type { MediaRequest } from '@server/entity/MediaRequest';
 import type { NonFunctionProperties } from '@server/interfaces/api/common';
 import type { QuotaResponse } from '@server/interfaces/api/userInterfaces';
@@ -20,8 +23,17 @@ import useSWR, { mutate } from 'swr';
 const messages = defineMessages('components.RequestModal', {
   requestadmin: 'This request will be approved automatically.',
   requestSuccess: '<strong>{title}</strong> requested successfully!',
+  requestBothSuccess:
+    '<strong>{title}</strong> requested as ebook and audiobook!',
   requestCancel: 'Request for <strong>{title}</strong> canceled.',
   requestbooktitle: 'Request Book',
+  requestaudiobooktitle: 'Request Audiobook',
+  chooseFormatTitle: 'Request Format',
+  chooseFormat: 'What would you like to request?',
+  requestEbookOption: 'Ebook',
+  requestAudiobookOption: 'Audiobook',
+  requestBothOption: 'Ebook and Audiobook',
+  pendingaudiobookrequest: 'Pending Audiobook Request',
   edit: 'Edit Request',
   approve: 'Approve Request',
   cancel: 'Cancel Request',
@@ -34,8 +46,12 @@ const messages = defineMessages('components.RequestModal', {
   pendingapproval: 'Your request is pending approval.',
 });
 
+type BookRequestFormat = 'ebook' | 'audiobook' | 'both';
+
 interface BookRequestModalProps extends React.HTMLAttributes<HTMLDivElement> {
   foreignBookId?: string;
+  media?: Media;
+  is4k?: boolean;
   onCancel?: () => void;
   onComplete?: (newStatus: MediaStatus) => void;
   onUpdating?: (isUpdating: boolean) => void;
@@ -44,20 +60,86 @@ interface BookRequestModalProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const BookRequestModal = ({
   foreignBookId,
+  media,
+  is4k = false,
   onCancel,
   onComplete,
   onUpdating,
   editRequest,
 }: BookRequestModalProps) => {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedFormat, setSelectedFormat] =
+    useState<BookRequestFormat | null>(null);
   const [requestOverrides, setRequestOverrides] =
     useState<RequestOverrides | null>(null);
   const { addToast } = useToasts();
   const intl = useIntl();
   const { user, hasPermission } = useUser();
+  const settings = useSettings();
 
   const titleText =
     editRequest?.media?.foreignBookId ?? foreignBookId ?? 'Book';
+
+  const audiobookEnabled = settings.currentSettings.bookAudiobookEnabled;
+
+  const hasPendingEbookRequest = Boolean(
+    media?.requests?.some(
+      (request) =>
+        request.status === MediaRequestStatus.PENDING && !request.is4k
+    )
+  );
+  const hasPendingAudiobookRequest = Boolean(
+    media?.requests?.some(
+      (request) => request.status === MediaRequestStatus.PENDING && request.is4k
+    )
+  );
+
+  const canRequestEbook =
+    !media ||
+    media.status === MediaStatus.UNKNOWN ||
+    (media.status === MediaStatus.DELETED && !hasPendingEbookRequest);
+
+  const canRequestAudiobook =
+    audiobookEnabled &&
+    (!media ||
+      media.status4k === MediaStatus.UNKNOWN ||
+      (media.status4k === MediaStatus.DELETED && !hasPendingAudiobookRequest));
+
+  const resolvedFormat: BookRequestFormat | null = editRequest
+    ? editRequest.is4k
+      ? 'audiobook'
+      : 'ebook'
+    : is4k
+      ? 'audiobook'
+      : selectedFormat;
+
+  const showFormatChoice =
+    !editRequest &&
+    audiobookEnabled &&
+    canRequestEbook &&
+    canRequestAudiobook &&
+    selectedFormat === null &&
+    !is4k;
+
+  useEffect(() => {
+    if (editRequest || is4k || !audiobookEnabled || selectedFormat) {
+      return;
+    }
+    if (canRequestEbook && !canRequestAudiobook) {
+      setSelectedFormat('ebook');
+    } else if (!canRequestEbook && canRequestAudiobook) {
+      setSelectedFormat('audiobook');
+    }
+  }, [
+    editRequest,
+    is4k,
+    audiobookEnabled,
+    canRequestEbook,
+    canRequestAudiobook,
+    selectedFormat,
+  ]);
+
+  const requestIs4k = resolvedFormat === 'audiobook';
 
   const { data: quota } = useSWR<QuotaResponse>(
     user &&
@@ -73,7 +155,7 @@ const BookRequestModal = ({
   }, [isUpdating, onUpdating]);
 
   const sendRequest = useCallback(async () => {
-    if (!foreignBookId) {
+    if (!foreignBookId || !resolvedFormat) {
       return;
     }
     setIsUpdating(true);
@@ -90,35 +172,53 @@ const BookRequestModal = ({
         };
       }
 
-      const response = await axios.post<MediaRequest>('/api/v1/request', {
-        mediaId: foreignBookId,
-        mediaType: 'book',
-        ...overrideParams,
-      });
+      const is4kValues: boolean[] =
+        resolvedFormat === 'both' ? [false, true] : [requestIs4k];
+
+      for (const is4kValue of is4kValues) {
+        await axios.post<MediaRequest>('/api/v1/request', {
+          mediaId: foreignBookId,
+          mediaType: 'book',
+          is4k: is4kValue,
+          ...overrideParams,
+        });
+      }
 
       mutate('/api/v1/request?filter=all&take=10&sort=modified&skip=0');
       mutate('/api/v1/request/count');
 
-      if (response.data) {
-        if (onComplete) {
-          onComplete(
-            hasPermission(Permission.AUTO_APPROVE)
-              ? MediaStatus.PROCESSING
-              : MediaStatus.PENDING
-          );
-        }
-        addToast(
-          <span>
-            {intl.formatMessage(messages.requestSuccess, {
-              title: titleText,
-              strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
-            })}
-          </span>,
-          { appearance: 'success', autoDismiss: true }
+      if (onComplete) {
+        onComplete(
+          hasPermission(Permission.AUTO_APPROVE)
+            ? MediaStatus.PROCESSING
+            : MediaStatus.PENDING
         );
       }
-    } catch {
-      addToast(intl.formatMessage(messages.requesterror), {
+      addToast(
+        <span>
+          {intl.formatMessage(
+            resolvedFormat === 'both'
+              ? messages.requestBothSuccess
+              : messages.requestSuccess,
+            {
+              title: titleText,
+              strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
+            }
+          )}
+        </span>,
+        { appearance: 'success', autoDismiss: true }
+      );
+    } catch (error) {
+      const apiMessage =
+        axios.isAxiosError(error) &&
+        typeof error.response?.data === 'object' &&
+        error.response?.data &&
+        'message' in error.response.data &&
+        typeof error.response.data.message === 'string'
+          ? error.response.data.message
+          : undefined;
+
+      addToast(apiMessage ?? intl.formatMessage(messages.requesterror), {
         appearance: 'error',
         autoDismiss: true,
       });
@@ -133,6 +233,8 @@ const BookRequestModal = ({
     hasPermission,
     intl,
     titleText,
+    resolvedFormat,
+    requestIs4k,
   ]);
 
   const cancelRequest = async () => {
@@ -278,7 +380,7 @@ const BookRequestModal = ({
           hasPermission(Permission.MANAGE_REQUESTS)) && (
           <AdvancedRequester
             type="book"
-            is4k={false}
+            is4k={editRequest.is4k}
             requestUser={editRequest.requestedBy}
             defaultOverrides={{
               folder: editRequest.rootFolder,
@@ -306,7 +408,11 @@ const BookRequestModal = ({
         loading={false}
         backgroundClickable
         onCancel={onCancel}
-        title={intl.formatMessage(messages.requestbooktitle)}
+        title={intl.formatMessage(
+          requestIs4k
+            ? messages.requestaudiobooktitle
+            : messages.requestbooktitle
+        )}
         onOk={onCancel}
         okText={intl.formatMessage(globalMessages.close)}
         okButtonType="primary"
@@ -319,6 +425,51 @@ const BookRequestModal = ({
     );
   }
 
+  if (showFormatChoice) {
+    return (
+      <Modal
+        loading={false}
+        backgroundClickable
+        onCancel={onCancel}
+        title={intl.formatMessage(messages.chooseFormatTitle)}
+        subTitle={titleText}
+        cancelText={intl.formatMessage(globalMessages.close)}
+      >
+        <p className="mb-4">{intl.formatMessage(messages.chooseFormat)}</p>
+        <div className="flex flex-col gap-3">
+          {canRequestEbook && (
+            <Button
+              buttonType="primary"
+              onClick={() => setSelectedFormat('ebook')}
+            >
+              {intl.formatMessage(messages.requestEbookOption)}
+            </Button>
+          )}
+          {canRequestAudiobook && (
+            <Button
+              buttonType="primary"
+              onClick={() => setSelectedFormat('audiobook')}
+            >
+              {intl.formatMessage(messages.requestAudiobookOption)}
+            </Button>
+          )}
+          {canRequestEbook && canRequestAudiobook && (
+            <Button
+              buttonType="primary"
+              onClick={() => setSelectedFormat('both')}
+            >
+              {intl.formatMessage(messages.requestBothOption)}
+            </Button>
+          )}
+        </div>
+      </Modal>
+    );
+  }
+
+  if (!resolvedFormat) {
+    return null;
+  }
+
   return (
     <Modal
       loading={!quota}
@@ -326,7 +477,13 @@ const BookRequestModal = ({
       onCancel={onCancel}
       onOk={sendRequest}
       okDisabled={isUpdating || quota?.book?.restricted}
-      title={intl.formatMessage(messages.requestbooktitle)}
+      title={intl.formatMessage(
+        resolvedFormat === 'audiobook'
+          ? messages.requestaudiobooktitle
+          : resolvedFormat === 'both'
+            ? messages.chooseFormatTitle
+            : messages.requestbooktitle
+      )}
       subTitle={titleText}
       okText={
         isUpdating
@@ -334,6 +491,17 @@ const BookRequestModal = ({
           : intl.formatMessage(globalMessages.request)
       }
       okButtonType="primary"
+      cancelText={intl.formatMessage(globalMessages.close)}
+      onSecondary={
+        audiobookEnabled && canRequestEbook && canRequestAudiobook
+          ? () => setSelectedFormat(null)
+          : undefined
+      }
+      secondaryText={
+        audiobookEnabled && canRequestEbook && canRequestAudiobook
+          ? intl.formatMessage(globalMessages.back)
+          : undefined
+      }
     >
       {hasAutoApprove && !quota?.book?.restricted && (
         <div className="mt-6">
@@ -354,16 +522,17 @@ const BookRequestModal = ({
           }
         />
       )}
-      {(hasPermission(Permission.REQUEST_ADVANCED) ||
-        hasPermission(Permission.MANAGE_REQUESTS)) && (
-        <AdvancedRequester
-          type="book"
-          is4k={false}
-          onChange={(overrides) => {
-            setRequestOverrides(overrides);
-          }}
-        />
-      )}
+      {resolvedFormat !== 'both' &&
+        (hasPermission(Permission.REQUEST_ADVANCED) ||
+          hasPermission(Permission.MANAGE_REQUESTS)) && (
+          <AdvancedRequester
+            type="book"
+            is4k={requestIs4k}
+            onChange={(overrides) => {
+              setRequestOverrides(overrides);
+            }}
+          />
+        )}
     </Modal>
   );
 };

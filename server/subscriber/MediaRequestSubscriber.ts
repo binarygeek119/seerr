@@ -3,7 +3,6 @@ import ListenBrainzAPI from '@server/api/listenbrainz';
 import MusicBrainz from '@server/api/musicbrainz';
 import type { LidarrAlbumOptions } from '@server/api/servarr/lidarr';
 import LidarrAPI from '@server/api/servarr/lidarr';
-import { sendApprovedBookToReadarr } from '@server/lib/readarr/sendApprovedRequest';
 import type { RadarrMovieOptions } from '@server/api/servarr/radarr';
 import RadarrAPI from '@server/api/servarr/radarr';
 import type {
@@ -23,7 +22,12 @@ import Media from '@server/entity/Media';
 import { MediaRequest } from '@server/entity/MediaRequest';
 import Season from '@server/entity/Season';
 import SeasonRequest from '@server/entity/SeasonRequest';
+import {
+  formatLidarrLookupError,
+  lookupAlbumInLidarr,
+} from '@server/lib/lidarr/lookupAlbum';
 import notificationManager, { Notification } from '@server/lib/notifications';
+import { sendApprovedBookToReadarr } from '@server/lib/readarr/sendApprovedRequest';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { isEqual, truncate } from 'lodash';
@@ -916,101 +920,133 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
     }
   }
 
+  private async failMusicRequest(
+    entity: MediaRequest,
+    media: Media,
+    message: string
+  ): Promise<void> {
+    const requestRepository = getRepository(MediaRequest);
+    entity.status = MediaRequestStatus.FAILED;
+    await requestRepository.save(entity);
+
+    logger.warn(message, {
+      label: 'Media Request',
+      requestId: entity.id,
+      mediaId: media.id,
+    });
+
+    MediaRequest.sendNotification(entity, media, Notification.MEDIA_FAILED);
+  }
+
   public async sendToLidarr(entity: MediaRequest): Promise<void> {
     if (
       entity.status === MediaRequestStatus.APPROVED &&
       entity.type === MediaType.MUSIC
     ) {
-      try {
-        const mediaRepository = getRepository(Media);
-        const settings = getSettings();
+      const mediaRepository = getRepository(Media);
+      const requestRepository = getRepository(MediaRequest);
+      const settings = getSettings();
 
-        if (settings.lidarr.length === 0 && !settings.lidarr[0]) {
-          logger.info(
-            'No Lidarr server configured, skipping request processing',
-            {
-              label: 'Media Request',
-              requestId: entity.id,
-              mediaId: entity.media.id,
-            }
-          );
-          return;
-        }
+      const request = await requestRepository.findOne({
+        where: { id: entity.id },
+        relations: { requestedBy: true, media: true },
+      });
 
-        let lidarrSettings = settings.lidarr.find((lidarr) => lidarr.isDefault);
+      if (!request) {
+        return;
+      }
 
-        if (
-          entity.serverId !== null &&
-          entity.serverId >= 0 &&
-          lidarrSettings?.id !== entity.serverId
-        ) {
-          lidarrSettings = settings.lidarr.find(
-            (lidarr) => lidarr.id === entity.serverId
-          );
-          logger.info(
-            `Request has an override server: ${lidarrSettings?.name}`,
-            {
-              label: 'Media Request',
-              requestId: entity.id,
-              mediaId: entity.media.id,
-            }
-          );
-        }
+      entity = request;
 
-        if (!lidarrSettings) {
-          logger.warn('There is no default Lidarr server configured.', {
-            label: 'Media Request',
-            requestId: entity.id,
-            mediaId: entity.media.id,
-          });
-          return;
-        }
-
+      if (settings.lidarr.length === 0) {
         const media = await mediaRepository.findOne({
           where: { id: entity.media.id },
         });
-
-        if (!media) {
-          logger.error('Media data not found', {
-            label: 'Media Request',
-            requestId: entity.id,
-            mediaId: entity.media.id,
-          });
-          return;
+        if (media) {
+          await this.failMusicRequest(
+            entity,
+            media,
+            'No Lidarr server configured; cannot process music request'
+          );
         }
+        return;
+      }
 
-        if (media.status === MediaStatus.AVAILABLE) {
-          logger.warn('Media already exists, marking request as APPROVED', {
-            label: 'Media Request',
-            requestId: entity.id,
-            mediaId: entity.media.id,
-          });
+      let lidarrSettings = settings.lidarr.find((lidarr) => lidarr.isDefault);
 
-          if (entity.status !== MediaRequestStatus.APPROVED) {
-            const requestRepository = getRepository(MediaRequest);
-            entity.status = MediaRequestStatus.APPROVED;
-            await requestRepository.save(entity);
-          }
-          return;
-        }
-
-        const lidarr = new LidarrAPI({
-          apiKey: lidarrSettings.apiKey,
-          url: LidarrAPI.buildUrl(lidarrSettings, '/api/v1'),
-        });
-
-        if (!media.mbId) {
-          throw new Error('media.mbId is required but is undefined');
-        }
-        const searchResults = await lidarr.searchAlbumByMusicBrainzId(
-          media.mbId
+      if (
+        entity.serverId !== null &&
+        entity.serverId >= 0 &&
+        lidarrSettings?.id !== entity.serverId
+      ) {
+        lidarrSettings = settings.lidarr.find(
+          (lidarr) => lidarr.id === entity.serverId
         );
+        logger.info(`Request has an override server: ${lidarrSettings?.name}`, {
+          label: 'Media Request',
+          requestId: entity.id,
+          mediaId: entity.media.id,
+        });
+      }
 
-        if (!searchResults?.length) {
-          throw new Error('Album not found in Lidarr search');
+      const media = await mediaRepository.findOne({
+        where: { id: entity.media.id },
+      });
+
+      if (!media) {
+        logger.error('Media data not found', {
+          label: 'Media Request',
+          requestId: entity.id,
+          mediaId: entity.media.id,
+        });
+        return;
+      }
+
+      if (!lidarrSettings) {
+        await this.failMusicRequest(
+          entity,
+          media,
+          'No default Lidarr server configured; cannot process music request'
+        );
+        return;
+      }
+
+      if (media.status === MediaStatus.AVAILABLE) {
+        logger.warn('Media already available in library, skipping Lidarr add', {
+          label: 'Media Request',
+          requestId: entity.id,
+          mediaId: entity.media.id,
+        });
+        return;
+      }
+
+      const lidarr = new LidarrAPI({
+        apiKey: lidarrSettings.apiKey,
+        url: LidarrAPI.buildUrl(lidarrSettings, '/api/v1'),
+      });
+
+      if (!media.mbId) {
+        await this.failMusicRequest(
+          entity,
+          media,
+          'Music request is missing a MusicBrainz release group ID'
+        );
+        return;
+      }
+
+      try {
+        const albumResult = await lookupAlbumInLidarr(lidarr, media.mbId);
+
+        if (!albumResult) {
+          await this.failMusicRequest(
+            entity,
+            media,
+            `Album not found in Lidarr (MusicBrainz ID: ${media.mbId})`
+          );
+          return;
         }
 
-        const albumInfo = searchResults[0].album;
+        const albumInfo = albumResult.album;
 
         let rootFolder = lidarrSettings.activeDirectory;
 
@@ -1042,7 +1078,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
           );
         }
 
-        const tags = entity.tags ?? albumInfo.artist.tags ?? [];
+        const tags = [...(entity.tags ?? [])];
 
         if (lidarrSettings.tagRequests) {
           let userTag = (await lidarr.getTags()).find((v) =>
@@ -1130,58 +1166,30 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
           },
         };
 
-        lidarr
-          .addAlbum(addAlbumPayload)
-          .then(async (result) => {
-            const media = await mediaRepository.findOne({
-              where: { id: entity.media.id },
-            });
+        const result = await lidarr.addAlbum(addAlbumPayload);
 
-            if (!media) {
-              throw new Error('Media data not found');
-            }
+        const latestMedia = await mediaRepository.findOne({
+          where: { id: entity.media.id },
+        });
 
-            media.externalServiceId = result.id;
-            media.externalServiceSlug = result.titleSlug;
-            media.serviceId = lidarrSettings?.id;
-            await mediaRepository.save(media);
-          })
-          .catch(async (error) => {
-            const requestRepository = getRepository(MediaRequest);
+        if (!latestMedia) {
+          throw new Error('Media data not found');
+        }
 
-            entity.status = MediaRequestStatus.FAILED;
-            requestRepository.save(entity);
-
-            logger.warn(
-              'Something went wrong sending album request to Lidarr, marking status as FAILED',
-              {
-                label: 'Media Request',
-                requestId: entity.id,
-                mediaId: entity.media.id,
-                error: error.message,
-              }
-            );
-
-            MediaRequest.sendNotification(
-              entity,
-              media,
-              Notification.MEDIA_FAILED
-            );
-          });
+        latestMedia.externalServiceId = result.id;
+        latestMedia.externalServiceSlug = result.titleSlug;
+        latestMedia.serviceId = lidarrSettings.id;
+        await mediaRepository.save(latestMedia);
 
         logger.info('Sent request to Lidarr', {
           label: 'Media Request',
           requestId: entity.id,
           mediaId: entity.media.id,
+          lidarrAlbumId: result.id,
         });
       } catch (e) {
-        logger.error('Something went wrong sending request to Lidarr', {
-          label: 'Media Request',
-          errorMessage: e.message,
-          requestId: entity.id,
-          mediaId: entity.media.id,
-        });
-        throw new Error(e.message);
+        const errorMessage = formatLidarrLookupError(e, lidarrSettings.name);
+        await this.failMusicRequest(entity, media, errorMessage);
       }
     }
   }

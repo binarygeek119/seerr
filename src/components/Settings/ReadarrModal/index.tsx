@@ -20,7 +20,13 @@ type OptionType = {
 
 const messages = defineMessages('components.Settings.ReadarrModal', {
   createreadarr: 'Add New Readarr Server',
+  createaudiobookreadarr: 'Add New Audiobook Readarr Server',
   editreadarr: 'Edit Readarr Server',
+  editaudiobookreadarr: 'Edit Audiobook Readarr Server',
+  defaultaudiobookserver: 'Default Audiobook Server',
+  serveraudiobook: 'Audiobook Server',
+  serveraudiobookHelp:
+    'Use this for a dedicated Readarr or Chaptarr instance that only handles audiobooks.',
   validationNameRequired: 'You must provide a server name',
   validationHostnameRequired: 'You must provide a valid hostname or IP address',
   validationPortRequired: 'You must provide a valid port number',
@@ -236,6 +242,7 @@ const ReadarrModal = ({ onClose, readarr, onSave }: ReadarrModalProps) => {
           activeProfileId: readarr?.activeProfileId,
           rootFolder: readarr?.activeDirectory,
           isDefault: readarr?.isDefault ?? false,
+          isAudiobook: readarr?.isAudiobook ?? false,
           tags: readarr?.tags ?? [],
           externalUrl: readarr?.externalUrl,
           syncEnabled: readarr?.syncEnabled ?? false,
@@ -262,6 +269,7 @@ const ReadarrModal = ({ onClose, readarr, onSave }: ReadarrModalProps) => {
               activeDirectory: values.rootFolder,
               tags: values.tags,
               isDefault: values.isDefault,
+              isAudiobook: values.isAudiobook,
               externalUrl: values.externalUrl,
               syncEnabled: values.syncEnabled,
               preventSearch: !values.enableSearch,
@@ -339,17 +347,44 @@ const ReadarrModal = ({ onClose, readarr, onSave }: ReadarrModalProps) => {
               onOk={() => handleSubmit()}
               title={
                 !readarr
-                  ? intl.formatMessage(messages.createreadarr)
-                  : intl.formatMessage(messages.editreadarr)
+                  ? intl.formatMessage(
+                      values.isAudiobook
+                        ? messages.createaudiobookreadarr
+                        : messages.createreadarr
+                    )
+                  : intl.formatMessage(
+                      values.isAudiobook
+                        ? messages.editaudiobookreadarr
+                        : messages.editreadarr
+                    )
               }
             >
               <div className="mb-6">
                 <div className="form-row">
                   <label htmlFor="isDefault" className="checkbox-label">
-                    {intl.formatMessage(messages.defaultserver)}
+                    {intl.formatMessage(
+                      values.isAudiobook
+                        ? messages.defaultaudiobookserver
+                        : messages.defaultserver
+                    )}
                   </label>
                   <div className="form-input-area">
                     <Field type="checkbox" id="isDefault" name="isDefault" />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <label htmlFor="isAudiobook" className="checkbox-label">
+                    {intl.formatMessage(messages.serveraudiobook)}
+                    <span className="label-tip">
+                      {intl.formatMessage(messages.serveraudiobookHelp)}
+                    </span>
+                  </label>
+                  <div className="form-input-area">
+                    <Field
+                      type="checkbox"
+                      id="isAudiobook"
+                      name="isAudiobook"
+                    />
                   </div>
                 </div>
                 <div className="form-row">

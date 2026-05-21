@@ -2,6 +2,7 @@ import NodeCache from 'node-cache';
 
 export type AvailableCacheIds =
   | 'tmdb'
+  | 'openlibrary'
   | 'musicbrainz'
   | 'listenbrainz'
   | 'covertartarchive'
@@ -55,6 +56,10 @@ class CacheManager {
       checkPeriod: 60 * 30,
     }),
     musicbrainz: new Cache('musicbrainz', 'MusicBrainz API', {
+      stdTtl: 21600,
+      checkPeriod: 60 * 30,
+    }),
+    openlibrary: new Cache('openlibrary', 'Open Library API', {
       stdTtl: 21600,
       checkPeriod: 60 * 30,
     }),

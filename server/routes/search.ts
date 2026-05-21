@@ -1,5 +1,4 @@
 import MusicBrainz from '@server/api/musicbrainz';
-import ReadarrAPI from '@server/api/servarr/readarr';
 import TheAudioDb from '@server/api/theaudiodb';
 import TheMovieDb from '@server/api/themoviedb';
 import TmdbPersonMapper from '@server/api/themoviedb/personMapper';
@@ -8,14 +7,16 @@ import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import MetadataAlbum from '@server/entity/MetadataAlbum';
 import MetadataArtist from '@server/entity/MetadataArtist';
+import { searchBooks } from '@server/lib/bookSearch';
 import {
   findSearchProvider,
   type CombinedSearchResponse,
 } from '@server/lib/search';
-import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
-import { pickReadarrBookCover } from '@server/models/Book';
-import { mapSearchResults, type ReadarrBookSearchResult } from '@server/models/Search';
+import {
+  mapSearchResults,
+  type ReadarrBookSearchResult,
+} from '@server/models/Search';
 import { Router } from 'express';
 import { In } from 'typeorm';
 
@@ -59,6 +60,9 @@ searchRoutes.get('/', async (req, res, next) => {
           query: queryString,
           limit: 20,
         }),
+        page === 1 && queryString.trim()
+          ? searchBooks(queryString)
+          : Promise.resolve([] as ReadarrBookSearchResult[]),
       ]);
 
       const tmdbResults =
@@ -69,6 +73,8 @@ searchRoutes.get('/', async (req, res, next) => {
         responses[1].status === 'fulfilled' ? responses[1].value : [];
       const artistResults =
         responses[2].status === 'fulfilled' ? responses[2].value : [];
+      const bookSearchRaw: ReadarrBookSearchResult[] =
+        responses[3].status === 'fulfilled' ? responses[3].value : [];
 
       const personIds = tmdbResults.results
         .filter(
@@ -262,76 +268,33 @@ searchRoutes.get('/', async (req, res, next) => {
         (a, b) => (b.score || 0) - (a.score || 0)
       );
 
-      let bookSearchRaw: ReadarrBookSearchResult[] = [];
-      if (page === 1 && queryString.trim()) {
-        const settings = getSettings();
-        const readarrServer =
-          settings.readarr.find((s) => s.isDefault) ?? settings.readarr[0];
-        if (readarrServer) {
-          try {
-            const readarr = new ReadarrAPI({
-              apiKey: readarrServer.apiKey,
-              url: ReadarrAPI.buildUrl(readarrServer, '/api/v1'),
-            });
-            const books = await readarr.lookupBooks(queryString.trim());
-            const seenIds = new Set<string>();
-            const queryLower = queryString.trim().toLowerCase();
-            bookSearchRaw = books
-              .filter((b) => {
-                if (!b.foreignBookId || seenIds.has(b.foreignBookId)) {
-                  return false;
-                }
-                seenIds.add(b.foreignBookId);
-                return true;
-              })
-              .slice(0, 20)
-              .map((b) => ({
-                media_type: 'book' as const,
-                id: b.foreignBookId,
-                title: b.title,
-                foreignBookId: b.foreignBookId,
-                authorName: b.author?.authorName,
-                posterPath: pickReadarrBookCover(b),
-                monitored: b.monitored,
-                hasFile: b.hasFile,
-                score: (() => {
-                  const title = b.title.toLowerCase();
-                  const author = (b.author?.authorName ?? '').toLowerCase();
-                  if (title === queryLower || author === queryLower) {
-                    return 100;
-                  }
-                  if (title.startsWith(queryLower) || author.startsWith(queryLower)) {
-                    return 80;
-                  }
-                  if (title.includes(queryLower) || author.includes(queryLower)) {
-                    return 60;
-                  }
-                  return 30;
-                })(),
-              }))
-              .sort((a, b) => b.score - a.score)
-              .slice(0, 20);
-          } catch (err) {
-            logger.debug('Readarr book search failed', {
-              label: 'API',
-              errorMessage: err instanceof Error ? err.message : String(err),
-            });
-          }
-        }
-      }
-
       const totalItems =
-        tmdbResults.total_results +
-        musicResults.length +
-        bookSearchRaw.length;
+        tmdbResults.total_results + musicResults.length + bookSearchRaw.length;
       const totalPages = Math.max(
         tmdbResults.total_pages,
         Math.ceil(totalItems / 20)
       );
 
+      const getResultScore = (
+        result:
+          | (typeof tmdbResults.results)[number]
+          | (typeof musicResults)[number]
+          | ReadarrBookSearchResult
+      ): number => {
+        if ('score' in result && typeof result.score === 'number') {
+          return result.score;
+        }
+        if ('popularity' in result && typeof result.popularity === 'number') {
+          return result.popularity;
+        }
+        return 0;
+      };
+
       const combinedResults =
         page === 1
-          ? [...tmdbResults.results, ...musicResults, ...bookSearchRaw]
+          ? [...tmdbResults.results, ...musicResults, ...bookSearchRaw].sort(
+              (a, b) => getResultScore(b) - getResultScore(a)
+            )
           : tmdbResults.results;
 
       results = {

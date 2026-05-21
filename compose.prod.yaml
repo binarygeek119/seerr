@@ -1,0 +1,15 @@
+services:
+  seerr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        COMMIT_TAG: local
+    image: seerr:local
+    ports:
+      - '5055:5055'
+    environment:
+      TZ: UTC
+    volumes:
+      - ./config:/app/config
+    restart: unless-stopped

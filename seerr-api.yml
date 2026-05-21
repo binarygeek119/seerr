@@ -770,6 +770,9 @@ components:
         - activeProfileName
         - activeDirectory
         - isDefault
+    ReadarrSettings:
+      allOf:
+        - $ref: '#/components/schemas/LidarrSettings'
     ServarrTag:
       type: object
       properties:
@@ -3253,6 +3256,150 @@ paths:
           schema:
             type: integer
           description: Lidarr instance ID
+      responses:
+        '200':
+          description: Returned list of profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceProfile'
+  /settings/readarr:
+    get:
+      summary: Get Readarr settings
+      description: Returns all Readarr settings in a JSON array.
+      tags:
+        - settings
+      responses:
+        '200':
+          description: 'Values were returned'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReadarrSettings'
+    post:
+      summary: Create Readarr instance
+      description: Creates a new Readarr instance from the request body.
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadarrSettings'
+      responses:
+        '201':
+          description: 'New Readarr instance created'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadarrSettings'
+  /settings/readarr/test:
+    post:
+      summary: Test Readarr configuration
+      description: Tests if the Readarr configuration is valid. Returns profiles and root folders on success.
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hostname:
+                  type: string
+                  example: '127.0.0.1'
+                port:
+                  type: number
+                  example: 8787
+                apiKey:
+                  type: string
+                  example: yourapikey
+                useSsl:
+                  type: boolean
+                  example: false
+                baseUrl:
+                  type: string
+              required:
+                - hostname
+                - port
+                - apiKey
+                - useSsl
+      responses:
+        '200':
+          description: Succesfully connected to Readarr instance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profiles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceProfile'
+  /settings/readarr/{id}:
+    put:
+      summary: Update Readarr instance
+      description: Updates an existing Readarr instance with the provided values.
+      tags:
+        - settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Readarr instance ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadarrSettings'
+      responses:
+        '200':
+          description: 'Readarr instance updated'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadarrSettings'
+    delete:
+      summary: Delete Readarr instance
+      description: Deletes an existing Readarr instance based on the id path parameter.
+      tags:
+        - settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Readarr instance ID
+      responses:
+        '200':
+          description: 'Readarr instance updated'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadarrSettings'
+  /settings/readarr/{id}/profiles:
+    get:
+      summary: Get available Readarr profiles
+      description: Returns a list of profiles available on the Readarr server instance in a JSON array.
+      tags:
+        - settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Readarr instance ID
       responses:
         '200':
           description: Returned list of profiles
@@ -6618,6 +6765,78 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/AlbumResult'
+  /discover/books:
+    get:
+      summary: Discover books
+      description: Returns a paginated list of books from Readarr in a JSON object
+      tags:
+        - search
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+            example: 1
+            default: 1
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum:
+              - title.asc
+              - title.desc
+              - author.asc
+              - author.desc
+              - monitored.desc
+              - hasFile.desc
+            default: title.asc
+            example: title.asc
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                    example: 1
+                  totalPages:
+                    type: number
+                    example: 10
+                  totalResults:
+                    type: number
+                    example: 200
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 12345
+                        mediaType:
+                          type: string
+                          example: book
+                        title:
+                          type: string
+                          example: The Hobbit
+                        authorName:
+                          type: string
+                          nullable: true
+                          example: J.R.R. Tolkien
+                        posterPath:
+                          type: string
+                          nullable: true
+                        monitored:
+                          type: boolean
+                        hasFile:
+                          type: boolean
+                        mediaInfo:
+                          nullable: true
+                          allOf:
+                            - $ref: '#/components/schemas/MediaInfo'
   /discover/music/albums:
     get:
       summary: Discover trending music albums
@@ -6824,7 +7043,7 @@ paths:
           name: mediaType
           schema:
             type: string
-            enum: [movie, tv, all]
+            enum: [movie, tv, music, book, all]
             nullable: true
             default: all
       responses:
@@ -6858,13 +7077,13 @@ paths:
               properties:
                 mediaType:
                   type: string
-                  enum: [movie, tv, music]
+                  enum: [movie, tv, music, book]
                   example: movie
                 mediaId:
                   oneOf:
                     - type: number
                     - type: string
-                  description: TMDB ID for movies/tv, MusicBrainz ID for music
+                  description: TMDB ID for movies/tv, MusicBrainz ID for music, foreign book ID for books
                   example: 123
                 tvdbId:
                   type: number
@@ -6977,7 +7196,7 @@ paths:
               properties:
                 mediaType:
                   type: string
-                  enum: [movie, tv, music]
+                  enum: [movie, tv, music, book]
                 seasons:
                   type: array
                   items:

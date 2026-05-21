@@ -96,6 +96,7 @@ class ReadarrScanner
       }
 
       await this.processBook(foreignBookId, {
+        is4k: this.currentServer.isAudiobook ?? false,
         serviceId: this.currentServer.id,
         externalServiceId: book.id,
         externalServiceSlug: book.titleSlug,

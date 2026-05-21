@@ -16,6 +16,7 @@ import type {
   TmdbTvDetails,
   TmdbTvResult,
 } from '@server/api/themoviedb/interfaces';
+import { getReadarrServer } from '@server/lib/readarr/getReadarrServer';
 import { getSettings } from '@server/lib/settings';
 import { pickReadarrBookCover } from '@server/models/Book';
 import type { ReadarrBookSearchResult } from '@server/models/Search';
@@ -287,8 +288,7 @@ searchProviders.push({
     }
 
     const settings = getSettings();
-    const readarrServer =
-      settings.readarr.find((s) => s.isDefault) ?? settings.readarr[0];
+    const readarrServer = getReadarrServer(settings.readarr, false);
     if (!readarrServer) {
       return {
         page: 1,

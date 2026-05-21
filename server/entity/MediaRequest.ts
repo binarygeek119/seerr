@@ -21,6 +21,11 @@ import OverrideRule from '@server/entity/OverrideRule';
 import type { MediaRequestBody } from '@server/interfaces/api/requestInterfaces';
 import notificationManager, { Notification } from '@server/lib/notifications';
 import { Permission } from '@server/lib/permissions';
+import { getReadarrServer } from '@server/lib/readarr/getReadarrServer';
+import {
+  formatReadarrLookupError,
+  lookupBookInReadarr,
+} from '@server/lib/readarr/lookupBook';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
@@ -179,23 +184,36 @@ export class MediaRequest {
         tvId: Number(requestBody.mediaId),
       });
     } else if (requestBody.mediaType === MediaType.BOOK) {
-      const readarrServer =
-        settings.readarr.find((s) => s.isDefault) ?? settings.readarr[0];
+      const readarrServer = getReadarrServer(
+        settings.readarr,
+        requestBody.is4k ?? false
+      );
       if (!readarrServer) {
-        throw new Error('No Readarr server configured.');
+        throw new Error(
+          requestBody.is4k
+            ? 'No default audiobook Readarr server configured.'
+            : 'No default ebook Readarr server configured.'
+        );
       }
       const readarr = new ReadarrAPI({
         apiKey: readarrServer.apiKey,
         url: ReadarrAPI.buildUrl(readarrServer, '/api/v1'),
       });
-      const books = await readarr.lookupBooks(String(requestBody.mediaId));
-      const match =
-        books.find((b) => b.foreignBookId === String(requestBody.mediaId)) ??
-        books[0];
-      if (!match) {
-        throw new Error('Unable to find book in Readarr.');
+
+      try {
+        const match = await lookupBookInReadarr(
+          readarr,
+          String(requestBody.mediaId)
+        );
+        if (!match) {
+          throw new Error(
+            'Unable to find this book in Readarr. Try searching again while your book server is online, or pick a title from your library.'
+          );
+        }
+        requestedMedia = match;
+      } catch (error) {
+        throw new Error(formatReadarrLookupError(error, readarrServer.name));
       }
-      requestedMedia = match;
     } else {
       requestedMedia = await listenBrainz.getAlbum(
         requestBody.mediaId.toString()
@@ -363,7 +381,8 @@ export class MediaRequest {
         : settings.sonarr.findIndex((s) => !s.is4k && s.isDefault);
       const defaultLidarrId = settings.lidarr.findIndex((l) => l.isDefault);
       const defaultReadarrInst =
-        settings.readarr.find((r) => r.isDefault) ?? settings.readarr[0];
+        getReadarrServer(settings.readarr, requestBody.is4k ?? false) ??
+        settings.readarr[0];
 
       const overrideRuleRepository = getRepository(OverrideRule);
       const overrideRules = await overrideRuleRepository.find({
@@ -582,6 +601,7 @@ export class MediaRequest {
         )
           ? user
           : undefined,
+        is4k: requestBody.is4k ?? false,
         serverId: requestBody.serverId,
         profileId: profileId,
         rootFolder: rootFolder,
@@ -1077,7 +1097,7 @@ export class MediaRequest {
         const settings = getSettings();
         const readarrSettings =
           settings.readarr.find((r) => r.id === entity.serverId) ??
-          settings.readarr.find((r) => r.isDefault) ??
+          getReadarrServer(settings.readarr, entity.is4k) ??
           settings.readarr[0];
 
         if (!readarrSettings) {
@@ -1098,10 +1118,9 @@ export class MediaRequest {
           }
         }
         if (!book) {
-          const books = await readarrAPI.lookupBooks(media.foreignBookId);
           book =
-            books.find((b) => b.foreignBookId === media.foreignBookId) ??
-            books[0];
+            (await lookupBookInReadarr(readarrAPI, media.foreignBookId)) ??
+            undefined;
         }
         if (!book) {
           return;

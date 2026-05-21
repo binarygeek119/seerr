@@ -730,6 +730,7 @@ class BaseScanner<T> {
   protected async processBook(
     foreignBookId: string,
     {
+      is4k = false,
       serviceId,
       externalServiceId,
       externalServiceSlug,
@@ -749,17 +750,32 @@ class BaseScanner<T> {
       if (!existing) {
         const newMedia = new Media();
         newMedia.foreignBookId = foreignBookId;
-        newMedia.status = processing
-          ? MediaStatus.PROCESSING
-          : MediaStatus.AVAILABLE;
+        newMedia.status = is4k
+          ? MediaStatus.UNKNOWN
+          : processing
+            ? MediaStatus.PROCESSING
+            : MediaStatus.AVAILABLE;
+        newMedia.status4k = is4k
+          ? processing
+            ? MediaStatus.PROCESSING
+            : MediaStatus.AVAILABLE
+          : MediaStatus.UNKNOWN;
         newMedia.mediaType = MediaType.BOOK;
         newMedia.mediaAddedAt = mediaAddedAt ?? newMedia.mediaAddedAt;
         newMedia.ratingKey = ratingKey ?? newMedia.ratingKey;
-        newMedia.serviceId = serviceId ?? newMedia.serviceId;
-        newMedia.externalServiceId =
-          externalServiceId ?? newMedia.externalServiceId;
-        newMedia.externalServiceSlug =
-          externalServiceSlug ?? newMedia.externalServiceSlug;
+        if (is4k) {
+          newMedia.serviceId4k = serviceId ?? newMedia.serviceId4k;
+          newMedia.externalServiceId4k =
+            externalServiceId ?? newMedia.externalServiceId4k;
+          newMedia.externalServiceSlug4k =
+            externalServiceSlug ?? newMedia.externalServiceSlug4k;
+        } else {
+          newMedia.serviceId = serviceId ?? newMedia.serviceId;
+          newMedia.externalServiceId =
+            externalServiceId ?? newMedia.externalServiceId;
+          newMedia.externalServiceSlug =
+            externalServiceSlug ?? newMedia.externalServiceSlug;
+        }
 
         try {
           await mediaRepository.save(newMedia);
@@ -772,23 +788,39 @@ class BaseScanner<T> {
         }
       } else {
         let hasChanges = false;
+        const statusField = is4k ? 'status4k' : 'status';
 
-        if (existing.status !== MediaStatus.AVAILABLE && !processing) {
-          existing.status = MediaStatus.AVAILABLE;
+        if (existing[statusField] !== MediaStatus.AVAILABLE && !processing) {
+          existing[statusField] = MediaStatus.AVAILABLE;
           hasChanges = true;
         }
 
-        if (serviceId && !existing.serviceId) {
-          existing.serviceId = serviceId;
-          hasChanges = true;
-        }
-        if (externalServiceId && !existing.externalServiceId) {
-          existing.externalServiceId = externalServiceId;
-          hasChanges = true;
-        }
-        if (externalServiceSlug && !existing.externalServiceSlug) {
-          existing.externalServiceSlug = externalServiceSlug;
-          hasChanges = true;
+        if (is4k) {
+          if (serviceId && !existing.serviceId4k) {
+            existing.serviceId4k = serviceId;
+            hasChanges = true;
+          }
+          if (externalServiceId && !existing.externalServiceId4k) {
+            existing.externalServiceId4k = externalServiceId;
+            hasChanges = true;
+          }
+          if (externalServiceSlug && !existing.externalServiceSlug4k) {
+            existing.externalServiceSlug4k = externalServiceSlug;
+            hasChanges = true;
+          }
+        } else {
+          if (serviceId && !existing.serviceId) {
+            existing.serviceId = serviceId;
+            hasChanges = true;
+          }
+          if (externalServiceId && !existing.externalServiceId) {
+            existing.externalServiceId = externalServiceId;
+            hasChanges = true;
+          }
+          if (externalServiceSlug && !existing.externalServiceSlug) {
+            existing.externalServiceSlug = externalServiceSlug;
+            hasChanges = true;
+          }
         }
         if (mediaAddedAt && !existing.mediaAddedAt) {
           existing.mediaAddedAt = mediaAddedAt;

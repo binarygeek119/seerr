@@ -58,7 +58,15 @@ const useDiscover = <
 >(
   endpoint: string,
   options?: O,
-  { hideAvailable = true, hideBlocklisted = true } = {}
+  {
+    hideAvailable = true,
+    hideBlocklisted = true,
+    initialSize = 3,
+  }: {
+    hideAvailable?: boolean;
+    hideBlocklisted?: boolean;
+    initialSize?: number;
+  } = {}
 ): DiscoverResult<T, S> => {
   const settings = useSettings();
   const { hasPermission } = useUser();
@@ -87,7 +95,7 @@ const useDiscover = <
       return `${endpoint}?${finalQueryString}`;
     },
     {
-      initialSize: 3,
+      initialSize,
       revalidateFirstPage: false,
       dedupingInterval: 30000,
       revalidateOnFocus: false,
@@ -122,15 +130,21 @@ const useDiscover = <
   }, [] as T[]);
 
   if (settings.currentSettings.hideAvailable && hideAvailable) {
-    titles = titles.filter(
-      (i) =>
-        (i.mediaType === 'movie' ||
-          i.mediaType === 'tv' ||
-          i.mediaType === 'album' ||
-          i.mediaType === 'artist') &&
-        i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
-        i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE
-    );
+    titles = titles.filter((i) => {
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return (
+          i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
+          i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE
+        );
+      }
+      return true;
+    });
   }
 
   if (
@@ -138,14 +152,18 @@ const useDiscover = <
     hideBlocklisted &&
     hasPermission(Permission.MANAGE_BLOCKLIST)
   ) {
-    titles = titles.filter(
-      (i) =>
-        (i.mediaType === 'movie' ||
-          i.mediaType === 'tv' ||
-          i.mediaType === 'album' ||
-          i.mediaType === 'artist') &&
-        i.mediaInfo?.status !== MediaStatus.BLOCKLISTED
-    );
+    titles = titles.filter((i) => {
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return i.mediaInfo?.status !== MediaStatus.BLOCKLISTED;
+      }
+      return true;
+    });
   }
 
   const isEmpty = !isLoadingInitialData && titles?.length === 0;

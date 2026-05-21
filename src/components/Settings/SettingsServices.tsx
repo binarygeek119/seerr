@@ -9,10 +9,10 @@ import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import Modal from '@app/components/Common/Modal';
 import PageTitle from '@app/components/Common/PageTitle';
 import LidarrModal from '@app/components/Settings/LidarrModal';
-import ReadarrModal from '@app/components/Settings/ReadarrModal';
 import OverrideRuleModal from '@app/components/Settings/OverrideRule/OverrideRuleModal';
 import OverrideRuleTiles from '@app/components/Settings/OverrideRule/OverrideRuleTiles';
 import RadarrModal from '@app/components/Settings/RadarrModal';
+import ReadarrModal from '@app/components/Settings/ReadarrModal';
 import SonarrModal from '@app/components/Settings/SonarrModal';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
@@ -26,6 +26,7 @@ import type {
   ReadarrSettings,
   SonarrSettings,
 } from '@server/lib/settings';
+import type { AxiosError } from 'axios';
 import axios from 'axios';
 import { Fragment, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -52,6 +53,13 @@ const messages = defineMessages('components.Settings', {
   addsonarr: 'Add Sonarr Server',
   addlidarr: 'Add Lidarr Server',
   addreadarr: 'Add Readarr Server',
+  readarrUnavailable:
+    'Unable to load Readarr settings. Please verify your server is running the latest code and refresh this page.',
+  readarrRouteUnavailable:
+    'Readarr settings route was not found (404). This usually means your backend is not on a build that includes Readarr settings yet. Restart/update the server, then refresh.',
+  readarrUnauthorized:
+    'Readarr settings request was denied ({status}). Verify you are signed in with an administrator account.',
+  readarrLoadFailedWithStatus: 'Unable to load Readarr settings ({status}).',
   noDefaultServer:
     'At least one {serverType} server must be marked as default in order for {mediaType} requests to be processed.',
   noDefaultNon4kServer:
@@ -62,6 +70,11 @@ const messages = defineMessages('components.Settings', {
   mediaTypeSeries: 'series',
   mediaTypeMusic: 'music',
   mediaTypeBook: 'book',
+  mediaTypeAudiobook: 'audiobook',
+  isAudiobook: 'Audiobook',
+  defaultAudiobook: 'Default Audiobook',
+  noDefaultAudiobookServer:
+    'A default audiobook Readarr server must be marked in order to enable audiobook requests.',
   deleteServer: 'Delete {serverType} Server',
   overrideRules: 'Override Rules',
   overrideRulesDescription:
@@ -73,6 +86,7 @@ interface ServerInstanceProps {
   name: string;
   isDefault?: boolean;
   is4k?: boolean;
+  isAudiobook?: boolean;
   hostname: string;
   port: number;
   isSSL?: boolean;
@@ -118,6 +132,7 @@ const ServerInstance = ({
   port,
   profileName,
   is4k = false,
+  isAudiobook = false,
   isDefault = false,
   isSSL = false,
   isSonarr = false,
@@ -148,15 +163,23 @@ const ServerInstance = ({
                 {name}
               </a>
             </h3>
-            {isDefault && !is4k && (
+            {isDefault && !is4k && !isAudiobook && (
               <Badge>{intl.formatMessage(messages.default)}</Badge>
             )}
-            {isDefault && is4k && (
+            {isDefault && is4k && !isAudiobook && (
               <Badge>{intl.formatMessage(messages.default4k)}</Badge>
             )}
-            {!isDefault && is4k && (
+            {isDefault && isAudiobook && (
+              <Badge>{intl.formatMessage(messages.defaultAudiobook)}</Badge>
+            )}
+            {!isDefault && is4k && !isAudiobook && (
               <Badge badgeType="warning">
                 {intl.formatMessage(messages.is4k)}
+              </Badge>
+            )}
+            {!isDefault && isAudiobook && (
+              <Badge badgeType="warning">
+                {intl.formatMessage(messages.isAudiobook)}
               </Badge>
             )}
             {isSSL && (
@@ -296,6 +319,32 @@ const SettingsServices = () => {
     open: false,
     rule: null,
   });
+
+  const getReadarrErrorMessage = () => {
+    const error = readarrError as AxiosError<{ message?: string }> | undefined;
+    const status = error?.response?.status;
+    const apiMessage = error?.response?.data?.message;
+
+    if (status === 404) {
+      return `${intl.formatMessage(messages.readarrRouteUnavailable)}${
+        apiMessage ? ` (${apiMessage})` : ''
+      }`;
+    }
+
+    if (status === 401 || status === 403) {
+      return intl.formatMessage(messages.readarrUnauthorized, {
+        status: String(status),
+      });
+    }
+
+    if (status) {
+      return `${intl.formatMessage(messages.readarrLoadFailedWithStatus, {
+        status: String(status),
+      })}${apiMessage ? ` (${apiMessage})` : ''}`;
+    }
+
+    return intl.formatMessage(messages.readarrUnavailable);
+  };
 
   const deleteServer = async () => {
     await axios.delete(
@@ -645,17 +694,22 @@ const SettingsServices = () => {
           {intl.formatMessage(messages.readarrsettings)}
         </h3>
         <p className="description">
-          {intl.formatMessage(messages.musicServiceSettingsDescription, {
+          {intl.formatMessage(messages.videoServiceSettingsDescription, {
             serverType: 'Readarr',
           })}
         </p>
       </div>
       <div className="section">
         {!readarrData && !readarrError && <LoadingSpinner />}
+        {readarrError && (
+          <Alert title={getReadarrErrorMessage()} type="error" />
+        )}
         {readarrData && !readarrError && (
           <>
             {readarrData.length > 0 &&
-              (!readarrData.some((readarr) => readarr.isDefault) ? (
+              (!readarrData.some(
+                (readarr) => readarr.isDefault && !readarr.isAudiobook
+              ) ? (
                 <Alert
                   title={intl.formatMessage(messages.noDefaultServer, {
                     serverType: 'Readarr',
@@ -663,6 +717,15 @@ const SettingsServices = () => {
                   })}
                 />
               ) : null)}
+            {readarrData.length > 0 &&
+              readarrData.some((readarr) => readarr.isAudiobook) &&
+              !readarrData.some(
+                (readarr) => readarr.isAudiobook && readarr.isDefault
+              ) && (
+                <Alert
+                  title={intl.formatMessage(messages.noDefaultAudiobookServer)}
+                />
+              )}
             <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {readarrData.map((readarr) => (
                 <ServerInstance
@@ -673,6 +736,7 @@ const SettingsServices = () => {
                   profileName={readarr.activeProfileName}
                   isSSL={readarr.useSsl}
                   isReadarr
+                  isAudiobook={readarr.isAudiobook}
                   isDefault={readarr.isDefault}
                   externalUrl={readarr.externalUrl}
                   onEdit={() => setEditReadarrModal({ open: true, readarr })}
@@ -747,21 +811,24 @@ const SettingsServices = () => {
           </li>
         </ul>
       </div>
-      {overrideRuleModal.open && radarrData && sonarrData && readarrData != null && (
-        <OverrideRuleModal
-          rule={overrideRuleModal.rule}
-          onClose={() => {
-            setOverrideRuleModal({
-              open: false,
-              rule: null,
-            });
-            revalidate();
-          }}
-          radarrServices={radarrData}
-          sonarrServices={sonarrData}
-          readarrServices={readarrData}
-        />
-      )}
+      {overrideRuleModal.open &&
+        radarrData &&
+        sonarrData &&
+        readarrData != null && (
+          <OverrideRuleModal
+            rule={overrideRuleModal.rule}
+            onClose={() => {
+              setOverrideRuleModal({
+                open: false,
+                rule: null,
+              });
+              revalidate();
+            }}
+            radarrServices={radarrData}
+            sonarrServices={sonarrData}
+            readarrServices={readarrData}
+          />
+        )}
     </>
   );
 };

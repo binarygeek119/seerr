@@ -42,9 +42,7 @@ const BookDetails = ({ book }: BookDetailsProps) => {
   const [showManager, setShowManager] = useState(false);
 
   const bookId =
-    typeof router.query.bookId === 'string'
-      ? router.query.bookId
-      : undefined;
+    typeof router.query.bookId === 'string' ? router.query.bookId : undefined;
 
   const {
     data,
@@ -128,8 +126,7 @@ const BookDetails = ({ book }: BookDetailsProps) => {
           type="music"
           alt=""
           src={
-            data.posterPath ||
-            '/images/jellyseerr_poster_not_found_square.png'
+            data.posterPath || '/images/jellyseerr_poster_not_found_square.png'
           }
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           fill
@@ -176,10 +173,32 @@ const BookDetails = ({ book }: BookDetailsProps) => {
               downloadItem={data.mediaInfo?.downloadStatus}
               title={data.title}
               inProgress={(data.mediaInfo?.downloadStatus ?? []).length > 0}
-              foreignBookId={data.mediaInfo?.foreignBookId ?? data.foreignBookId}
+              foreignBookId={
+                data.mediaInfo?.foreignBookId ?? data.foreignBookId
+              }
               mediaType="book"
               serviceUrl={data.mediaInfo?.serviceUrl}
             />
+            {settings.currentSettings.bookAudiobookEnabled &&
+              hasPermission(
+                [Permission.MANAGE_REQUESTS, Permission.REQUEST_BOOK],
+                { type: 'or' }
+              ) && (
+                <StatusBadge
+                  status={data.mediaInfo?.status4k}
+                  downloadItem={data.mediaInfo?.downloadStatus4k}
+                  title={data.title}
+                  is4k
+                  inProgress={
+                    (data.mediaInfo?.downloadStatus4k ?? []).length > 0
+                  }
+                  foreignBookId={
+                    data.mediaInfo?.foreignBookId ?? data.foreignBookId
+                  }
+                  mediaType="book"
+                  serviceUrl={data.mediaInfo?.serviceUrl4k}
+                />
+              )}
           </div>
           <h1 data-testid="media-title">
             {data.title}

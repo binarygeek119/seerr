@@ -5,6 +5,7 @@ import MusicRequestModal from '@app/components/RequestModal/MusicRequestModal';
 import TvRequestModal from '@app/components/RequestModal/TvRequestModal';
 import { Transition } from '@headlessui/react';
 import type { MediaStatus } from '@server/constants/media';
+import type Media from '@server/entity/Media';
 import type { MediaRequest } from '@server/entity/MediaRequest';
 import type { NonFunctionProperties } from '@server/interfaces/api/common';
 
@@ -14,6 +15,7 @@ interface RequestModalProps {
   tmdbId?: number;
   mbId?: string;
   foreignBookId?: string;
+  media?: Media;
   is4k?: boolean;
   editRequest?: NonFunctionProperties<MediaRequest>;
   onComplete?: (newStatus: MediaStatus) => void;
@@ -27,6 +29,7 @@ const RequestModal = ({
   tmdbId,
   mbId,
   foreignBookId,
+  media,
   is4k,
   editRequest,
   onComplete,
@@ -75,7 +78,9 @@ const RequestModal = ({
           onComplete={onComplete}
           onCancel={onCancel}
           foreignBookId={foreignBookId ?? editRequest?.media?.foreignBookId}
+          media={media ?? editRequest?.media}
           onUpdating={onUpdating}
+          is4k={is4k}
           editRequest={editRequest}
         />
       ) : (

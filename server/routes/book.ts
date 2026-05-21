@@ -1,8 +1,16 @@
+import OpenLibrary from '@server/api/openlibrary';
+import type { ReadarrBook } from '@server/api/servarr/readarr';
 import ReadarrAPI from '@server/api/servarr/readarr';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import { Watchlist } from '@server/entity/Watchlist';
+import { getReadarrServer } from '@server/lib/readarr/getReadarrServer';
+import {
+  formatReadarrLookupError,
+  isOpenLibraryWorkId,
+  lookupBookInReadarr,
+} from '@server/lib/readarr/lookupBook';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { mapBookDetails } from '@server/models/Book';
@@ -13,8 +21,7 @@ const bookRoutes = Router();
 bookRoutes.get('/:id', async (req, res, next) => {
   const foreignBookId = decodeURIComponent(req.params.id);
   const settings = getSettings();
-  const readarrServer =
-    settings.readarr.find((s) => s.isDefault) ?? settings.readarr[0];
+  const readarrServer = getReadarrServer(settings.readarr, false);
 
   if (!readarrServer) {
     return next({
@@ -29,9 +36,61 @@ bookRoutes.get('/:id', async (req, res, next) => {
       apiKey: readarrServer.apiKey,
     });
 
-    const lookup = await readarr.lookupBooks(foreignBookId);
-    const book =
-      lookup.find((b) => b.foreignBookId === foreignBookId) ?? lookup[0];
+    let book: ReadarrBook | null = null;
+
+    try {
+      book = await lookupBookInReadarr(readarr, foreignBookId);
+    } catch (error) {
+      if (isOpenLibraryWorkId(foreignBookId)) {
+        try {
+          const work = await new OpenLibrary().getWork(foreignBookId);
+          book = {
+            id: 0,
+            title: work.title,
+            foreignBookId,
+            monitored: false,
+            hasFile: false,
+            author: work.authorName
+              ? { foreignAuthorId: '', authorName: work.authorName }
+              : undefined,
+            editions: work.coverId
+              ? [
+                  {
+                    foreignEditionId: foreignBookId,
+                    title: work.title,
+                    titleSlug: foreignBookId,
+                    images: [
+                      {
+                        url: `https://covers.openlibrary.org/b/id/${work.coverId}-L.jpg`,
+                      },
+                    ],
+                  },
+                ]
+              : [
+                  {
+                    foreignEditionId: foreignBookId,
+                    title: work.title,
+                    titleSlug: foreignBookId,
+                  },
+                ],
+          };
+        } catch (olError) {
+          logger.warn('Open Library book details fallback failed', {
+            label: 'Book API',
+            foreignBookId,
+            errorMessage:
+              olError instanceof Error ? olError.message : String(olError),
+          });
+        }
+      }
+
+      if (!book) {
+        return next({
+          status: 503,
+          message: formatReadarrLookupError(error, readarrServer.name),
+        });
+      }
+    }
 
     if (!book) {
       return next({

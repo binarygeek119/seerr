@@ -108,7 +108,9 @@ export interface LidarrSettings extends DVRSettings {
   activeMetadataProfileName?: string;
 }
 
-export type ReadarrSettings = LidarrSettings;
+export interface ReadarrSettings extends LidarrSettings {
+  isAudiobook: boolean;
+}
 
 interface Quota {
   quotaLimit?: number;
@@ -206,6 +208,7 @@ interface FullPublicSettings extends PublicSettings {
   mediaServerLogin: boolean;
   movie4kEnabled: boolean;
   series4kEnabled: boolean;
+  bookAudiobookEnabled: boolean;
   discoverRegion: string;
   streamingRegion: string;
   originalLanguage: string;
@@ -754,6 +757,9 @@ class Settings {
       ),
       series4kEnabled: this.data.sonarr.some(
         (sonarr) => sonarr.is4k && sonarr.isDefault
+      ),
+      bookAudiobookEnabled: this.data.readarr.some(
+        (readarr) => (readarr.isAudiobook ?? false) && readarr.isDefault
       ),
       discoverRegion: this.data.main.discoverRegion,
       streamingRegion: this.data.main.streamingRegion,

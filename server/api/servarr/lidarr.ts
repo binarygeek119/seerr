@@ -1,5 +1,8 @@
+import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import ServarrBase from './base';
+
+const LIDARR_REQUEST_TIMEOUT_MS = 120000;
 
 interface LidarrMediaResult {
   id: number;
@@ -16,6 +19,31 @@ export interface LidarrArtistResult extends LidarrMediaResult {
     artistType: string;
     genres: string[];
   };
+}
+
+/** Album payload returned by GET /album/lookup (preferred for adds). */
+export interface LidarrLookupAlbum {
+  id?: number;
+  title: string;
+  disambiguation?: string;
+  overview?: string;
+  artistId?: number;
+  foreignAlbumId: string;
+  profileId?: number;
+  duration?: number;
+  albumType?: string;
+  secondaryTypes?: string[];
+  mediumCount?: number;
+  ratings?: LidarrRating;
+  releaseDate?: string;
+  releases?: unknown[];
+  genres?: string[];
+  media?: unknown[];
+  artist?: LidarrAlbumResult['album']['artist'];
+  links?: LidarrLink[];
+  images?: LidarrImage[];
+  monitored?: boolean;
+  anyReleaseOk?: boolean;
 }
 
 export interface LidarrAlbumResult extends LidarrMediaResult {
@@ -288,6 +316,67 @@ class LidarrAPI extends ServarrBase<{ albumId: number }> {
   constructor({ url, apiKey }: { url: string; apiKey: string }) {
     super({ url, apiKey, cacheName: 'lidarr', apiName: 'Lidarr' });
     this.apiKey = apiKey;
+    const configuredTimeout = getSettings().network.apiRequestTimeout;
+    this.axios.defaults.timeout = Math.max(
+      configuredTimeout > 0 ? configuredTimeout : LIDARR_REQUEST_TIMEOUT_MS,
+      LIDARR_REQUEST_TIMEOUT_MS
+    );
+  }
+
+  public async lookupAlbumsByTerm(term: string): Promise<LidarrLookupAlbum[]> {
+    try {
+      const response = await this.axios.get<LidarrLookupAlbum[]>(
+        '/album/lookup',
+        {
+          params: { term },
+          timeout: this.axios.defaults.timeout,
+        }
+      );
+
+      return response.data ?? [];
+    } catch (e) {
+      throw new Error(
+        `[Lidarr] Failed to lookup albums: ${LidarrAPI.formatAxiosError(e)}`
+      );
+    }
+  }
+
+  public async searchByTerm(
+    term: string
+  ): Promise<(LidarrAlbumResult | LidarrArtistResult)[]> {
+    try {
+      const response = await this.axios.get<
+        (LidarrAlbumResult | LidarrArtistResult)[]
+      >('/search', {
+        params: { term },
+        timeout: this.axios.defaults.timeout,
+      });
+
+      return response.data ?? [];
+    } catch (e) {
+      throw new Error(
+        `[Lidarr] Failed to search: ${LidarrAPI.formatAxiosError(e)}`
+      );
+    }
+  }
+
+  private static formatAxiosError(error: unknown): string {
+    if (error && typeof error === 'object' && 'message' in error) {
+      const axiosError = error as {
+        message: string;
+        response?: { status?: number; data?: unknown };
+      };
+      const status = axiosError.response?.status;
+      const data = axiosError.response?.data;
+
+      if (status && data) {
+        return `${axiosError.message} (HTTP ${status}: ${JSON.stringify(data)})`;
+      }
+
+      return axiosError.message;
+    }
+
+    return String(error);
   }
 
   public async getAlbums(): Promise<LidarrAlbum[]> {
@@ -324,12 +413,10 @@ class LidarrAPI extends ServarrBase<{ albumId: number }> {
 
   public async searchAlbum(mbid: string): Promise<LidarrAlbumResult[]> {
     try {
-      const data = await this.get<LidarrAlbumResult[]>('/search', {
-        params: {
-          term: `lidarr:${mbid}`,
-        },
-      });
-      return data;
+      const data = await this.searchByTerm(`lidarr:${mbid}`);
+      return data.filter(
+        (r): r is LidarrAlbumResult => r.media_type === 'album' || 'album' in r
+      );
     } catch (e) {
       throw new Error(`[Lidarr] Failed to search album: ${e.message}`);
     }
@@ -393,18 +480,7 @@ class LidarrAPI extends ServarrBase<{ albumId: number }> {
   public async searchAlbumByMusicBrainzId(
     mbid: string
   ): Promise<LidarrAlbumResult[]> {
-    try {
-      const data = await this.get<LidarrAlbumResult[]>('/search', {
-        params: {
-          term: `lidarr:${mbid}`,
-        },
-      });
-      return data;
-    } catch (e) {
-      throw new Error(
-        `[Lidarr] Failed to search album by MusicBrainz ID: ${e.message}`
-      );
-    }
+    return this.searchAlbum(mbid);
   }
 
   public async getMetadataProfiles(): Promise<MetadataProfile[]> {
@@ -417,6 +493,61 @@ class LidarrAPI extends ServarrBase<{ albumId: number }> {
       );
     }
   }
+
+  /** Lidarr queue API differs from Sonarr/Radarr (no includeEpisode). */
+  public override getQueue = async (): Promise<
+    {
+      size: number;
+      title: string;
+      sizeleft: number;
+      timeleft: string;
+      estimatedCompletionTime: string;
+      status: string;
+      trackedDownloadStatus: string;
+      trackedDownloadState: string;
+      downloadId: string;
+      protocol: string;
+      downloadClient: string;
+      indexer: string;
+      id: number;
+      albumId: number;
+    }[]
+  > => {
+    try {
+      const response = await this.axios.get<{
+        records: {
+          size: number;
+          title: string;
+          sizeleft: number;
+          timeleft: string;
+          estimatedCompletionTime: string;
+          status: string;
+          trackedDownloadStatus: string;
+          trackedDownloadState: string;
+          downloadId: string;
+          protocol: string;
+          downloadClient: string;
+          indexer: string;
+          id: number;
+          albumId: number;
+        }[];
+      }>('/queue', {
+        params: {
+          page: 1,
+          pageSize: 100,
+          sortKey: 'timeleft',
+          includeUnknownArtistItems: true,
+        },
+        timeout: this.axios.defaults.timeout,
+      });
+
+      return response.data.records ?? [];
+    } catch (e) {
+      throw new Error(`[Lidarr] Failed to retrieve queue: ${e.message}`, {
+        cause: e,
+      });
+    }
+  };
 }
 
 export default LidarrAPI;

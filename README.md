@@ -11,15 +11,31 @@
 <a href="https://translate.seerr.dev/engage/seerr/"><img src="https://translate.seerr.dev/widget/seerr/svg-badge.svg" alt="Translation status" /></a>
 <a href="https://github.com/seerr-team/seerr/blob/develop/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/seerr-team/seerr"></a>
 
-**Seerr** is a free and open source software application for managing requests for your media library. It integrates with the media server of your choice: [Jellyfin](https://jellyfin.org), [Plex](https://plex.tv), and [Emby](https://emby.media/). In addition, it integrates with your existing services, such as **[Sonarr](https://sonarr.tv/)**, **[Radarr](https://radarr.video/)**.
+**Seerr** is a free and open source software application for managing requests for your media library. It integrates with the media server of your choice: [Jellyfin](https://jellyfin.org), [Plex](https://plex.tv), and [Emby](https://emby.media/). In addition, it integrates with your existing services, such as **[Sonarr](https://sonarr.tv/)**, **[Radarr](https://radarr.video/)**, **[Lidarr](https://lidarr.audio/)**, and **[Readarr](https://readarr.com/)** (or [Chaptarr](https://github.com/Chaptarr/Chaptarr) for books).
+
+## Fork Notice
+
+**Repository:** [github.com/binarygeek119/seerr](https://github.com/binarygeek119/seerr)
+
+> **This repository is an unofficial, AI-assisted fork of [Seerr](https://github.com/seerr-team/seerr).**  
+> Changes in this fork were developed with AI tooling and have not gone through the same review process as upstream Seerr releases. Use at your own discretion.
+
+Report issues and contribute on this fork: **[binarygeek119/seerr](https://github.com/binarygeek119/seerr)**.
+
+This fork adds **music (Lidarr)** and **book / audiobook (Readarr)** request support, inspired by the upstream feature requests and community work in:
+
+- **[seerr-team/seerr#2132](https://github.com/seerr-team/seerr/issues/2132)** — feat: music support (Lidarr integration)
+- **[seerr-team/seerr#1918](https://github.com/seerr-team/seerr/issues/1918)** — feat: add book support (Readarr integration)
+
+Those issues and their related pull requests are still open upstream. This fork implements similar functionality locally for testing and personal use. For the official Seerr project, roadmap, and support, see [seerr-team/seerr](https://github.com/seerr-team/seerr).
 
 ## Current Features
 
 - Full Jellyfin/Emby/Plex integration including authentication with user import & management.
 - Support for **PostgreSQL** and **SQLite** databases.
-- Supports Movies, Shows and Mixed Libraries.
+- Supports Movies, Shows, Music, Books, and Mixed Libraries.
 - Ability to change email addresses for SMTP purposes.
-- Easy integration with your existing services. Currently, Seerr supports Sonarr and Radarr. More to come!
+- Easy integration with your existing services: Sonarr, Radarr, Lidarr (music), and Readarr (ebooks and audiobooks).
 - Jellyfin/Emby/Plex library scan, to keep track of the titles which are already available.
 - Customizable request system, which allows users to request individual seasons or movies in a friendly, easy-to-use interface.
 - Incredibly simple request management UI. Don't dig through the app to simply approve recent requests!

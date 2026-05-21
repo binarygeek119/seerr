@@ -94,20 +94,36 @@ const MediaSlider = ({
   );
 
   if (settings.currentSettings.hideAvailable) {
-    titles = titles.filter(
-      (i) =>
-        (i.mediaType === 'movie' || i.mediaType === 'tv') &&
-        i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
-        i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE
-    );
+    titles = titles.filter((i) => {
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return (
+          i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
+          i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE
+        );
+      }
+      return true;
+    });
   }
 
   if (settings.currentSettings.hideBlocklisted) {
-    titles = titles.filter(
-      (i) =>
-        (i.mediaType === 'movie' || i.mediaType === 'tv') &&
-        i.mediaInfo?.status !== MediaStatus.BLOCKLISTED
-    );
+    titles = titles.filter((i) => {
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return i.mediaInfo?.status !== MediaStatus.BLOCKLISTED;
+      }
+      return true;
+    });
   }
 
   useEffect(() => {
@@ -236,24 +252,27 @@ const MediaSlider = ({
               artistThumb={title.artistThumb}
             />
           );
+        default:
+          return null;
       }
-    });
+    })
+    .filter((item): item is JSX.Element => item !== null);
+
+  const isLoading = !data && !error;
 
   if (linkUrl && (totalItems ? totalItems > 20 : titles.length > 20)) {
     finalTitles.push(
       <ShowMoreCard
         url={linkUrl}
-        posters={titles
-          .slice(20, 24)
-          .map((title) => {
-            if (title.mediaType === 'person') {
-              return undefined;
-            }
-            if (title.mediaType === 'album' || title.mediaType === 'book') {
-              return title.posterPath;
-            }
-            return (title as MovieResult | TvResult).posterPath;
-          })}
+        posters={titles.slice(20, 24).map((title) => {
+          if (title.mediaType === 'person') {
+            return undefined;
+          }
+          if (title.mediaType === 'album' || title.mediaType === 'book') {
+            return title.posterPath;
+          }
+          return (title as MovieResult | TvResult).posterPath;
+        })}
       />
     );
   }
@@ -274,8 +293,8 @@ const MediaSlider = ({
       </div>
       <Slider
         sliderKey={sliderKey}
-        isLoading={!data && !error}
-        isEmpty={false}
+        isLoading={isLoading}
+        isEmpty={!isLoading && finalTitles.length === 0}
         items={finalTitles}
       />
     </>

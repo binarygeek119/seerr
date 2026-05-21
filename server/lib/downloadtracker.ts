@@ -72,6 +72,7 @@ class DownloadTracker {
   public async resetDownloadTracker() {
     this.radarrServers = {};
     this.sonarrServers = {};
+    this.lidarrServers = {};
   }
 
   public updateDownloads() {
@@ -259,7 +260,21 @@ class DownloadTracker {
           });
 
           try {
-            await lidarr.refreshMonitoredDownloads();
+            try {
+              await lidarr.refreshMonitoredDownloads();
+            } catch (refreshError) {
+              logger.debug(
+                `Lidarr refreshMonitoredDownloads failed for ${server.name}`,
+                {
+                  label: 'Download Tracker',
+                  errorMessage:
+                    refreshError instanceof Error
+                      ? refreshError.message
+                      : String(refreshError),
+                }
+              );
+            }
+
             const queueItems = await lidarr.getQueue();
 
             this.lidarrServers[server.id] = queueItems.map((item) => ({
@@ -280,11 +295,13 @@ class DownloadTracker {
                 { label: 'Download Tracker' }
               );
             }
-          } catch {
-            logger.error(
+          } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            logger.warn(
               `Unable to get queue from Lidarr server: ${server.name}`,
               {
                 label: 'Download Tracker',
+                errorMessage,
               }
             );
           }
