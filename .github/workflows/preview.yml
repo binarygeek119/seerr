@@ -12,7 +12,8 @@ permissions:
   contents: read
 
 env:
-  DOCKER_HUB: binarygeek119/seerr
+  # Fork: push to the same owner/repo as GitHub (create this repo on Docker Hub first)
+  DOCKER_HUB: ${{ github.repository }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
