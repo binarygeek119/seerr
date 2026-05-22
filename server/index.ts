@@ -71,14 +71,22 @@ app
       ? dataSource
       : await dataSource.initialize();
 
-    // Run migrations in production
+    // Run migrations in production before settings migrations touch the DB
     if (process.env.NODE_ENV === 'production') {
+      let executedMigrations;
       if (isPgsql) {
-        await dbConnection.runMigrations();
+        executedMigrations = await dbConnection.runMigrations();
       } else {
         await dbConnection.query('PRAGMA foreign_keys=OFF');
-        await dbConnection.runMigrations();
+        executedMigrations = await dbConnection.runMigrations();
         await dbConnection.query('PRAGMA foreign_keys=ON');
+      }
+
+      if (executedMigrations.length > 0) {
+        logger.info(
+          `Applied ${executedMigrations.length} database migration(s)`,
+          { label: 'Database' }
+        );
       }
     }
 
