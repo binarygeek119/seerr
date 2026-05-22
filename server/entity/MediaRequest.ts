@@ -26,6 +26,12 @@ import {
   formatReadarrLookupError,
   lookupBookInReadarr,
 } from '@server/lib/readarr/lookupBook';
+import { isTheatrical3dMovie } from '@server/lib/movie3dList';
+import {
+  defaultRadarrServer,
+  movieStatusField,
+  normalizeMovieRequestFlags,
+} from '@server/lib/movieRequestQuality';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
@@ -93,12 +99,23 @@ export class MediaRequest {
       throw new Error('User missing from request context.');
     }
 
+    if (requestBody.mediaType === MediaType.MOVIE) {
+      const movieFlags = normalizeMovieRequestFlags(
+        requestBody.is4k,
+        requestBody.is3d
+      );
+      requestBody.is4k = movieFlags.is4k;
+      requestBody.is3d = movieFlags.is3d;
+    }
+
     if (
       requestBody.mediaType === MediaType.MOVIE &&
       !requestUser.hasPermission(
-        requestBody.is4k
-          ? [Permission.REQUEST_4K, Permission.REQUEST_4K_MOVIE]
-          : [Permission.REQUEST, Permission.REQUEST_MOVIE],
+        requestBody.is3d
+          ? [Permission.REQUEST, Permission.REQUEST_MOVIE]
+          : requestBody.is4k
+            ? [Permission.REQUEST_4K, Permission.REQUEST_4K_MOVIE]
+            : [Permission.REQUEST, Permission.REQUEST_MOVIE],
         {
           type: 'or',
         }
@@ -106,7 +123,7 @@ export class MediaRequest {
     ) {
       throw new RequestPermissionError(
         `You do not have permission to make ${
-          requestBody.is4k ? '4K ' : ''
+          requestBody.is3d ? '3D ' : requestBody.is4k ? '4K ' : ''
         }movie requests.`
       );
     } else if (
@@ -179,6 +196,19 @@ export class MediaRequest {
       requestedMedia = await tmdb.getMovie({
         movieId: Number(requestBody.mediaId),
       });
+
+      if (
+        requestBody.is3d &&
+        !isTheatrical3dMovie({
+          title: requestedMedia.title,
+          originalTitle: requestedMedia.original_title,
+          releaseDate: requestedMedia.release_date,
+        })
+      ) {
+        throw new Error(
+          '3D requests are only available for movies on the theatrical 3D movie list.'
+        );
+      }
     } else if (requestBody.mediaType === MediaType.TV) {
       requestedMedia = await tmdb.getTvShow({
         tvId: Number(requestBody.mediaId),
@@ -264,8 +294,24 @@ export class MediaRequest {
         tvdbId: isTmdbMedia(requestedMedia)
           ? (requestBody.tvdbId ?? requestedMedia.external_ids?.tvdb_id)
           : undefined,
-        status: !requestBody.is4k ? MediaStatus.PENDING : MediaStatus.UNKNOWN,
-        status4k: requestBody.is4k ? MediaStatus.PENDING : MediaStatus.UNKNOWN,
+        status:
+          requestBody.mediaType === MediaType.MOVIE &&
+          movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
+            'status'
+            ? MediaStatus.PENDING
+            : MediaStatus.UNKNOWN,
+        status4k:
+          requestBody.mediaType === MediaType.MOVIE &&
+          movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
+            'status4k'
+            ? MediaStatus.PENDING
+            : MediaStatus.UNKNOWN,
+        status3d:
+          requestBody.mediaType === MediaType.MOVIE &&
+          movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
+            'status3d'
+            ? MediaStatus.PENDING
+            : MediaStatus.UNKNOWN,
         mediaType: requestBody.mediaType,
       });
     } else {
@@ -284,12 +330,31 @@ export class MediaRequest {
         throw new BlocklistedMediaError('This media is blocklisted.');
       }
 
-      if (media.status === MediaStatus.UNKNOWN && !requestBody.is4k) {
+      if (
+        requestBody.mediaType === MediaType.MOVIE &&
+        media.status === MediaStatus.UNKNOWN &&
+        movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
+          'status'
+      ) {
         media.status = MediaStatus.PENDING;
       }
 
-      if (media.status4k === MediaStatus.UNKNOWN && requestBody.is4k) {
+      if (
+        requestBody.mediaType === MediaType.MOVIE &&
+        media.status4k === MediaStatus.UNKNOWN &&
+        movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
+          'status4k'
+      ) {
         media.status4k = MediaStatus.PENDING;
+      }
+
+      if (
+        requestBody.mediaType === MediaType.MOVIE &&
+        media.status3d === MediaStatus.UNKNOWN &&
+        movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
+          'status3d'
+      ) {
+        media.status3d = MediaStatus.PENDING;
       }
     }
 
@@ -297,7 +362,8 @@ export class MediaRequest {
       .createQueryBuilder('request')
       .leftJoin('request.media', 'media')
       .leftJoinAndSelect('request.requestedBy', 'user')
-      .where('request.is4k = :is4k', { is4k: requestBody.is4k })
+      .where('request.is4k = :is4k', { is4k: requestBody.is4k ?? false })
+      .andWhere('request.is3d = :is3d', { is3d: requestBody.is3d ?? false })
       .andWhere(
         requestBody.mediaType === MediaType.MUSIC
           ? 'media.mbId = :mbId'
@@ -373,9 +439,14 @@ export class MediaRequest {
     let tags = requestBody.tags;
 
     if (useOverrides) {
-      const defaultRadarrId = requestBody.is4k
-        ? settings.radarr.findIndex((r) => r.is4k && r.isDefault)
-        : settings.radarr.findIndex((r) => !r.is4k && r.isDefault);
+      const defaultRadarr = defaultRadarrServer(
+        settings.radarr,
+        requestBody.is4k ?? false,
+        requestBody.is3d ?? false
+      );
+      const defaultRadarrId = defaultRadarr
+        ? settings.radarr.findIndex((r) => r.id === defaultRadarr.id)
+        : -1;
       const defaultSonarrId = requestBody.is4k
         ? settings.sonarr.findIndex((s) => s.is4k && s.isDefault)
         : settings.sonarr.findIndex((s) => !s.is4k && s.isDefault);
@@ -510,40 +581,39 @@ export class MediaRequest {
     if (requestBody.mediaType === MediaType.MOVIE) {
       await mediaRepository.save(media);
 
+      const movieAutoApprovePermissions = requestBody.is3d
+        ? [
+            Permission.AUTO_APPROVE,
+            Permission.AUTO_APPROVE_MOVIE,
+            Permission.MANAGE_REQUESTS,
+          ]
+        : requestBody.is4k
+          ? [
+              Permission.AUTO_APPROVE_4K,
+              Permission.AUTO_APPROVE_4K_MOVIE,
+              Permission.MANAGE_REQUESTS,
+            ]
+          : [
+              Permission.AUTO_APPROVE,
+              Permission.AUTO_APPROVE_MOVIE,
+              Permission.MANAGE_REQUESTS,
+            ];
+
       const request = new MediaRequest({
         type: MediaType.MOVIE,
         media,
         requestedBy: requestUser,
         // If the user is an admin or has the "auto approve" permission, automatically approve the request
-        status: user.hasPermission(
-          [
-            requestBody.is4k
-              ? Permission.AUTO_APPROVE_4K
-              : Permission.AUTO_APPROVE,
-            requestBody.is4k
-              ? Permission.AUTO_APPROVE_4K_MOVIE
-              : Permission.AUTO_APPROVE_MOVIE,
-            Permission.MANAGE_REQUESTS,
-          ],
-          { type: 'or' }
-        )
+        status: user.hasPermission(movieAutoApprovePermissions, { type: 'or' })
           ? MediaRequestStatus.APPROVED
           : MediaRequestStatus.PENDING,
-        modifiedBy: user.hasPermission(
-          [
-            requestBody.is4k
-              ? Permission.AUTO_APPROVE_4K
-              : Permission.AUTO_APPROVE,
-            requestBody.is4k
-              ? Permission.AUTO_APPROVE_4K_MOVIE
-              : Permission.AUTO_APPROVE_MOVIE,
-            Permission.MANAGE_REQUESTS,
-          ],
-          { type: 'or' }
-        )
+        modifiedBy: user.hasPermission(movieAutoApprovePermissions, {
+          type: 'or',
+        })
           ? user
           : undefined,
-        is4k: requestBody.is4k,
+        is4k: requestBody.is4k ?? false,
+        is3d: requestBody.is3d ?? false,
         serverId: requestBody.serverId,
         profileId: profileId,
         rootFolder: rootFolder,
@@ -799,6 +869,9 @@ export class MediaRequest {
 
   @Column({ default: false })
   public is4k: boolean;
+
+  @Column({ default: false })
+  public is3d: boolean;
 
   @Column({ nullable: true })
   public serverId: number;

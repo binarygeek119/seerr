@@ -240,6 +240,7 @@ CoreApp.getInitialProps = async (initialProps) => {
     hideAvailable: false,
     hideBlocklisted: false,
     movie4kEnabled: false,
+    movie3dEnabled: false,
     series4kEnabled: false,
     bookAudiobookEnabled: false,
     localLogin: true,

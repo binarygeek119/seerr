@@ -22,8 +22,10 @@ type OptionType = {
 const messages = defineMessages('components.Settings.RadarrModal', {
   createradarr: 'Add New Radarr Server',
   create4kradarr: 'Add New 4K Radarr Server',
+  create3dradarr: 'Add New 3D Radarr Server',
   editradarr: 'Edit Radarr Server',
   edit4kradarr: 'Edit 4K Radarr Server',
+  edit3dradarr: 'Edit 3D Radarr Server',
   validationNameRequired: 'You must provide a server name',
   validationHostnameRequired: 'You must provide a valid hostname or IP address',
   validationPortRequired: 'You must provide a valid port number',
@@ -37,6 +39,7 @@ const messages = defineMessages('components.Settings.RadarrModal', {
   add: 'Add Server',
   defaultserver: 'Default Server',
   default4kserver: 'Default 4K Server',
+  default3dserver: 'Default 3D Server',
   servername: 'Server Name',
   hostname: 'Hostname or IP Address',
   port: 'Port',
@@ -51,6 +54,9 @@ const messages = defineMessages('components.Settings.RadarrModal', {
   server4k: '4K Server',
   server4kHelp:
     'Only if you have a separate 4K instance. Leave unchecked for a single server.',
+  server3d: '3D Server',
+  server3dHelp:
+    'Only if you have a separate 3D instance. Cannot be combined with the 4K option.',
   selectQualityProfile: 'Select quality profile',
   selectRootFolder: 'Select root folder',
   selectMinimumAvailability: 'Select minimum availability',
@@ -238,6 +244,7 @@ const RadarrModal = ({ onClose, radarr, onSave }: RadarrModalProps) => {
           tags: radarr?.tags ?? [],
           isDefault: radarr?.isDefault ?? false,
           is4k: radarr?.is4k ?? false,
+          is3d: radarr?.is3d ?? false,
           externalUrl: radarr?.externalUrl,
           syncEnabled: radarr?.syncEnabled ?? false,
           enableSearch: !radarr?.preventSearch,
@@ -261,6 +268,7 @@ const RadarrModal = ({ onClose, radarr, onSave }: RadarrModalProps) => {
               activeProfileName: profileName,
               activeDirectory: values.rootFolder,
               is4k: values.is4k,
+              is3d: values.is3d,
               minimumAvailability: values.minimumAvailability,
               tags: values.tags,
               isDefault: values.isDefault,
@@ -336,12 +344,18 @@ const RadarrModal = ({ onClose, radarr, onSave }: RadarrModalProps) => {
               title={
                 !radarr
                   ? intl.formatMessage(
-                      values.is4k
-                        ? messages.create4kradarr
-                        : messages.createradarr
+                      values.is3d
+                        ? messages.create3dradarr
+                        : values.is4k
+                          ? messages.create4kradarr
+                          : messages.createradarr
                     )
                   : intl.formatMessage(
-                      values.is4k ? messages.edit4kradarr : messages.editradarr
+                      values.is3d
+                        ? messages.edit3dradarr
+                        : values.is4k
+                          ? messages.edit4kradarr
+                          : messages.editradarr
                     )
               }
             >
@@ -349,9 +363,11 @@ const RadarrModal = ({ onClose, radarr, onSave }: RadarrModalProps) => {
                 <div className="form-row">
                   <label htmlFor="isDefault" className="checkbox-label">
                     {intl.formatMessage(
-                      values.is4k
-                        ? messages.default4kserver
-                        : messages.defaultserver
+                      values.is3d
+                        ? messages.default3dserver
+                        : values.is4k
+                          ? messages.default4kserver
+                          : messages.defaultserver
                     )}
                   </label>
                   <div className="form-input-area">
@@ -366,7 +382,38 @@ const RadarrModal = ({ onClose, radarr, onSave }: RadarrModalProps) => {
                     </span>
                   </label>
                   <div className="form-input-area">
-                    <Field type="checkbox" id="is4k" name="is4k" />
+                    <Field
+                      type="checkbox"
+                      id="is4k"
+                      name="is4k"
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setFieldValue('is4k', e.target.checked);
+                        if (e.target.checked) {
+                          setFieldValue('is3d', false);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <label htmlFor="is3d" className="checkbox-label">
+                    {intl.formatMessage(messages.server3d)}
+                    <span className="label-tip">
+                      {intl.formatMessage(messages.server3dHelp)}
+                    </span>
+                  </label>
+                  <div className="form-input-area">
+                    <Field
+                      type="checkbox"
+                      id="is3d"
+                      name="is3d"
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setFieldValue('is3d', e.target.checked);
+                        if (e.target.checked) {
+                          setFieldValue('is4k', false);
+                        }
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="form-row">

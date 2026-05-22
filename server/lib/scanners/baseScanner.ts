@@ -3,6 +3,10 @@ import { MediaStatus, MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import Season from '@server/entity/Season';
+import {
+  movieServiceFields,
+  normalizeMovieRequestFlags,
+} from '@server/lib/movieRequestQuality';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import AsyncLock from '@server/utils/asyncLock';
@@ -33,6 +37,7 @@ export interface MediaIds {
 
 interface ProcessOptions {
   is4k?: boolean;
+  is3d?: boolean;
   mediaAddedAt?: Date;
   ratingKey?: string;
   jellyfinMediaId?: string;
@@ -62,6 +67,7 @@ class BaseScanner<T> {
   protected totalSize?: number = 0;
   protected scannerName: string;
   protected enable4kMovie = false;
+  protected enable3dMovie = false;
   protected enable4kShow = false;
   protected sessionId: string;
   protected running = false;
@@ -112,6 +118,7 @@ class BaseScanner<T> {
     tmdbId: number,
     {
       is4k = false,
+      is3d = false,
       mediaAddedAt,
       ratingKey,
       jellyfinMediaId,
@@ -125,6 +132,10 @@ class BaseScanner<T> {
     }: ProcessOptions = {}
   ): Promise<void> {
     const mediaRepository = getRepository(Media);
+    const movieFlags = normalizeMovieRequestFlags(is4k, is3d);
+    is4k = movieFlags.is4k;
+    is3d = movieFlags.is3d;
+    const fields = movieServiceFields(is4k, is3d);
 
     await this.asyncLock.dispatch(tmdbId, async () => {
       const existing = await this.getExisting(tmdbId, MediaType.MOVIE);
@@ -132,11 +143,10 @@ class BaseScanner<T> {
       if (existing) {
         let changedExisting = false;
 
-        if (existing[is4k ? 'status4k' : 'status'] !== MediaStatus.AVAILABLE) {
-          const statusField = is4k ? 'status4k' : 'status';
-          const previousStatus = existing[statusField];
+        if (existing[fields.status] !== MediaStatus.AVAILABLE) {
+          const previousStatus = existing[fields.status];
 
-          existing[statusField] =
+          existing[fields.status] =
             !processing && hasFile
               ? MediaStatus.AVAILABLE
               : !processing &&
@@ -149,7 +159,7 @@ class BaseScanner<T> {
                     : MediaStatus.PROCESSING
                   : previousStatus;
 
-          if (existing[statusField] !== previousStatus) {
+          if (existing[fields.status] !== previousStatus) {
             if (mediaAddedAt) {
               existing.mediaAddedAt = mediaAddedAt;
             }
@@ -162,21 +172,16 @@ class BaseScanner<T> {
           changedExisting = true;
         }
 
-        if (
-          ratingKey &&
-          existing[is4k ? 'ratingKey4k' : 'ratingKey'] !== ratingKey
-        ) {
-          existing[is4k ? 'ratingKey4k' : 'ratingKey'] = ratingKey;
+        if (ratingKey && existing[fields.ratingKey] !== ratingKey) {
+          existing[fields.ratingKey] = ratingKey;
           changedExisting = true;
         }
 
         if (
           jellyfinMediaId &&
-          existing[is4k ? 'jellyfinMediaId4k' : 'jellyfinMediaId'] !==
-            jellyfinMediaId
+          existing[fields.jellyfinMediaId] !== jellyfinMediaId
         ) {
-          existing[is4k ? 'jellyfinMediaId4k' : 'jellyfinMediaId'] =
-            jellyfinMediaId;
+          existing[fields.jellyfinMediaId] = jellyfinMediaId;
           changedExisting = true;
         }
 
@@ -187,29 +192,25 @@ class BaseScanner<T> {
 
         if (
           serviceId !== undefined &&
-          existing[is4k ? 'serviceId4k' : 'serviceId'] !== serviceId
+          existing[fields.serviceId] !== serviceId
         ) {
-          existing[is4k ? 'serviceId4k' : 'serviceId'] = serviceId;
+          existing[fields.serviceId] = serviceId;
           changedExisting = true;
         }
 
         if (
           externalServiceId !== undefined &&
-          existing[is4k ? 'externalServiceId4k' : 'externalServiceId'] !==
-            externalServiceId
+          existing[fields.externalServiceId] !== externalServiceId
         ) {
-          existing[is4k ? 'externalServiceId4k' : 'externalServiceId'] =
-            externalServiceId;
+          existing[fields.externalServiceId] = externalServiceId;
           changedExisting = true;
         }
 
         if (
           externalServiceSlug !== undefined &&
-          existing[is4k ? 'externalServiceSlug4k' : 'externalServiceSlug'] !==
-            externalServiceSlug
+          existing[fields.externalServiceSlug] !== externalServiceSlug
         ) {
-          existing[is4k ? 'externalServiceSlug4k' : 'externalServiceSlug'] =
-            externalServiceSlug;
+          existing[fields.externalServiceSlug] = externalServiceSlug;
           changedExisting = true;
         }
 
@@ -232,9 +233,9 @@ class BaseScanner<T> {
         newMedia.imdbId = imdbId;
 
         newMedia.status =
-          !is4k && !processing
+          !is4k && !is3d && !processing
             ? MediaStatus.AVAILABLE
-            : !is4k && processing
+            : !is4k && !is3d && processing
               ? MediaStatus.PROCESSING
               : MediaStatus.UNKNOWN;
         newMedia.status4k =
@@ -243,26 +244,38 @@ class BaseScanner<T> {
             : is4k && this.enable4kMovie && processing
               ? MediaStatus.PROCESSING
               : MediaStatus.UNKNOWN;
+        newMedia.status3d =
+          is3d && this.enable3dMovie && !processing
+            ? MediaStatus.AVAILABLE
+            : is3d && this.enable3dMovie && processing
+              ? MediaStatus.PROCESSING
+              : MediaStatus.UNKNOWN;
         newMedia.mediaType = MediaType.MOVIE;
-        newMedia.serviceId = !is4k ? serviceId : undefined;
+        newMedia.serviceId = !is4k && !is3d ? serviceId : undefined;
         newMedia.serviceId4k = is4k ? serviceId : undefined;
-        newMedia.externalServiceId = !is4k ? externalServiceId : undefined;
+        newMedia.serviceId3d = is3d ? serviceId : undefined;
+        newMedia.externalServiceId =
+          !is4k && !is3d ? externalServiceId : undefined;
         newMedia.externalServiceId4k = is4k ? externalServiceId : undefined;
-        newMedia.externalServiceSlug = !is4k ? externalServiceSlug : undefined;
+        newMedia.externalServiceId3d = is3d ? externalServiceId : undefined;
+        newMedia.externalServiceSlug =
+          !is4k && !is3d ? externalServiceSlug : undefined;
         newMedia.externalServiceSlug4k = is4k ? externalServiceSlug : undefined;
+        newMedia.externalServiceSlug3d = is3d ? externalServiceSlug : undefined;
 
         if (mediaAddedAt) {
           newMedia.mediaAddedAt = mediaAddedAt;
         }
 
         if (ratingKey) {
-          newMedia.ratingKey = !is4k ? ratingKey : undefined;
+          newMedia.ratingKey = !is4k && !is3d ? ratingKey : undefined;
           newMedia.ratingKey4k =
             is4k && this.enable4kMovie ? ratingKey : undefined;
         }
 
         if (jellyfinMediaId) {
-          newMedia.jellyfinMediaId = !is4k ? jellyfinMediaId : undefined;
+          newMedia.jellyfinMediaId =
+            !is4k && !is3d ? jellyfinMediaId : undefined;
           newMedia.jellyfinMediaId4k =
             is4k && this.enable4kMovie ? jellyfinMediaId : undefined;
         }
@@ -863,6 +876,14 @@ class BaseScanner<T> {
     if (this.enable4kMovie) {
       this.log(
         'At least one 4K Radarr server was detected. 4K movie detection is now enabled',
+        'info'
+      );
+    }
+
+    this.enable3dMovie = settings.radarr.some((radarr) => radarr.is3d);
+    if (this.enable3dMovie) {
+      this.log(
+        'At least one 3D Radarr server was detected. 3D movie detection is now enabled',
         'info'
       );
     }

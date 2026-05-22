@@ -134,7 +134,7 @@ requestRoutes.get<Record<string, unknown>, RequestResultsResponse>(
           requestStatus: statusFilter,
         })
         .andWhere(
-          '((request.is4k = false AND media.status IN (:...mediaStatus)) OR (request.is4k = true AND media.status4k IN (:...mediaStatus)))',
+          '((request.is3d = true AND media.status3d IN (:...mediaStatus)) OR (request.is4k = true AND request.is3d = false AND media.status4k IN (:...mediaStatus)) OR (request.is4k = false AND request.is3d = false AND media.status IN (:...mediaStatus)))',
           {
             mediaStatus: mediaStatusFilter,
           }
@@ -472,7 +472,7 @@ requestRoutes.get('/count', async (_req, res, next) => {
         requestStatus: MediaRequestStatus.APPROVED,
       })
       .andWhere(
-        '((request.is4k = false AND media.status != :availableStatus) OR (request.is4k = true AND media.status4k != :availableStatus))',
+        '((request.is3d = true AND media.status3d != :availableStatus) OR (request.is4k = true AND request.is3d = false AND media.status4k != :availableStatus) OR (request.is4k = false AND request.is3d = false AND media.status != :availableStatus))',
         {
           availableStatus: MediaStatus.AVAILABLE,
         }
@@ -484,7 +484,7 @@ requestRoutes.get('/count', async (_req, res, next) => {
         requestStatus: MediaRequestStatus.APPROVED,
       })
       .andWhere(
-        '((request.is4k = false AND media.status = :availableStatus) OR (request.is4k = true AND media.status4k = :availableStatus))',
+        '((request.is3d = true AND media.status3d = :availableStatus) OR (request.is4k = true AND request.is3d = false AND media.status4k = :availableStatus) OR (request.is4k = false AND request.is3d = false AND media.status = :availableStatus))',
         {
           availableStatus: MediaStatus.AVAILABLE,
         }

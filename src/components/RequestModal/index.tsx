@@ -17,6 +17,7 @@ interface RequestModalProps {
   foreignBookId?: string;
   media?: Media;
   is4k?: boolean;
+  is3d?: boolean;
   editRequest?: NonFunctionProperties<MediaRequest>;
   onComplete?: (newStatus: MediaStatus) => void;
   onCancel?: () => void;
@@ -31,6 +32,7 @@ const RequestModal = ({
   foreignBookId,
   media,
   is4k,
+  is3d,
   editRequest,
   onComplete,
   onUpdating,
@@ -54,6 +56,7 @@ const RequestModal = ({
           tmdbId={tmdbId}
           onUpdating={onUpdating}
           is4k={is4k}
+          is3d={is3d}
           editRequest={editRequest}
         />
       ) : type === 'tv' ? (

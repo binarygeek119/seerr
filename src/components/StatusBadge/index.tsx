@@ -14,6 +14,7 @@ import { useIntl } from 'react-intl';
 const messages = defineMessages('components.StatusBadge', {
   status: '{status}',
   status4k: '4K {status}',
+  status3d: '3D {status}',
   playonplex: 'Play on {mediaServerName}',
   openinarr: 'Open in {arr}',
   managemedia: 'Manage {mediaType}',
@@ -25,6 +26,7 @@ interface StatusBadgeProps {
   status?: MediaStatus;
   downloadItem?: DownloadingItem[];
   is4k?: boolean;
+  is3d?: boolean;
   inProgress?: boolean;
   plexUrl?: string;
   serviceUrl?: string;
@@ -40,6 +42,7 @@ const StatusBadge = ({
   status,
   downloadItem = [],
   is4k = false,
+  is3d = false,
   inProgress = false,
   plexUrl,
   serviceUrl,
@@ -53,6 +56,11 @@ const StatusBadge = ({
   const intl = useIntl();
   const { hasPermission } = useUser();
   const settings = useSettings();
+  const statusMessage = is3d
+    ? messages.status3d
+    : is4k
+      ? messages.status4k
+      : messages.status;
 
   let mediaLink: string | undefined;
   let mediaLinkDescription: string | undefined;
@@ -69,29 +77,40 @@ const StatusBadge = ({
         ? [Permission.REQUEST, Permission.REQUEST_MUSIC]
         : mediaType === 'book'
           ? [Permission.REQUEST, Permission.REQUEST_BOOK]
-          : is4k
+          : is3d
             ? [
-                Permission.REQUEST_4K,
-                mediaType === 'movie'
-                  ? Permission.REQUEST_4K_MOVIE
-                  : Permission.REQUEST_4K_TV,
-              ]
-            : [
                 Permission.REQUEST,
                 mediaType === 'movie'
                   ? Permission.REQUEST_MOVIE
                   : Permission.REQUEST_TV,
-              ],
+              ]
+            : is4k
+              ? [
+                  Permission.REQUEST_4K,
+                  mediaType === 'movie'
+                    ? Permission.REQUEST_4K_MOVIE
+                    : Permission.REQUEST_4K_TV,
+                ]
+              : [
+                  Permission.REQUEST,
+                  mediaType === 'movie'
+                    ? Permission.REQUEST_MOVIE
+                    : Permission.REQUEST_TV,
+                ],
       {
         type: 'or',
       }
     ) &&
-    (!is4k ||
-      (mediaType === 'movie'
-        ? settings.currentSettings.movie4kEnabled
-        : mediaType === 'book'
-          ? settings.currentSettings.bookAudiobookEnabled
-          : settings.currentSettings.series4kEnabled))
+    ((!is4k && !is3d) ||
+      (is4k &&
+        (mediaType === 'movie'
+          ? settings.currentSettings.movie4kEnabled
+          : mediaType === 'book'
+            ? settings.currentSettings.bookAudiobookEnabled
+            : settings.currentSettings.series4kEnabled)) ||
+      (is3d &&
+        mediaType === 'movie' &&
+        settings.currentSettings.movie3dEnabled))
   ) {
     mediaLink = plexUrl;
     mediaLinkDescription = intl.formatMessage(messages.playonplex, {
@@ -210,7 +229,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)
@@ -275,7 +294,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)
@@ -340,7 +359,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)
@@ -383,7 +402,7 @@ const StatusBadge = ({
       return (
         <Tooltip content={mediaLinkDescription}>
           <Badge badgeType="warning" href={mediaLink}>
-            {intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            {intl.formatMessage(statusMessage, {
               status: intl.formatMessage(globalMessages.pending),
             })}
           </Badge>
@@ -394,7 +413,7 @@ const StatusBadge = ({
       return (
         <Tooltip content={mediaLinkDescription}>
           <Badge badgeType="danger" href={mediaLink}>
-            {intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            {intl.formatMessage(statusMessage, {
               status:
                 statusLabelOverride ??
                 intl.formatMessage(globalMessages.blocklisted),
@@ -429,7 +448,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)

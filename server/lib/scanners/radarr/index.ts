@@ -26,8 +26,10 @@ class RadarrScanner
   private radarrApi: RadarrAPI;
   private scannedTmdbIds: Set<number> = new Set();
   private scanned4kTmdbIds: Set<number> = new Set();
+  private scanned3dTmdbIds: Set<number> = new Set();
   private didScanStandard = false;
   private didScan4k = false;
+  private didScan3d = false;
 
   constructor() {
     super('Radarr Scan', { bundleSize: 50 });
@@ -48,8 +50,10 @@ class RadarrScanner
     const sessionId = this.startRun();
     this.scannedTmdbIds.clear();
     this.scanned4kTmdbIds.clear();
+    this.scanned3dTmdbIds.clear();
     this.didScanStandard = false;
     this.didScan4k = false;
+    this.didScan3d = false;
 
     try {
       this.servers = uniqWith(settings.radarr, (radarrA, radarrB) => {
@@ -75,9 +79,14 @@ class RadarrScanner
 
           this.items = await this.radarrApi.getMovies();
 
-          const server4k = this.enable4kMovie && server.is4k;
+          const server4k =
+            this.enable4kMovie && server.is4k && !(server.is3d ?? false);
+          const server3d =
+            this.enable3dMovie && (server.is3d ?? false) && !server.is4k;
           if (server4k) {
             this.didScan4k = true;
+          } else if (server3d) {
+            this.didScan3d = true;
           } else {
             this.didScanStandard = true;
           }
@@ -88,15 +97,14 @@ class RadarrScanner
         }
       }
 
-      // Only run cleanup if all servers of this profile type have sync enabled.
-      // If any server is skipped, we can't distinguish truly orphaned media from
-      // media that exists on an unscanned server (e.g. separate instances for
-      // anime, regional content, or different languages).
       const allStandardScanned = this.servers
-        .filter((s) => !this.enable4kMovie || !s.is4k)
+        .filter((s) => !s.is4k && !(s.is3d ?? false))
         .every((s) => s.syncEnabled);
       const all4kScanned = this.servers
-        .filter((s) => this.enable4kMovie && s.is4k)
+        .filter((s) => this.enable4kMovie && s.is4k && !(s.is3d ?? false))
+        .every((s) => s.syncEnabled);
+      const all3dScanned = this.servers
+        .filter((s) => this.enable3dMovie && (s.is3d ?? false) && !s.is4k)
         .every((s) => s.syncEnabled);
 
       if (!allStandardScanned) {
@@ -104,6 +112,9 @@ class RadarrScanner
       }
       if (!all4kScanned) {
         this.didScan4k = false;
+      }
+      if (!all3dScanned) {
+        this.didScan3d = false;
       }
 
       await this.cleanupOrphanedMovies();
@@ -116,9 +127,18 @@ class RadarrScanner
   }
 
   private async processRadarrMovie(radarrMovie: RadarrMovie): Promise<void> {
-    const server4k = this.enable4kMovie && this.currentServer.is4k;
+    const server4k =
+      this.enable4kMovie &&
+      this.currentServer.is4k &&
+      !(this.currentServer.is3d ?? false);
+    const server3d =
+      this.enable3dMovie &&
+      (this.currentServer.is3d ?? false) &&
+      !this.currentServer.is4k;
     if (server4k) {
       this.scanned4kTmdbIds.add(radarrMovie.tmdbId);
+    } else if (server3d) {
+      this.scanned3dTmdbIds.add(radarrMovie.tmdbId);
     } else {
       this.scannedTmdbIds.add(radarrMovie.tmdbId);
     }
@@ -126,6 +146,7 @@ class RadarrScanner
     try {
       await this.processMovie(radarrMovie.tmdbId, {
         is4k: server4k,
+        is3d: server3d,
         serviceId: this.currentServer.id,
         externalServiceId: radarrMovie.id,
         externalServiceSlug: radarrMovie.titleSlug,
@@ -187,6 +208,31 @@ class RadarrScanner
     } else if (this.enable4kMovie) {
       this.log(
         'Skipping orphaned 4K movie cleanup: no 4K Radarr servers were scanned.',
+        'info'
+      );
+    }
+
+    if (this.didScan3d) {
+      const processing3dMovies = await mediaRepository.find({
+        where: {
+          mediaType: MediaType.MOVIE,
+          status3d: MediaStatus.PROCESSING,
+        },
+      });
+
+      for (const media of processing3dMovies) {
+        if (media.tmdbId != null && !this.scanned3dTmdbIds.has(media.tmdbId)) {
+          media.status3d = MediaStatus.UNKNOWN;
+          await mediaRepository.save(media);
+          this.log(
+            `Movie ${media.tmdbId} not found in any 3D Radarr server. 3D status reset to UNKNOWN.`,
+            'info'
+          );
+        }
+      }
+    } else if (this.enable3dMovie) {
+      this.log(
+        'Skipping orphaned 3D movie cleanup: no 3D Radarr servers were scanned.',
         'info'
       );
     }

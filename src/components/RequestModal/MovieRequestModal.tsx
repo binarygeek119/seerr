@@ -24,11 +24,13 @@ const messages = defineMessages('components.RequestModal', {
   requestCancel: 'Request for <strong>{title}</strong> canceled.',
   requestmovietitle: 'Request Movie',
   requestmovie4ktitle: 'Request Movie in 4K',
+  requestmovie3dtitle: 'Request Movie in 3D',
   edit: 'Edit Request',
   approve: 'Approve Request',
   cancel: 'Cancel Request',
   pendingrequest: 'Pending Movie Request',
   pending4krequest: 'Pending 4K Movie Request',
+  pending3drequest: 'Pending 3D Movie Request',
   requestfrom: "{username}'s request is pending approval.",
   errorediting: 'Something went wrong while editing the request.',
   requestedited: 'Request for <strong>{title}</strong> edited successfully!',
@@ -40,6 +42,7 @@ const messages = defineMessages('components.RequestModal', {
 interface RequestModalProps extends React.HTMLAttributes<HTMLDivElement> {
   tmdbId?: number;
   is4k?: boolean;
+  is3d?: boolean;
   editRequest?: NonFunctionProperties<MediaRequest>;
   onCancel?: () => void;
   onComplete?: (newStatus: MediaStatus) => void;
@@ -53,6 +56,7 @@ const MovieRequestModal = ({
   onUpdating,
   editRequest,
   is4k = false,
+  is3d = false,
 }: RequestModalProps) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [requestOverrides, setRequestOverrides] =
@@ -94,6 +98,7 @@ const MovieRequestModal = ({
         mediaId: data?.id,
         mediaType: 'movie',
         is4k,
+        is3d,
         ...overrideParams,
       });
       mutate('/api/v1/request?filter=all&take=10&sort=modified&skip=0');
@@ -109,7 +114,10 @@ const MovieRequestModal = ({
                 is4k
                   ? Permission.AUTO_APPROVE_4K_MOVIE
                   : Permission.AUTO_APPROVE_MOVIE
-              )
+              ) ||
+              (is3d &&
+                (hasPermission(Permission.AUTO_APPROVE) ||
+                  hasPermission(Permission.AUTO_APPROVE_MOVIE)))
               ? MediaStatus.PROCESSING
               : MediaStatus.PENDING
           );
@@ -137,6 +145,7 @@ const MovieRequestModal = ({
     data?.id,
     data?.title,
     is4k,
+    is3d,
     onComplete,
     addToast,
     intl,
@@ -231,7 +240,11 @@ const MovieRequestModal = ({
         backgroundClickable
         onCancel={onCancel}
         title={intl.formatMessage(
-          is4k ? messages.pending4krequest : messages.pendingrequest
+          is3d
+            ? messages.pending3drequest
+            : is4k
+              ? messages.pending4krequest
+              : messages.pendingrequest
         )}
         subTitle={data?.title}
         onOk={() =>
@@ -289,6 +302,7 @@ const MovieRequestModal = ({
           <AdvancedRequester
             type="movie"
             is4k={is4k}
+            is3d={is3d}
             requestUser={editRequest.requestedBy}
             defaultOverrides={{
               folder: editRequest.rootFolder,
@@ -314,6 +328,12 @@ const MovieRequestModal = ({
     { type: 'or' }
   );
 
+  const requestButtonMessage = is3d
+    ? globalMessages.request3d
+    : is4k
+      ? globalMessages.request4k
+      : globalMessages.request;
+
   return (
     <Modal
       loading={(!data && !error) || !quota}
@@ -322,15 +342,17 @@ const MovieRequestModal = ({
       onOk={sendRequest}
       okDisabled={isUpdating || quota?.movie.restricted}
       title={intl.formatMessage(
-        is4k ? messages.requestmovie4ktitle : messages.requestmovietitle
+        is3d
+          ? messages.requestmovie3dtitle
+          : is4k
+            ? messages.requestmovie4ktitle
+            : messages.requestmovietitle
       )}
       subTitle={data?.title}
       okText={
         isUpdating
           ? intl.formatMessage(globalMessages.requesting)
-          : intl.formatMessage(
-              is4k ? globalMessages.request4k : globalMessages.request
-            )
+          : intl.formatMessage(requestButtonMessage)
       }
       okButtonType={'primary'}
       backdrop={`https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/${data?.backdropPath}`}
@@ -359,6 +381,7 @@ const MovieRequestModal = ({
         <AdvancedRequester
           type="movie"
           is4k={is4k}
+          is3d={is3d}
           onChange={(overrides) => {
             setRequestOverrides(overrides);
           }}

@@ -43,13 +43,19 @@ const messages = defineMessages('components.RequestModal.AdvancedRequester', {
 const serverMatchesRequestType = (
   type: 'movie' | 'tv' | 'music' | 'book',
   server: ServiceCommonServer,
-  is4k: boolean
+  is4k: boolean,
+  is3d = false
 ): boolean => {
   if (type === 'music') {
     return true;
   }
   if (type === 'book') {
     return (server.is4k ?? false) === is4k;
+  }
+  if (type === 'movie') {
+    return (
+      (server.is4k ?? false) === is4k && (server.is3d ?? false) === is3d
+    );
   }
   return server.is4k === is4k;
 };
@@ -81,6 +87,7 @@ export type RequestOverrides = {
 interface AdvancedRequesterProps {
   type: 'movie' | 'tv' | 'music' | 'book';
   is4k: boolean;
+  is3d?: boolean;
   isAnime?: boolean;
   defaultOverrides?: RequestOverrides;
   requestUser?: User;
@@ -90,6 +97,7 @@ interface AdvancedRequesterProps {
 const AdvancedRequester = ({
   type,
   is4k = false,
+  is3d = false,
   isAnime = false,
   defaultOverrides,
   requestUser,
@@ -186,7 +194,7 @@ const AdvancedRequester = ({
   useEffect(() => {
     let defaultServer = data?.find(
       (server) =>
-        server.isDefault && serverMatchesRequestType(type, server, is4k)
+        server.isDefault && serverMatchesRequestType(type, server, is4k, is3d)
     );
 
     if (!defaultServer && (data ?? []).length > 0) {
@@ -327,7 +335,7 @@ const AdvancedRequester = ({
   if (
     (!data ||
       selectedServer === null ||
-      (data.filter((server) => serverMatchesRequestType(type, server, is4k))
+      (data.filter((server) => serverMatchesRequestType(type, server, is4k, is3d))
         .length < 2 &&
         (!serverData ||
           (serverData.profiles.length < 2 &&
@@ -348,7 +356,7 @@ const AdvancedRequester = ({
         {!!data && selectedServer !== null && (
           <div className="flex flex-col md:flex-row">
             {data.filter((server) =>
-              serverMatchesRequestType(type, server, is4k)
+              serverMatchesRequestType(type, server, is4k, is3d)
             ).length > 1 && (
               <div className="mb-3 w-full flex-shrink-0 flex-grow last:pr-0 md:w-1/4 md:pr-4">
                 <label htmlFor="server">
@@ -364,7 +372,7 @@ const AdvancedRequester = ({
                 >
                   {data
                     .filter((server) =>
-                      serverMatchesRequestType(type, server, is4k)
+                      serverMatchesRequestType(type, server, is4k, is3d)
                     )
                     .map((server) => (
                       <option

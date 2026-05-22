@@ -155,10 +155,16 @@ mediaRoutes.post<
     }
 
     const is4k = String(req.body.is4k) === 'true';
+    const is3d = String(req.body.is3d) === 'true';
+    const statusKey = is3d
+      ? 'status3d'
+      : is4k
+        ? 'status4k'
+        : 'status';
 
     switch (req.params.status) {
       case 'available':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.AVAILABLE;
+        media[statusKey] = MediaStatus.AVAILABLE;
 
         if (media.mediaType === MediaType.TV) {
           const expectedSeasons = req.body.seasons ?? [];
@@ -176,7 +182,7 @@ mediaRoutes.post<
               media.seasons.push(season);
             }
 
-            season[is4k ? 'status4k' : 'status'] = MediaStatus.AVAILABLE;
+            season[statusKey] = MediaStatus.AVAILABLE;
           }
         }
         break;
@@ -187,16 +193,16 @@ mediaRoutes.post<
             message: 'Only series can be set to be partially available',
           });
         }
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.PARTIALLY_AVAILABLE;
+        media[statusKey] = MediaStatus.PARTIALLY_AVAILABLE;
         break;
       case 'processing':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.PROCESSING;
+        media[statusKey] = MediaStatus.PROCESSING;
         break;
       case 'pending':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.PENDING;
+        media[statusKey] = MediaStatus.PENDING;
         break;
       case 'unknown':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.UNKNOWN;
+        media[statusKey] = MediaStatus.UNKNOWN;
     }
 
     await mediaRepository.save(media);
@@ -246,12 +252,16 @@ mediaRoutes.delete(
       });
 
       const is4k = String(req.query.is4k) === 'true';
+      const is3d = String(req.query.is3d) === 'true';
 
       let serviceSettings;
 
       if (media.mediaType === MediaType.MOVIE) {
         serviceSettings = settings.radarr.find(
-          (radarr) => radarr.isDefault && radarr.is4k === is4k
+          (radarr) =>
+            radarr.isDefault &&
+            radarr.is4k === is4k &&
+            (radarr.is3d ?? false) === is3d
         );
       } else if (media.mediaType === MediaType.TV) {
         serviceSettings = settings.sonarr.find(
@@ -261,7 +271,11 @@ mediaRoutes.delete(
         serviceSettings = settings.lidarr.find((lidarr) => lidarr.isDefault);
       }
 
-      const specificServiceId = is4k ? media.serviceId4k : media.serviceId;
+      const specificServiceId = is3d
+        ? media.serviceId3d
+        : is4k
+          ? media.serviceId4k
+          : media.serviceId;
       if (
         specificServiceId &&
         specificServiceId >= 0 &&
@@ -292,7 +306,11 @@ mediaRoutes.delete(
 
         logger.warn(
           `There is no default ${
-            is4k && media.mediaType !== MediaType.MUSIC ? '4K ' : ''
+            is3d && media.mediaType !== MediaType.MUSIC
+              ? '3D '
+              : is4k && media.mediaType !== MediaType.MUSIC
+                ? '4K '
+                : ''
           }${serviceType} server configured.`,
           {
             label: 'Media Request',

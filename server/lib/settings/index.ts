@@ -78,6 +78,7 @@ export interface DVRSettings {
   activeDirectory: string;
   tags: number[];
   is4k: boolean;
+  is3d?: boolean;
   isDefault: boolean;
   externalUrl?: string;
   syncEnabled: boolean;
@@ -207,6 +208,7 @@ interface FullPublicSettings extends PublicSettings {
   localLogin: boolean;
   mediaServerLogin: boolean;
   movie4kEnabled: boolean;
+  movie3dEnabled: boolean;
   series4kEnabled: boolean;
   bookAudiobookEnabled: boolean;
   discoverRegion: string;
@@ -753,7 +755,10 @@ class Settings {
       jellyfinExternalHost: this.data.jellyfin.externalHostname,
       jellyfinForgotPasswordUrl: this.data.jellyfin.jellyfinForgotPasswordUrl,
       movie4kEnabled: this.data.radarr.some(
-        (radarr) => radarr.is4k && radarr.isDefault
+        (radarr) => radarr.is4k && !radarr.is3d && radarr.isDefault
+      ),
+      movie3dEnabled: this.data.radarr.some(
+        (radarr) => radarr.is3d && !radarr.is4k && radarr.isDefault
       ),
       series4kEnabled: this.data.sonarr.some(
         (sonarr) => sonarr.is4k && sonarr.isDefault

@@ -199,6 +199,10 @@ class Media {
   @Index()
   public status4k: MediaStatus;
 
+  @Column({ type: 'int', default: MediaStatus.UNKNOWN })
+  @Index()
+  public status3d: MediaStatus;
+
   @OneToMany(() => MediaRequest, (request) => request.media, {
     cascade: ['insert', 'remove'],
   })
@@ -254,16 +258,25 @@ class Media {
   public serviceId4k?: number | null;
 
   @Column({ nullable: true, type: 'int' })
+  public serviceId3d?: number | null;
+
+  @Column({ nullable: true, type: 'int' })
   public externalServiceId?: number | null;
 
   @Column({ nullable: true, type: 'int' })
   public externalServiceId4k?: number | null;
+
+  @Column({ nullable: true, type: 'int' })
+  public externalServiceId3d?: number | null;
 
   @Column({ nullable: true, type: 'varchar' })
   public externalServiceSlug?: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
   public externalServiceSlug4k?: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  public externalServiceSlug3d?: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
   public ratingKey?: string | null;
@@ -279,6 +292,7 @@ class Media {
 
   public serviceUrl?: string;
   public serviceUrl4k?: string;
+  public serviceUrl3d?: string;
   public downloadStatus?: DownloadingItem[] = [];
   public downloadStatus4k?: DownloadingItem[] = [];
 
@@ -298,10 +312,13 @@ class Media {
   public resetServiceData(): void {
     this.serviceId = null;
     this.serviceId4k = null;
+    this.serviceId3d = null;
     this.externalServiceId = null;
     this.externalServiceId4k = null;
+    this.externalServiceId3d = null;
     this.externalServiceSlug = null;
     this.externalServiceSlug4k = null;
+    this.externalServiceSlug3d = null;
     this.ratingKey = null;
     this.ratingKey4k = null;
     this.jellyfinMediaId = null;
@@ -389,6 +406,22 @@ class Media {
             : RadarrAPI.buildUrl(
                 server,
                 `/movie/${this.externalServiceSlug4k}`
+              );
+        }
+      }
+
+      if (this.serviceId3d !== null && this.externalServiceSlug3d !== null) {
+        const settings = getSettings();
+        const server = settings.radarr.find(
+          (radarr) => radarr.id === this.serviceId3d
+        );
+
+        if (server) {
+          this.serviceUrl3d = server.externalUrl
+            ? `${server.externalUrl}/movie/${this.externalServiceSlug3d}`
+            : RadarrAPI.buildUrl(
+                server,
+                `/movie/${this.externalServiceSlug3d}`
               );
         }
       }

@@ -26,6 +26,7 @@ import {
   formatLidarrLookupError,
   lookupAlbumInLidarr,
 } from '@server/lib/lidarr/lookupAlbum';
+import { movieServiceFields } from '@server/lib/movieRequestQuality';
 import notificationManager, { Notification } from '@server/lib/notifications';
 import { sendApprovedBookToReadarr } from '@server/lib/readarr/sendApprovedRequest';
 import { getSettings } from '@server/lib/settings';
@@ -286,7 +287,10 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
         }
 
         let radarrSettings = settings.radarr.find(
-          (radarr) => radarr.isDefault && radarr.is4k === entity.is4k
+          (radarr) =>
+            radarr.isDefault &&
+            radarr.is4k === entity.is4k &&
+            (radarr.is3d ?? false) === entity.is3d
         );
 
         if (
@@ -310,9 +314,9 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
         if (!radarrSettings) {
           logger.warn(
             `There is no default ${
-              entity.is4k ? '4K ' : ''
+              entity.is3d ? '3D ' : entity.is4k ? '4K ' : ''
             }Radarr server configured. Did you set any of your ${
-              entity.is4k ? '4K ' : ''
+              entity.is3d ? '3D ' : entity.is4k ? '4K ' : ''
             }Radarr servers as default?`,
             {
               label: 'Media Request',
@@ -439,9 +443,9 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
           }
         }
 
-        if (
-          media[entity.is4k ? 'status4k' : 'status'] === MediaStatus.AVAILABLE
-        ) {
+        const movieFields = movieServiceFields(entity.is4k, entity.is3d);
+
+        if (media[movieFields.status] === MediaStatus.AVAILABLE) {
           logger.warn('Media already exists, marking request as COMPLETED', {
             label: 'Media Request',
             requestId: entity.id,
@@ -480,13 +484,9 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
               throw new Error('Media data not found');
             }
 
-            media[entity.is4k ? 'externalServiceId4k' : 'externalServiceId'] =
-              radarrMovie.id;
-            media[
-              entity.is4k ? 'externalServiceSlug4k' : 'externalServiceSlug'
-            ] = radarrMovie.titleSlug;
-            media[entity.is4k ? 'serviceId4k' : 'serviceId'] =
-              radarrSettings?.id;
+            media[movieFields.externalServiceId] = radarrMovie.id;
+            media[movieFields.externalServiceSlug] = radarrMovie.titleSlug;
+            media[movieFields.serviceId] = radarrSettings?.id;
             await mediaRepository.save(media);
           })
           .catch(async () => {
@@ -1209,7 +1209,11 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
       return;
     }
 
-    const statusKey = entity.is4k ? 'status4k' : 'status';
+    const statusKey = entity.is3d
+      ? 'status3d'
+      : entity.is4k
+        ? 'status4k'
+        : 'status';
     const seasonRequestRepository = getRepository(SeasonRequest);
     const requestRepository = getRepository(MediaRequest);
 

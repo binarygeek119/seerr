@@ -539,6 +539,27 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                   serviceUrl={data.mediaInfo?.serviceUrl4k}
                 />
               )}
+            {settings.currentSettings.movie3dEnabled &&
+              data.hasTheatrical3dVersion &&
+              hasPermission(
+                [
+                  Permission.MANAGE_REQUESTS,
+                  Permission.REQUEST,
+                  Permission.REQUEST_MOVIE,
+                ],
+                {
+                  type: 'or',
+                }
+              ) && (
+                <StatusBadge
+                  status={data.mediaInfo?.status3d}
+                  title={data.title}
+                  is3d
+                  tmdbId={data.mediaInfo?.tmdbId}
+                  mediaType="movie"
+                  serviceUrl={data.mediaInfo?.serviceUrl3d}
+                />
+              )}
           </div>
           <h1 data-testid="media-title">
             {data.title}{' '}
@@ -623,6 +644,7 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
             mediaType="movie"
             media={data.mediaInfo}
             tmdbId={data.id}
+            hasTheatrical3dVersion={data.hasTheatrical3dVersion}
             onUpdate={() => revalidate()}
           />
           {(data.mediaInfo?.status === MediaStatus.AVAILABLE ||

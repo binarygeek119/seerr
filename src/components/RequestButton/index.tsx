@@ -1,5 +1,8 @@
 import ButtonWithDropdown from '@app/components/Common/ButtonWithDropdown';
 import RequestModal from '@app/components/RequestModal';
+import MovieQualityPicker from '@app/components/RequestModal/MovieQualityPicker';
+import { flagsFromQuality } from '@server/lib/movieRequestQuality';
+import type { MovieRequestQuality } from '@server/lib/movieRequestQuality';
 import useSettings from '@app/hooks/useSettings';
 import { Permission, useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
@@ -14,6 +17,7 @@ import { MediaRequestStatus, MediaStatus } from '@server/constants/media';
 import type Media from '@server/entity/Media';
 import type { MediaRequest } from '@server/entity/MediaRequest';
 import axios from 'axios';
+import { Transition } from '@headlessui/react';
 import { useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { mutate } from 'swr';
@@ -21,6 +25,7 @@ import { mutate } from 'swr';
 const messages = defineMessages('components.RequestButton', {
   viewrequest: 'View Request',
   viewrequest4k: 'View 4K Request',
+  viewrequest3d: 'View 3D Request',
   viewrequestaudiobook: 'View Audiobook Request',
   requestmore: 'Request More',
   requestmore4k: 'Request More in 4K',
@@ -54,6 +59,8 @@ interface RequestButtonProps {
   foreignBookId?: string;
   isShowComplete?: boolean;
   is4kShowComplete?: boolean;
+  /** From 3dmovielist.com — when false, hide the 3D request option */
+  hasTheatrical3dVersion?: boolean;
 }
 
 const RequestButton = ({
@@ -65,12 +72,16 @@ const RequestButton = ({
   foreignBookId,
   isShowComplete = false,
   is4kShowComplete = false,
+  hasTheatrical3dVersion = false,
 }: RequestButtonProps) => {
   const intl = useIntl();
   const settings = useSettings();
   const { user, hasPermission } = useUser();
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showRequest4kModal, setShowRequest4kModal] = useState(false);
+  const [showQualityPicker, setShowQualityPicker] = useState(false);
+  const [movieRequestIs4k, setMovieRequestIs4k] = useState(false);
+  const [movieRequestIs3d, setMovieRequestIs3d] = useState(false);
   const [editRequest, setEditRequest] = useState(false);
 
   // All pending requests
@@ -78,7 +89,9 @@ const RequestButton = ({
     () =>
       media?.requests?.filter(
         (request) =>
-          request.status === MediaRequestStatus.PENDING && !request.is4k
+          request.status === MediaRequestStatus.PENDING &&
+          !request.is4k &&
+          !request.is3d
       ) ?? [],
     [media?.requests]
   );
@@ -86,7 +99,17 @@ const RequestButton = ({
     () =>
       media?.requests?.filter(
         (request) =>
-          request.status === MediaRequestStatus.PENDING && request.is4k
+          request.status === MediaRequestStatus.PENDING &&
+          request.is4k &&
+          !request.is3d
+      ) ?? [],
+    [media?.requests]
+  );
+  const active3dRequests = useMemo(
+    () =>
+      media?.requests?.filter(
+        (request) =>
+          request.status === MediaRequestStatus.PENDING && request.is3d
       ) ?? [],
     [media?.requests]
   );
@@ -106,6 +129,22 @@ const RequestButton = ({
         ) ?? active4kRequests[0])
       : undefined;
   }, [active4kRequests, user]);
+  const active3dRequest = useMemo(() => {
+    return active3dRequests && active3dRequests.length > 0
+      ? (active3dRequests.find(
+          (request) => request.requestedBy.id === user?.id
+        ) ?? active3dRequests[0])
+      : undefined;
+  }, [active3dRequests, user]);
+
+  const openMovieRequest = (quality: MovieRequestQuality) => {
+    const flags = flagsFromQuality(quality);
+    setMovieRequestIs4k(flags.is4k);
+    setMovieRequestIs3d(flags.is3d);
+    setEditRequest(false);
+    setShowQualityPicker(false);
+    setShowRequestModal(true);
+  };
 
   const modifyRequest = async (
     request: MediaRequest,
@@ -153,8 +192,62 @@ const RequestButton = ({
       media.status4k === MediaStatus.UNKNOWN ||
       (media.status4k === MediaStatus.DELETED && !active4kRequest));
 
+  const canRequestMovieHd =
+    mediaType === 'movie' &&
+    (!media ||
+      media.status === MediaStatus.UNKNOWN ||
+      (media.status === MediaStatus.DELETED && !activeRequest)) &&
+    hasPermission([Permission.REQUEST, Permission.REQUEST_MOVIE], {
+      type: 'or',
+    });
+
+  const canRequestMovie4k =
+    mediaType === 'movie' &&
+    settings.currentSettings.movie4kEnabled &&
+    (!media ||
+      media.status4k === MediaStatus.UNKNOWN ||
+      (media.status4k === MediaStatus.DELETED && !active4kRequest)) &&
+    hasPermission([Permission.REQUEST_4K, Permission.REQUEST_4K_MOVIE], {
+      type: 'or',
+    });
+
+  const canRequestMovie3d =
+    mediaType === 'movie' &&
+    settings.currentSettings.movie3dEnabled &&
+    hasTheatrical3dVersion &&
+    (!media ||
+      media.status3d === MediaStatus.UNKNOWN ||
+      (media.status3d === MediaStatus.DELETED && !active3dRequest)) &&
+    hasPermission([Permission.REQUEST, Permission.REQUEST_MOVIE], {
+      type: 'or',
+    });
+
+  const movieQualityOptions = useMemo((): MovieRequestQuality[] => {
+    const options: MovieRequestQuality[] = [];
+    if (canRequestMovieHd) {
+      options.push('hd');
+    }
+    if (canRequestMovie4k) {
+      options.push('4k');
+    }
+    if (canRequestMovie3d) {
+      options.push('3d');
+    }
+    return options;
+  }, [canRequestMovieHd, canRequestMovie4k, canRequestMovie3d]);
+
+  const startMovieRequest = () => {
+    if (movieQualityOptions.length > 1) {
+      setShowQualityPicker(true);
+      return;
+    }
+    if (movieQualityOptions.length === 1) {
+      openMovieRequest(movieQualityOptions[0]);
+    }
+  };
+
   // If there are pending requests, show request management options first
-  if (activeRequest || active4kRequest) {
+  if (activeRequest || active4kRequest || active3dRequest) {
     if (
       activeRequest &&
       (activeRequest.requestedBy.id === user?.id ||
@@ -166,6 +259,8 @@ const RequestButton = ({
         text: intl.formatMessage(messages.viewrequest),
         action: () => {
           setEditRequest(true);
+          setMovieRequestIs4k(false);
+          setMovieRequestIs3d(false);
           setShowRequestModal(true);
         },
         svg: <InformationCircleIcon />,
@@ -236,7 +331,13 @@ const RequestButton = ({
         text: intl.formatMessage(messages.viewrequest4k),
         action: () => {
           setEditRequest(true);
-          setShowRequest4kModal(true);
+          setMovieRequestIs4k(true);
+          setMovieRequestIs3d(false);
+          if (mediaType === 'movie') {
+            setShowRequestModal(true);
+          } else {
+            setShowRequest4kModal(true);
+          }
         },
         svg: <InformationCircleIcon />,
       });
@@ -261,6 +362,50 @@ const RequestButton = ({
           text: intl.formatMessage(messages.declinerequest4k),
           action: () => {
             modifyRequest(active4kRequest, 'decline');
+          },
+          svg: <XMarkIcon />,
+        }
+      );
+    }
+
+    if (
+      active3dRequest &&
+      (active3dRequest.requestedBy.id === user?.id ||
+        (active3dRequests?.length === 1 &&
+          hasPermission(Permission.MANAGE_REQUESTS)))
+    ) {
+      buttons.push({
+        id: 'active-3d-request',
+        text: intl.formatMessage(messages.viewrequest3d),
+        action: () => {
+          setEditRequest(true);
+          setMovieRequestIs4k(false);
+          setMovieRequestIs3d(true);
+          setShowRequestModal(true);
+        },
+        svg: <InformationCircleIcon />,
+      });
+    }
+
+    if (
+      active3dRequest &&
+      hasPermission(Permission.MANAGE_REQUESTS) &&
+      mediaType === 'movie'
+    ) {
+      buttons.push(
+        {
+          id: 'approve-3d-request',
+          text: intl.formatMessage(messages.approverequest),
+          action: () => {
+            modifyRequest(active3dRequest, 'approve');
+          },
+          svg: <CheckIcon />,
+        },
+        {
+          id: 'decline-3d-request',
+          text: intl.formatMessage(messages.declinerequest),
+          action: () => {
+            modifyRequest(active3dRequest, 'decline');
           },
           svg: <XMarkIcon />,
         }
@@ -316,20 +461,28 @@ const RequestButton = ({
     });
   }
 
+  if (mediaType === 'movie' && movieQualityOptions.length > 0) {
+    buttons.push({
+      id: 'request-movie',
+      text: intl.formatMessage(globalMessages.request),
+      action: startMovieRequest,
+      svg: <ArrowDownTrayIcon />,
+    });
+  }
+
   // Standard ebook request button
   if (
+    mediaType !== 'movie' &&
     !audiobookBookMode &&
     canRequestBookEbook &&
     hasPermission(
       [
         Permission.REQUEST,
-        mediaType === 'movie'
-          ? Permission.REQUEST_MOVIE
-          : mediaType === 'music'
-            ? Permission.REQUEST_MUSIC
-            : mediaType === 'book'
-              ? Permission.REQUEST_BOOK
-              : Permission.REQUEST_TV,
+        mediaType === 'music'
+          ? Permission.REQUEST_MUSIC
+          : mediaType === 'book'
+            ? Permission.REQUEST_BOOK
+            : Permission.REQUEST_TV,
       ],
       { type: 'or' }
     )
@@ -364,8 +517,9 @@ const RequestButton = ({
     });
   }
 
-  // 4K / audiobook request button
+  // 4K / audiobook request button (movies use quality picker above)
   if (
+    mediaType !== 'movie' &&
     !audiobookBookMode &&
     (!media ||
       media.status4k === MediaStatus.UNKNOWN ||
@@ -373,16 +527,13 @@ const RequestButton = ({
     hasPermission(
       [
         Permission.REQUEST_4K,
-        mediaType === 'movie'
-          ? Permission.REQUEST_4K_MOVIE
-          : mediaType === 'book'
-            ? Permission.REQUEST_BOOK
-            : Permission.REQUEST_4K_TV,
+        mediaType === 'book'
+          ? Permission.REQUEST_BOOK
+          : Permission.REQUEST_4K_TV,
       ],
       { type: 'or' }
     ) &&
-    ((settings.currentSettings.movie4kEnabled && mediaType === 'movie') ||
-      (settings.currentSettings.series4kEnabled && mediaType === 'tv') ||
+    ((settings.currentSettings.series4kEnabled && mediaType === 'tv') ||
       (settings.currentSettings.bookAudiobookEnabled && mediaType === 'book'))
   ) {
     buttons.push({
@@ -428,6 +579,24 @@ const RequestButton = ({
 
   return (
     <>
+      <Transition
+        as="div"
+        show={mediaType === 'movie' && showQualityPicker}
+        enter="transition-opacity duration-300"
+        enterFrom="opacity-0"
+        enterTo="opacity-100"
+        leave="transition-opacity duration-300"
+        leaveFrom="opacity-100"
+        leaveTo="opacity-0"
+      >
+        {mediaType === 'movie' && showQualityPicker && (
+          <MovieQualityPicker
+            options={movieQualityOptions}
+            onCancel={() => setShowQualityPicker(false)}
+            onSelect={openMovieRequest}
+          />
+        )}
+      </Transition>
       <RequestModal
         key={showRequestModal ? 'book-request-open' : 'book-request-closed'}
         tmdbId={tmdbId}
@@ -436,7 +605,13 @@ const RequestButton = ({
         media={media}
         show={showRequestModal}
         type={mediaType}
-        editRequest={editRequest ? activeRequest : undefined}
+        is4k={mediaType === 'movie' ? movieRequestIs4k : undefined}
+        is3d={mediaType === 'movie' ? movieRequestIs3d : undefined}
+        editRequest={
+          editRequest
+            ? active3dRequest ?? active4kRequest ?? activeRequest
+            : undefined
+        }
         onComplete={() => {
           onUpdate();
           setShowRequestModal(false);

@@ -34,6 +34,7 @@ export interface PublicSettingsResponse {
   localLogin: boolean;
   mediaServerLogin: boolean;
   movie4kEnabled: boolean;
+  movie3dEnabled: boolean;
   series4kEnabled: boolean;
   bookAudiobookEnabled: boolean;
   discoverRegion: string;

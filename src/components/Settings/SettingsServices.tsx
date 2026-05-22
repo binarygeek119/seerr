@@ -46,7 +46,9 @@ const messages = defineMessages('components.Settings', {
   ssl: 'SSL',
   default: 'Default',
   default4k: 'Default 4K',
+  default3d: 'Default 3D',
   is4k: '4K',
+  is3d: '3D',
   address: 'Address',
   activeProfile: 'Active Profile',
   addradarr: 'Add Radarr Server',
@@ -66,6 +68,8 @@ const messages = defineMessages('components.Settings', {
     'If you only have a single {serverType} server for both non-4K and 4K content (or if you only download 4K content), your {serverType} server should <strong>NOT</strong> be designated as a 4K server.',
   noDefault4kServer:
     'A 4K {serverType} server must be marked as default in order to enable users to submit 4K {mediaType} requests.',
+  noDefault3dServer:
+    'A 3D {serverType} server must be marked as default in order to enable users to submit 3D {mediaType} requests.',
   mediaTypeMovie: 'movie',
   mediaTypeSeries: 'series',
   mediaTypeMusic: 'music',
@@ -86,6 +90,7 @@ interface ServerInstanceProps {
   name: string;
   isDefault?: boolean;
   is4k?: boolean;
+  is3d?: boolean;
   isAudiobook?: boolean;
   hostname: string;
   port: number;
@@ -132,6 +137,7 @@ const ServerInstance = ({
   port,
   profileName,
   is4k = false,
+  is3d = false,
   isAudiobook = false,
   isDefault = false,
   isSSL = false,
@@ -163,11 +169,14 @@ const ServerInstance = ({
                 {name}
               </a>
             </h3>
-            {isDefault && !is4k && !isAudiobook && (
+            {isDefault && !is4k && !is3d && !isAudiobook && (
               <Badge>{intl.formatMessage(messages.default)}</Badge>
             )}
             {isDefault && is4k && !isAudiobook && (
               <Badge>{intl.formatMessage(messages.default4k)}</Badge>
+            )}
+            {isDefault && is3d && !isAudiobook && (
+              <Badge>{intl.formatMessage(messages.default3d)}</Badge>
             )}
             {isDefault && isAudiobook && (
               <Badge>{intl.formatMessage(messages.defaultAudiobook)}</Badge>
@@ -175,6 +184,11 @@ const ServerInstance = ({
             {!isDefault && is4k && !isAudiobook && (
               <Badge badgeType="warning">
                 {intl.formatMessage(messages.is4k)}
+              </Badge>
+            )}
+            {!isDefault && is3d && !isAudiobook && (
+              <Badge badgeType="warning">
+                {intl.formatMessage(messages.is3d)}
               </Badge>
             )}
             {!isDefault && isAudiobook && (
@@ -474,7 +488,8 @@ const SettingsServices = () => {
                   })}
                 />
               ) : !radarrData.some(
-                  (radarr) => radarr.isDefault && !radarr.is4k
+                  (radarr) =>
+                    radarr.isDefault && !radarr.is4k && !(radarr.is3d ?? false)
                 ) ? (
                 <Alert
                   title={intl.formatMessage(messages.noDefaultNon4kServer, {
@@ -487,17 +502,40 @@ const SettingsServices = () => {
                   })}
                 />
               ) : (
-                radarrData.some((radarr) => radarr.is4k) &&
-                !radarrData.some(
-                  (radarr) => radarr.isDefault && radarr.is4k
-                ) && (
-                  <Alert
-                    title={intl.formatMessage(messages.noDefault4kServer, {
-                      serverType: 'Radarr',
-                      mediaType: intl.formatMessage(messages.mediaTypeMovie),
-                    })}
-                  />
-                )
+                <>
+                  {radarrData.some(
+                    (radarr) => radarr.is4k && !(radarr.is3d ?? false)
+                  ) &&
+                    !radarrData.some(
+                      (radarr) =>
+                        radarr.isDefault &&
+                        radarr.is4k &&
+                        !(radarr.is3d ?? false)
+                    ) && (
+                      <Alert
+                        title={intl.formatMessage(messages.noDefault4kServer, {
+                          serverType: 'Radarr',
+                          mediaType: intl.formatMessage(
+                            messages.mediaTypeMovie
+                          ),
+                        })}
+                      />
+                    )}
+                  {radarrData.some((radarr) => radarr.is3d && !radarr.is4k) &&
+                    !radarrData.some(
+                      (radarr) =>
+                        radarr.isDefault && radarr.is3d && !radarr.is4k
+                    ) && (
+                      <Alert
+                        title={intl.formatMessage(messages.noDefault3dServer, {
+                          serverType: 'Radarr',
+                          mediaType: intl.formatMessage(
+                            messages.mediaTypeMovie
+                          ),
+                        })}
+                      />
+                    )}
+                </>
               ))}
             <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {radarrData.map((radarr) => (
@@ -510,6 +548,7 @@ const SettingsServices = () => {
                   isSSL={radarr.useSsl}
                   isDefault={radarr.isDefault}
                   is4k={radarr.is4k}
+                  is3d={radarr.is3d}
                   externalUrl={radarr.externalUrl}
                   onEdit={() => setEditRadarrModal({ open: true, radarr })}
                   onDelete={() =>

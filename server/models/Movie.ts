@@ -13,6 +13,7 @@ import type {
   ProductionCompany,
   WatchProviders,
 } from './common';
+import { isTheatrical3dMovie } from '@server/lib/movie3dList';
 import {
   mapCast,
   mapCrew,
@@ -86,6 +87,8 @@ export interface MovieDetails {
   watchProviders?: WatchProviders[];
   keywords: Keyword[];
   onUserWatchlist?: boolean;
+  /** True when listed on 3dmovielist.com as having a theatrical 3D release */
+  hasTheatrical3dVersion?: boolean;
 }
 
 export const mapProductionCompany = (
@@ -151,4 +154,9 @@ export const mapMovieDetails = (
     name: keyword.name,
   })),
   onUserWatchlist: userWatchlist,
+  hasTheatrical3dVersion: isTheatrical3dMovie({
+    title: movie.title,
+    originalTitle: movie.original_title,
+    releaseDate: movie.release_date,
+  }),
 });
