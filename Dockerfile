@@ -79,4 +79,4 @@ EXPOSE 5055
 
 USER root
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]

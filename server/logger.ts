@@ -2,7 +2,6 @@
 import { existsSync } from 'fs';
 import path from 'path';
 import * as winston from 'winston';
-import 'winston-daily-rotate-file';
 
 const configDirectory = process.env.CONFIG_DIRECTORY
   ? process.env.CONFIG_DIRECTORY
@@ -10,7 +9,7 @@ const configDirectory = process.env.CONFIG_DIRECTORY
 
 const isDocker = existsSync(path.join(configDirectory, 'DOCKER'));
 
-// In Docker, log to stdout by default (avoids EMFILE from rotate + symlinks on low ulimit).
+// In Docker, log to stdout by default (avoids EMFILE/EBADF from rotate + symlinks on low ulimit).
 // Set LOG_TO_FILE=true to persist logs under /app/config/logs.
 const enableFileLogs =
   process.env.LOG_TO_FILE === 'true' ||
@@ -28,24 +27,21 @@ const hformat = winston.format.printf(
   }
 );
 
-type DailyRotateFileTransport = InstanceType<
-  typeof winston.transports.DailyRotateFile
->;
+type DailyRotateFileTransport = winston.transport & {
+  on(event: string, listener: (...args: unknown[]) => void): void;
+  _stream?: NodeJS.WritableStream;
+};
 
 const bindLogTransportGuards = (
   transport: DailyRotateFileTransport,
   name: string
 ) => {
   transport.on('error', (err: Error) => {
-    console.error(`Error in ${name} transport:`, err);
+    console.error(`Error in ${name} transport:`, err.message);
   });
 
   transport.on('open', () => {
-    const stream = (
-      transport as DailyRotateFileTransport & {
-        _stream?: NodeJS.WritableStream;
-      }
-    )._stream;
+    const stream = transport._stream;
 
     stream?.on?.('error', (err: Error) => {
       console.error(`Error in ${name} stream:`, err.message);
@@ -53,12 +49,20 @@ const bindLogTransportGuards = (
   });
 };
 
-const logsDirectory = path.join(configDirectory, 'logs');
+const buildFileTransports = (): winston.transport[] => {
+  // Load only when needed so Docker console-only mode never touches file-stream-rotator.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('winston-daily-rotate-file');
 
-const fileTransports: winston.transport[] = [];
+  const logsDirectory = path.join(configDirectory, 'logs');
 
-if (enableFileLogs) {
-  const seerrFileTransport = new winston.transports.DailyRotateFile({
+  const DailyRotateFile = (
+    winston.transports as unknown as {
+      DailyRotateFile: new (options: object) => DailyRotateFileTransport;
+    }
+  ).DailyRotateFile;
+
+  const seerrFileTransport = new DailyRotateFile({
     filename: path.join(logsDirectory, 'seerr-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
     zippedArchive: true,
@@ -68,7 +72,7 @@ if (enableFileLogs) {
     symlinkName: 'seerr.log',
   });
 
-  const machineLogFileTransport = new winston.transports.DailyRotateFile({
+  const machineLogFileTransport = new DailyRotateFile({
     filename: path.join(logsDirectory, '.machinelogs-%DATE%.json'),
     datePattern: 'YYYY-MM-DD',
     zippedArchive: true,
@@ -86,11 +90,26 @@ if (enableFileLogs) {
   bindLogTransportGuards(seerrFileTransport, 'seerr file');
   bindLogTransportGuards(machineLogFileTransport, 'machine log file');
 
-  fileTransports.push(seerrFileTransport, machineLogFileTransport);
-} else if (isDocker) {
+  return [seerrFileTransport, machineLogFileTransport];
+};
+
+const fileTransports = enableFileLogs ? buildFileTransports() : [];
+
+if (!enableFileLogs && isDocker) {
   console.info(
     'Docker: logging to console only. Set LOG_TO_FILE=true to write logs under config/logs.'
   );
+}
+
+const consoleFormats: winston.Logform.Format[] = [
+  winston.format.splat(),
+  winston.format.timestamp(),
+  hformat,
+];
+
+// Colorize breaks on non-TTY Docker logs and can cause stream fd errors.
+if (process.stdout.isTTY && !isDocker) {
+  consoleFormats.unshift(winston.format.colorize());
 }
 
 const logger = winston.createLogger({
@@ -102,19 +121,14 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.splat(),
-        winston.format.timestamp(),
-        hformat
-      ),
+      format: winston.format.combine(...consoleFormats),
     }),
     ...fileTransports,
   ],
 });
 
 logger.on('error', (err) => {
-  console.error('Logger error:', err);
+  console.error('Logger error:', err.message);
 });
 
 export default logger;

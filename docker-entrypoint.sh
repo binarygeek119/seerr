@@ -12,6 +12,12 @@ if [ ! -f "${CONFIG_DIR}/DOCKER" ]; then
   touch "${CONFIG_DIR}/DOCKER"
 fi
 
+# Remove stale rotate symlinks/audit files from prior file-logging runs (can cause EBADF).
+if [ "${LOG_TO_FILE}" != "true" ]; then
+  rm -f "${CONFIG_DIR}/logs/seerr.log" "${CONFIG_DIR}/logs/.machinelogs.json" 2>/dev/null || true
+  rm -f "${CONFIG_DIR}/logs/"*-audit.json "${CONFIG_DIR}/logs/."*-audit.json 2>/dev/null || true
+fi
+
 # Host bind mounts often arrive as root-owned; the app runs as node (uid 1000).
 if [ "$(id -u)" = "0" ]; then
   chown -R node:node "${CONFIG_DIR}"
