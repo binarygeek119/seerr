@@ -10,6 +10,12 @@ services:
       - '5055:5055'
     environment:
       TZ: UTC
+      # Default in Docker is console-only logs (docker logs). Uncomment for file logs:
+      # LOG_TO_FILE: 'true'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
       # Persist settings, DB, logs, and image cache (entrypoint chowns for node user)
       - ./config:/app/config
