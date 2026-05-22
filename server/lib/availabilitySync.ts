@@ -457,12 +457,37 @@ class AvailabilitySync {
         }
 
         if (media.mediaType === 'book') {
+          let existsInJellyfinEbook = false;
+          let existsInJellyfinAudiobook = false;
+
+          if (
+            mediaServerType === MediaServerType.JELLYFIN ||
+            mediaServerType === MediaServerType.EMBY
+          ) {
+            existsInJellyfinEbook = await this.mediaBookExistsInJellyfin(
+              media,
+              false
+            );
+            existsInJellyfinAudiobook = await this.mediaBookExistsInJellyfin(
+              media,
+              true
+            );
+          }
+
           const existsEbook = await this.mediaExistsInReadarr(media, false);
-          if (!existsEbook && media.status === MediaStatus.AVAILABLE) {
+          if (
+            !existsEbook &&
+            !existsInJellyfinEbook &&
+            media.status === MediaStatus.AVAILABLE
+          ) {
             await this.mediaUpdater(media, false, mediaServerType);
           }
           const existsAudiobook = await this.mediaExistsInReadarr(media, true);
-          if (!existsAudiobook && media.status4k === MediaStatus.AVAILABLE) {
+          if (
+            !existsAudiobook &&
+            !existsInJellyfinAudiobook &&
+            media.status4k === MediaStatus.AVAILABLE
+          ) {
             await this.mediaUpdater(media, true, mediaServerType);
           }
         }
@@ -1161,6 +1186,26 @@ class AvailabilitySync {
     }
 
     return seasonExistsInPlex;
+  }
+
+  private async mediaBookExistsInJellyfin(
+    media: Media,
+    isAudiobook: boolean
+  ): Promise<boolean> {
+    const jellyfinId = isAudiobook
+      ? media.jellyfinMediaId4k
+      : media.jellyfinMediaId;
+
+    if (!jellyfinId) {
+      return false;
+    }
+
+    try {
+      const item = await this.jellyfinClient?.getItemData(jellyfinId);
+      return !!item?.Id;
+    } catch {
+      return false;
+    }
   }
 
   // Jellyfin

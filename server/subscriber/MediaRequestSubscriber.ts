@@ -26,7 +26,10 @@ import {
   formatLidarrLookupError,
   lookupAlbumInLidarr,
 } from '@server/lib/lidarr/lookupAlbum';
-import { movieServiceFields } from '@server/lib/movieRequestQuality';
+import {
+  movieServiceFields,
+  movieStatusField,
+} from '@server/lib/movieRequestQuality';
 import notificationManager, { Notification } from '@server/lib/notifications';
 import { sendApprovedBookToReadarr } from '@server/lib/readarr/sendApprovedRequest';
 import { getSettings } from '@server/lib/settings';
@@ -1209,31 +1212,33 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
       return;
     }
 
-    const statusKey = entity.is3d
-      ? 'status3d'
-      : entity.is4k
-        ? 'status4k'
-        : 'status';
+    const mediaStatusKey =
+      entity.type === MediaType.MOVIE
+        ? movieStatusField(entity.is4k, entity.is3d)
+        : entity.is4k
+          ? 'status4k'
+          : 'status';
+    const seasonStatusKey = entity.is4k ? 'status4k' : 'status';
     const seasonRequestRepository = getRepository(SeasonRequest);
     const requestRepository = getRepository(MediaRequest);
 
     if (
       entity.status === MediaRequestStatus.APPROVED &&
       // Do not update the status if the item is already partially available or available
-      media[statusKey] !== MediaStatus.AVAILABLE &&
-      media[statusKey] !== MediaStatus.PARTIALLY_AVAILABLE &&
-      media[statusKey] !== MediaStatus.PROCESSING
+      media[mediaStatusKey] !== MediaStatus.AVAILABLE &&
+      media[mediaStatusKey] !== MediaStatus.PARTIALLY_AVAILABLE &&
+      media[mediaStatusKey] !== MediaStatus.PROCESSING
     ) {
-      media[statusKey] = MediaStatus.PROCESSING;
+      media[mediaStatusKey] = MediaStatus.PROCESSING;
       await mediaRepository.save(media);
     }
 
     if (
       media.mediaType === MediaType.MOVIE &&
       entity.status === MediaRequestStatus.DECLINED &&
-      media[statusKey] !== MediaStatus.DELETED
+      media[mediaStatusKey] !== MediaStatus.DELETED
     ) {
-      media[statusKey] = MediaStatus.UNKNOWN;
+      media[mediaStatusKey] = MediaStatus.UNKNOWN;
       await mediaRepository.save(media);
     }
 
@@ -1246,7 +1251,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
     if (
       media.mediaType === MediaType.TV &&
       entity.status === MediaRequestStatus.DECLINED &&
-      media[statusKey] === MediaStatus.PENDING
+      media[mediaStatusKey] === MediaStatus.PENDING
     ) {
       const pendingCount = await requestRepository.count({
         where: {
@@ -1263,7 +1268,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
           where: { id: media.id },
         });
         if (freshMedia) {
-          freshMedia[statusKey] = MediaStatus.UNKNOWN;
+          freshMedia[mediaStatusKey] = MediaStatus.UNKNOWN;
           await mediaRepository.save(freshMedia);
         }
       }
@@ -1287,7 +1292,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
           (s) => s.seasonNumber === seasonRequest.seasonNumber
         );
 
-        if (season && season[statusKey] === MediaStatus.PENDING) {
+        if (season && season[seasonStatusKey] === MediaStatus.PENDING) {
           const otherActiveRequests = await requestRepository
             .createQueryBuilder('request')
             .leftJoinAndSelect('request.seasons', 'season')
@@ -1306,7 +1311,7 @@ export class MediaRequestSubscriber implements EntitySubscriberInterface<MediaRe
             .getCount();
 
           if (otherActiveRequests === 0) {
-            season[statusKey] = MediaStatus.UNKNOWN;
+            season[seasonStatusKey] = MediaStatus.UNKNOWN;
             await seasonRepository.save(season);
           }
         }

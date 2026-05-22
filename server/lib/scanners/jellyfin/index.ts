@@ -25,6 +25,7 @@ import type {
 import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
+import { resolveJellyfinBook } from '@server/lib/jellyfin/resolveJellyfinBook';
 import { getHostname } from '@server/utils/getHostname';
 import { uniqWith } from 'lodash';
 
@@ -448,8 +449,56 @@ class JellyfinScanner
     }
   }
 
+  private async processJellyfinBook(jellyfinitem: JellyfinLibraryItem) {
+    if (this.currentLibrary.type !== 'book') {
+      return;
+    }
+
+    try {
+      const metadata = await this.jfClient.getItemData(jellyfinitem.Id);
+
+      if (!metadata?.Id) {
+        this.log('No Id metadata for this book. Skipping', 'debug', {
+          jellyfinItemId: jellyfinitem.Id,
+        });
+        return;
+      }
+
+      const isAudiobook = this.currentLibrary.isAudiobook ?? false;
+      const resolved = await resolveJellyfinBook(metadata, isAudiobook);
+
+      if (!resolved) {
+        this.log(
+          'Unable to resolve book to a Readarr/Open Library id. Skipping.',
+          'debug',
+          { title: metadata.Name }
+        );
+        return;
+      }
+
+      await this.processBook(resolved.foreignBookId, {
+        is4k: isAudiobook,
+        serviceId: resolved.serviceId,
+        externalServiceId: resolved.externalServiceId,
+        externalServiceSlug: resolved.externalServiceSlug,
+        jellyfinMediaId: metadata.Id,
+        mediaAddedAt: metadata.DateCreated
+          ? new Date(metadata.DateCreated)
+          : undefined,
+        title: resolved.title,
+      });
+    } catch (e) {
+      this.log(`Failed to process Jellyfin book, id: ${jellyfinitem.Id}`, 'error', {
+        errorMessage: e.message,
+        jellyfinitem,
+      });
+    }
+  }
+
   private async processItem(item: JellyfinLibraryItem): Promise<void> {
-    if (item.Type === 'Movie') {
+    if (item.Type === 'Book') {
+      await this.processJellyfinBook(item);
+    } else if (item.Type === 'Movie') {
       await this.processJellyfinMovie(item);
     } else if (item.Type === 'Series') {
       await this.processJellyfinShow(item);
@@ -627,7 +676,9 @@ class JellyfinScanner
           // Reset AniDB season tracking per library
           this.processedAnidbSeason = new Map();
           this.log(`Beginning to process library: ${library.name}`, 'info');
-          this.items = await this.jfClient.getLibraryContents(library.id);
+          this.items = await this.jfClient.getLibraryContents(library.id, {
+            bookLibrary: library.type === 'book',
+          });
           await this.loop(this.processItem.bind(this), { sessionId });
         }
       }

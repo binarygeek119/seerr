@@ -1428,6 +1428,8 @@
   "components.Settings.jellyfinSettingsSuccess": "{mediaServerName} settings saved successfully!",
   "components.Settings.jellyfinSyncFailedAutomaticGroupedFolders": "Custom authentication with Automatic Library Grouping not supported",
   "components.Settings.jellyfinSyncFailedGenericError": "Something went wrong while syncing libraries",
+  "components.Settings.jellyfinBookLibrary": "Book library",
+  "components.Settings.jellyfinAudiobookLibrary": "Audiobook shelf (syncs to audiobook Readarr)",
   "components.Settings.jellyfinSyncFailedNoLibrariesFound": "No libraries were found",
   "components.Settings.jellyfinlibraries": "{mediaServerName} Libraries",
   "components.Settings.jellyfinlibrariesDescription": "The libraries {mediaServerName} scans for titles. Click the button below if no libraries are listed.",

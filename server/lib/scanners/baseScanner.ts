@@ -271,6 +271,8 @@ class BaseScanner<T> {
           newMedia.ratingKey = !is4k && !is3d ? ratingKey : undefined;
           newMedia.ratingKey4k =
             is4k && this.enable4kMovie ? ratingKey : undefined;
+          newMedia.ratingKey3d =
+            is3d && this.enable3dMovie ? ratingKey : undefined;
         }
 
         if (jellyfinMediaId) {
@@ -278,6 +280,8 @@ class BaseScanner<T> {
             !is4k && !is3d ? jellyfinMediaId : undefined;
           newMedia.jellyfinMediaId4k =
             is4k && this.enable4kMovie ? jellyfinMediaId : undefined;
+          newMedia.jellyfinMediaId3d =
+            is3d && this.enable3dMovie ? jellyfinMediaId : undefined;
         }
 
         await mediaRepository.save(newMedia);
@@ -749,6 +753,7 @@ class BaseScanner<T> {
       externalServiceSlug,
       mediaAddedAt,
       ratingKey,
+      jellyfinMediaId,
       processing = false,
       title = 'Unknown Title',
     }: ProcessOptions = {}
@@ -776,6 +781,13 @@ class BaseScanner<T> {
         newMedia.mediaType = MediaType.BOOK;
         newMedia.mediaAddedAt = mediaAddedAt ?? newMedia.mediaAddedAt;
         newMedia.ratingKey = ratingKey ?? newMedia.ratingKey;
+        if (jellyfinMediaId) {
+          if (is4k) {
+            newMedia.jellyfinMediaId4k = jellyfinMediaId;
+          } else {
+            newMedia.jellyfinMediaId = jellyfinMediaId;
+          }
+        }
         if (is4k) {
           newMedia.serviceId4k = serviceId ?? newMedia.serviceId4k;
           newMedia.externalServiceId4k =
@@ -842,6 +854,14 @@ class BaseScanner<T> {
         if (ratingKey && !existing.ratingKey) {
           existing.ratingKey = ratingKey;
           hasChanges = true;
+        }
+
+        if (jellyfinMediaId) {
+          const jellyfinField = is4k ? 'jellyfinMediaId4k' : 'jellyfinMediaId';
+          if (existing[jellyfinField] !== jellyfinMediaId) {
+            existing[jellyfinField] = jellyfinMediaId;
+            hasChanges = true;
+          }
         }
 
         if (hasChanges) {

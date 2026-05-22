@@ -285,10 +285,16 @@ class Media {
   public ratingKey4k?: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
+  public ratingKey3d?: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
   public jellyfinMediaId?: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
   public jellyfinMediaId4k?: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  public jellyfinMediaId3d?: string | null;
 
   public serviceUrl?: string;
   public serviceUrl4k?: string;
@@ -321,8 +327,10 @@ class Media {
     this.externalServiceSlug3d = null;
     this.ratingKey = null;
     this.ratingKey4k = null;
+    this.ratingKey3d = null;
     this.jellyfinMediaId = null;
     this.jellyfinMediaId4k = null;
+    this.jellyfinMediaId3d = null;
   }
 
   @AfterLoad()

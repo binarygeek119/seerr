@@ -156,15 +156,17 @@ mediaRoutes.post<
 
     const is4k = String(req.body.is4k) === 'true';
     const is3d = String(req.body.is3d) === 'true';
-    const statusKey = is3d
-      ? 'status3d'
-      : is4k
-        ? 'status4k'
-        : 'status';
+    const mediaStatusKey =
+      media.mediaType === MediaType.MOVIE && is3d
+        ? 'status3d'
+        : is4k
+          ? 'status4k'
+          : 'status';
+    const seasonStatusKey = is4k ? 'status4k' : 'status';
 
     switch (req.params.status) {
       case 'available':
-        media[statusKey] = MediaStatus.AVAILABLE;
+        media[mediaStatusKey] = MediaStatus.AVAILABLE;
 
         if (media.mediaType === MediaType.TV) {
           const expectedSeasons = req.body.seasons ?? [];
@@ -182,7 +184,7 @@ mediaRoutes.post<
               media.seasons.push(season);
             }
 
-            season[statusKey] = MediaStatus.AVAILABLE;
+            season[seasonStatusKey] = MediaStatus.AVAILABLE;
           }
         }
         break;
@@ -193,16 +195,16 @@ mediaRoutes.post<
             message: 'Only series can be set to be partially available',
           });
         }
-        media[statusKey] = MediaStatus.PARTIALLY_AVAILABLE;
+        media[mediaStatusKey] = MediaStatus.PARTIALLY_AVAILABLE;
         break;
       case 'processing':
-        media[statusKey] = MediaStatus.PROCESSING;
+        media[mediaStatusKey] = MediaStatus.PROCESSING;
         break;
       case 'pending':
-        media[statusKey] = MediaStatus.PENDING;
+        media[mediaStatusKey] = MediaStatus.PENDING;
         break;
       case 'unknown':
-        media[statusKey] = MediaStatus.UNKNOWN;
+        media[mediaStatusKey] = MediaStatus.UNKNOWN;
     }
 
     await mediaRepository.save(media);

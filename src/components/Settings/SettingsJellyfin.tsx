@@ -67,12 +67,16 @@ const messages = defineMessages('components.Settings', {
   tip: 'Tip',
   scanbackground:
     'Scanning will run in the background. You can continue the setup process in the meantime.',
+  jellyfinBookLibrary: 'Book library',
+  jellyfinAudiobookLibrary: 'Audiobook shelf',
 });
 
 interface Library {
   id: string;
   name: string;
   enabled: boolean;
+  type?: 'show' | 'movie' | 'music' | 'book';
+  isAudiobook?: boolean;
 }
 
 interface SyncStatus {
@@ -160,15 +164,39 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
       .filter((library) => library.enabled)
       .map((library) => library.id) ?? [];
 
+  const audiobookLibraries =
+    data?.libraries
+      .filter((library) => library.type === 'book' && library.isAudiobook)
+      .map((library) => library.id) ?? [];
+
+  const saveLibrarySettings = async (
+    enabledIds: string[],
+    audiobookIds: string[]
+  ) => {
+    const params: { enable?: string; audiobook?: string } = {};
+
+    if (enabledIds.length > 0) {
+      params.enable = enabledIds.join(',');
+    }
+    if (audiobookIds.length > 0) {
+      params.audiobook = audiobookIds.join(',');
+    }
+
+    await axios.get('/api/v1/settings/jellyfin/library', { params });
+  };
+
   const syncLibraries = async () => {
     setIsSyncing(true);
 
-    const params: { sync: boolean; enable?: string } = {
+    const params: { sync: boolean; enable?: string; audiobook?: string } = {
       sync: true,
     };
 
     if (activeLibraries.length > 0) {
       params.enable = activeLibraries.join(',');
+    }
+    if (audiobookLibraries.length > 0) {
+      params.audiobook = audiobookLibraries.join(',');
     }
 
     try {
@@ -226,28 +254,28 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
 
   const toggleLibrary = async (libraryId: string) => {
     setIsSyncing(true);
-    if (activeLibraries.includes(libraryId)) {
-      const params: { enable?: string } = {};
+    const nextEnabled = activeLibraries.includes(libraryId)
+      ? activeLibraries.filter((id) => id !== libraryId)
+      : [...activeLibraries, libraryId];
+    const nextAudiobook = audiobookLibraries.filter((id) =>
+      nextEnabled.includes(id)
+    );
 
-      if (activeLibraries.length > 1) {
-        params.enable = activeLibraries
-          .filter((id) => id !== libraryId)
-          .join(',');
-      }
-
-      await axios.get('/api/v1/settings/jellyfin/library', {
-        params,
-      });
-    } else {
-      await axios.get('/api/v1/settings/jellyfin/library', {
-        params: {
-          enable: [...activeLibraries, libraryId].join(','),
-        },
-      });
-    }
+    await saveLibrarySettings(nextEnabled, nextAudiobook);
     if (onComplete) {
       onComplete();
     }
+    setIsSyncing(false);
+    revalidate();
+  };
+
+  const toggleAudiobookLibrary = async (libraryId: string) => {
+    setIsSyncing(true);
+    const nextAudiobook = audiobookLibraries.includes(libraryId)
+      ? audiobookLibraries.filter((id) => id !== libraryId)
+      : [...audiobookLibraries, libraryId];
+
+    await saveLibrarySettings(activeLibraries, nextAudiobook);
     setIsSyncing(false);
     revalidate();
   };
@@ -301,12 +329,33 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
         </Button>
         <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           {data?.libraries.map((library) => (
-            <LibraryItem
-              name={library.name}
-              isEnabled={library.enabled}
+            <div
               key={`setting-library-${library.id}`}
-              onToggle={() => toggleLibrary(library.id)}
-            />
+              className="col-span-1 flex flex-col gap-2"
+            >
+              <LibraryItem
+                name={
+                  library.type === 'book'
+                    ? `${library.name} (${intl.formatMessage(messages.jellyfinBookLibrary)})`
+                    : library.name
+                }
+                isEnabled={library.enabled}
+                onToggle={() => toggleLibrary(library.id)}
+              />
+              {library.type === 'book' && library.enabled && (
+                <label className="flex cursor-pointer items-center justify-between rounded-md border border-gray-700 bg-gray-600 px-4 py-3 text-sm text-gray-200">
+                  <span>
+                    {intl.formatMessage(messages.jellyfinAudiobookLibrary)}
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={library.isAudiobook ?? false}
+                    onChange={() => toggleAudiobookLibrary(library.id)}
+                  />
+                </label>
+              )}
+            </div>
           ))}
         </ul>
       </div>

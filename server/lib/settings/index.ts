@@ -18,7 +18,9 @@ export interface Library {
   id: string;
   name: string;
   enabled: boolean;
-  type: 'show' | 'movie' | 'music';
+  type: 'show' | 'movie' | 'music' | 'book';
+  /** When type is book, marks this Jellyfin library as the audiobook shelf (maps to status4k). */
+  isAudiobook?: boolean;
   lastScan?: number;
 }
 

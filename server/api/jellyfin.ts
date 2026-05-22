@@ -56,7 +56,7 @@ interface JellyfinMediaFolder {
 }
 
 export interface JellyfinLibrary {
-  type: 'show' | 'movie' | 'music';
+  type: 'show' | 'movie' | 'music' | 'book';
   key: string;
   title: string;
   agent: string;
@@ -72,7 +72,8 @@ export interface JellyfinLibraryItem {
     | 'Season'
     | 'Series'
     | 'MusicAlbum'
-    | 'MusicArtist';
+    | 'MusicArtist'
+    | 'Book';
   LocationType: 'FileSystem' | 'Offline' | 'Remote' | 'Virtual';
   SeriesName?: string;
   SeriesId?: string;
@@ -116,6 +117,13 @@ export interface JellyfinLibraryItemExtended extends JellyfinLibraryItem {
     MusicBrainzReleaseGroup?: string;
     MusicBrainzAlbum?: string;
     MusicBrainzArtistId?: string;
+    OpenLibrary?: string;
+    openlibrary?: string;
+    Openlibrary?: string;
+    'Open Library'?: string;
+    Goodreads?: string;
+    Audible?: string;
+    [key: string]: string | undefined;
   };
   MediaSources?: JellyfinMediaSource[];
   Width?: number;
@@ -323,7 +331,7 @@ class JellyfinAPI extends ExternalAPI {
   }
 
   private mapLibraries(mediaFolders: JellyfinMediaFolder[]): JellyfinLibrary[] {
-    const excludedTypes = ['books', 'musicvideos', 'homevideos', 'boxsets'];
+    const excludedTypes = ['musicvideos', 'homevideos', 'boxsets'];
 
     return mediaFolders
       .filter((Item: JellyfinMediaFolder) => {
@@ -341,16 +349,25 @@ class JellyfinAPI extends ExternalAPI {
               ? 'movie'
               : Item.CollectionType === 'tvshows'
                 ? 'show'
-                : 'music',
+                : Item.CollectionType === 'books'
+                  ? 'book'
+                  : 'music',
           agent: 'jellyfin',
         };
       });
   }
 
-  public async getLibraryContents(id: string): Promise<JellyfinLibraryItem[]> {
+  public async getLibraryContents(
+    id: string,
+    { bookLibrary = false }: { bookLibrary?: boolean } = {}
+  ): Promise<JellyfinLibraryItem[]> {
+    const includeItemTypes = bookLibrary
+      ? 'Book'
+      : 'Series,Movie,MusicAlbum,MusicArtist,Others';
+
     try {
       const libraryItemsResponse = await this.get<any>(
-        `/Items?SortBy=SortName&SortOrder=Ascending&IncludeItemTypes=Series,Movie,MusicAlbum,MusicArtist,Others&Recursive=true&StartIndex=0&ParentId=${id}&collapseBoxSetItems=false`
+        `/Items?SortBy=SortName&SortOrder=Ascending&IncludeItemTypes=${includeItemTypes}&Recursive=true&StartIndex=0&ParentId=${id}&collapseBoxSetItems=false`
       );
 
       return libraryItemsResponse.Items.filter(

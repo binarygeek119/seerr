@@ -19,9 +19,17 @@ export class Add3dMovieSupport1777900000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "media" ADD COLUMN "externalServiceSlug3d" varchar`
     );
+    await queryRunner.query(
+      `ALTER TABLE "media" ADD COLUMN "ratingKey3d" varchar`
+    );
+    await queryRunner.query(
+      `ALTER TABLE "media" ADD COLUMN "jellyfinMediaId3d" varchar`
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "media" DROP COLUMN "jellyfinMediaId3d"`);
+    await queryRunner.query(`ALTER TABLE "media" DROP COLUMN "ratingKey3d"`);
     await queryRunner.query(`ALTER TABLE "media" DROP COLUMN "externalServiceSlug3d"`);
     await queryRunner.query(`ALTER TABLE "media" DROP COLUMN "externalServiceId3d"`);
     await queryRunner.query(`ALTER TABLE "media" DROP COLUMN "serviceId3d"`);
