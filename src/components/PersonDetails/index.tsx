@@ -98,6 +98,7 @@ interface MediaItem {
   releaseDate?: string;
   firstAirDate?: string;
   mediaType: 'movie' | 'tv';
+  hasTheatrical3dVersion?: boolean;
   mediaInfo?: {
     status?: MediaStatus;
   };
@@ -302,6 +303,7 @@ const MediaSection = ({
                 media.firstAirDate?.slice(0, 4)
               }
               mediaType={media.mediaType === 'movie' ? 'movie' : 'tv'}
+              hasTheatrical3dVersion={media.hasTheatrical3dVersion}
               status={media.mediaInfo?.status}
               canExpand
             />

@@ -4,6 +4,7 @@ import type {
   TmdbPersonDetails,
 } from '@server/api/themoviedb/interfaces';
 import type Media from '@server/entity/Media';
+import { isTheatrical3dMovie } from '@server/lib/movie3dList';
 
 export interface PersonDetails {
   id: number;
@@ -59,6 +60,7 @@ export interface PersonCredit {
   title: string;
   adult: boolean;
   releaseDate: string;
+  hasTheatrical3dVersion?: boolean;
   mediaInfo?: Media;
 }
 
@@ -120,6 +122,14 @@ export const mapCastCredits = (
   adult: cast.adult,
   releaseDate: cast.release_date,
   character: cast.character,
+  hasTheatrical3dVersion:
+    cast.media_type === 'movie'
+      ? isTheatrical3dMovie({
+          title: cast.title,
+          originalTitle: cast.original_title,
+          releaseDate: cast.release_date,
+        })
+      : undefined,
   mediaInfo: media,
 });
 
@@ -150,5 +160,13 @@ export const mapCrewCredits = (
   releaseDate: crew.release_date,
   department: crew.department,
   job: crew.job,
+  hasTheatrical3dVersion:
+    crew.media_type === 'movie'
+      ? isTheatrical3dMovie({
+          title: crew.title,
+          originalTitle: crew.original_title,
+          releaseDate: crew.release_date,
+        })
+      : undefined,
   mediaInfo: media,
 });

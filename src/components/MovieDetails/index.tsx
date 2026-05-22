@@ -100,6 +100,7 @@ const messages = defineMessages('components.MovieDetails', {
   rtaudiencescore: 'Rotten Tomatoes Audience Score',
   tmdbuserscore: 'TMDB User Score',
   imdbuserscore: 'IMDB User Score – votes: {formattedCount}',
+  theatrical3d: '3D',
   watchlistSuccess: '<strong>{title}</strong> added to watchlist successfully!',
   watchlistDeleted:
     '<strong>{title}</strong> Removed from watchlist successfully!',
@@ -257,6 +258,14 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   if (certification) {
     movieAttributes.push(
       <span className="rounded-md border p-0.5 py-0">{certification}</span>
+    );
+  }
+
+  if (data.hasTheatrical3dVersion) {
+    movieAttributes.push(
+      <span className="rounded-md border p-0.5 py-0">
+        {intl.formatMessage(messages.theatrical3d)}
+      </span>
     );
   }
 

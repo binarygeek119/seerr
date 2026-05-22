@@ -13,6 +13,7 @@ import type {
 } from '@server/api/themoviedb/interfaces';
 import { MediaType as MainMediaType } from '@server/constants/media';
 import type Media from '@server/entity/Media';
+import { isTheatrical3dMovie } from '@server/lib/movie3dList';
 export type MediaType =
   | 'tv'
   | 'movie'
@@ -50,6 +51,7 @@ export interface MovieResult extends TmdbSearchResult {
   releaseDate: string;
   adult: boolean;
   video: boolean;
+  hasTheatrical3dVersion?: boolean;
   mediaInfo?: Media;
 }
 
@@ -167,6 +169,11 @@ export const mapMovieResult = (
   voteCount: movieResult.vote_count,
   backdropPath: movieResult.backdrop_path,
   posterPath: movieResult.poster_path,
+  hasTheatrical3dVersion: isTheatrical3dMovie({
+    title: movieResult.title,
+    originalTitle: movieResult.original_title,
+    releaseDate: movieResult.release_date,
+  }),
   mediaInfo: media,
 });
 

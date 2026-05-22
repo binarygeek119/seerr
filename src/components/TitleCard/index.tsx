@@ -46,6 +46,7 @@ interface TitleCardProps {
   inProgress?: boolean;
   isAddedToWatchlist?: number | boolean;
   needsCoverArt?: boolean;
+  hasTheatrical3dVersion?: boolean;
   mutateParent?: () => void;
 }
 
@@ -57,6 +58,7 @@ const messages = defineMessages('components.TitleCard', {
     '<strong>{title}</strong> Removed from watchlist  successfully!',
   watchlistCancel: 'watchlist for <strong>{title}</strong> canceled.',
   watchlistError: 'Something went wrong. Please try again.',
+  theatrical3d: '3D',
 });
 
 const TitleCard = ({
@@ -74,6 +76,7 @@ const TitleCard = ({
   canExpand = false,
   mutateParent,
   needsCoverArt,
+  hasTheatrical3dVersion = false,
 }: TitleCardProps) => {
   const isTouch = useIsTouch();
   const intl = useIntl();
@@ -579,6 +582,13 @@ const TitleCard = ({
               </div>
             )}
           </div>
+          {mediaType === 'movie' && hasTheatrical3dVersion && (
+            <div className="pointer-events-none absolute bottom-2 left-2 z-40">
+              <span className="rounded-full border border-cyan-400 bg-cyan-600/90 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-white shadow-md">
+                {intl.formatMessage(messages.theatrical3d)}
+              </span>
+            </div>
+          )}
           <Transition
             as={Fragment}
             show={isUpdating}

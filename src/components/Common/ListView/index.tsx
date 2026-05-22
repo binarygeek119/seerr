@@ -106,6 +106,7 @@ const ListView = ({
                     userScore={title.voteAverage}
                     year={title.releaseDate}
                     mediaType={title.mediaType}
+                    hasTheatrical3dVersion={title.hasTheatrical3dVersion}
                     inProgress={
                       (title.mediaInfo?.downloadStatus ?? []).length > 0
                     }

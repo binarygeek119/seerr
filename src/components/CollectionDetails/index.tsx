@@ -503,6 +503,7 @@ const CollectionDetails = ({ collection }: CollectionDetailsProps) => {
               userScore={title.voteAverage}
               year={title.releaseDate}
               mediaType={title.mediaType}
+              hasTheatrical3dVersion={title.hasTheatrical3dVersion}
               mutateParent={revalidate}
             />
           ))}

@@ -178,6 +178,7 @@ const AddedCard = ({
       userScore={title.voteAverage}
       year={title.releaseDate}
       mediaType={'movie'}
+      hasTheatrical3dVersion={title.hasTheatrical3dVersion}
       canExpand={canExpand}
       mutateParent={mutateParent}
     />
