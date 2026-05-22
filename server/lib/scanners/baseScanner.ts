@@ -679,6 +679,7 @@ class BaseScanner<T> {
       if (!existing) {
         const newMedia = new Media();
         newMedia.mbId = mbId;
+        newMedia.tmdbId = undefined;
         newMedia.status = processing
           ? MediaStatus.PROCESSING
           : MediaStatus.AVAILABLE;
@@ -768,6 +769,7 @@ class BaseScanner<T> {
       if (!existing) {
         const newMedia = new Media();
         newMedia.foreignBookId = foreignBookId;
+        newMedia.tmdbId = undefined;
         newMedia.status = is4k
           ? MediaStatus.UNKNOWN
           : processing
