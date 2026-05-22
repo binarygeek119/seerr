@@ -14,13 +14,19 @@ const mergeSettings = <T>(current: T, incoming: Partial<T>): T =>
     Array.isArray(srcValue) ? srcValue : undefined
   ) as T;
 
+/** Plex libraries only use show, movie, and music (audiobooks use music). */
+export type PlexLibraryType = 'show' | 'movie' | 'music';
+
 export interface Library {
   id: string;
   name: string;
   enabled: boolean;
-  type: 'show' | 'movie' | 'music' | 'book';
-  /** When type is book, marks this Jellyfin library as the audiobook shelf (maps to status4k). */
+  /** Book libraries are Jellyfin/Emby only; Plex uses music for audiobooks. */
+  type: PlexLibraryType | 'book';
+  /** Jellyfin book shelf mapped to audiobook Readarr (status4k). */
   isAudiobook?: boolean;
+  /** Emby audiobooks collection; always treated as an audiobook shelf. */
+  audiobookCollection?: boolean;
   lastScan?: number;
 }
 

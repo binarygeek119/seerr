@@ -81,7 +81,7 @@ class PlexScanner
       this.plexClient = new PlexAPI({ plexToken: admin.plexToken });
 
       this.libraries = settings.plex.libraries.filter(
-        (library) => library.enabled
+        (library) => library.enabled && library.type !== 'book'
       );
 
       const hasHama = await this.hasHamaAgent();
@@ -91,6 +91,10 @@ class PlexScanner
 
       if (this.isRecentOnly) {
         for (const library of this.libraries) {
+          if (library.type === 'book') {
+            continue;
+          }
+
           this.currentLibrary = library;
           this.log(
             `Beginning to process recently added for library: ${library.name}`,

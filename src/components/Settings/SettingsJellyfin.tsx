@@ -69,6 +69,7 @@ const messages = defineMessages('components.Settings', {
     'Scanning will run in the background. You can continue the setup process in the meantime.',
   jellyfinBookLibrary: 'Book library',
   jellyfinAudiobookLibrary: 'Audiobook shelf',
+  jellyfinEmbyAudiobookLibrary: 'Audiobook library (Emby)',
 });
 
 interface Library {
@@ -77,6 +78,7 @@ interface Library {
   enabled: boolean;
   type?: 'show' | 'movie' | 'music' | 'book';
   isAudiobook?: boolean;
+  audiobookCollection?: boolean;
 }
 
 interface SyncStatus {
@@ -336,25 +338,33 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
               <LibraryItem
                 name={
                   library.type === 'book'
-                    ? `${library.name} (${intl.formatMessage(messages.jellyfinBookLibrary)})`
+                    ? `${library.name} (${
+                        library.audiobookCollection
+                          ? intl.formatMessage(
+                              messages.jellyfinEmbyAudiobookLibrary
+                            )
+                          : intl.formatMessage(messages.jellyfinBookLibrary)
+                      })`
                     : library.name
                 }
                 isEnabled={library.enabled}
                 onToggle={() => toggleLibrary(library.id)}
               />
-              {library.type === 'book' && library.enabled && (
-                <label className="flex cursor-pointer items-center justify-between rounded-md border border-gray-700 bg-gray-600 px-4 py-3 text-sm text-gray-200">
-                  <span>
-                    {intl.formatMessage(messages.jellyfinAudiobookLibrary)}
-                  </span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={library.isAudiobook ?? false}
-                    onChange={() => toggleAudiobookLibrary(library.id)}
-                  />
-                </label>
-              )}
+              {library.type === 'book' &&
+                library.enabled &&
+                !library.audiobookCollection && (
+                  <label className="flex cursor-pointer items-center justify-between rounded-md border border-gray-700 bg-gray-600 px-4 py-3 text-sm text-gray-200">
+                    <span>
+                      {intl.formatMessage(messages.jellyfinAudiobookLibrary)}
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={library.isAudiobook ?? false}
+                      onChange={() => toggleAudiobookLibrary(library.id)}
+                    />
+                  </label>
+                )}
             </div>
           ))}
         </ul>

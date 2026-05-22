@@ -60,6 +60,8 @@ export interface JellyfinLibrary {
   key: string;
   title: string;
   agent: string;
+  /** Emby exposes audiobooks as a separate collection (not ebooks/books). */
+  audiobookCollection?: boolean;
 }
 
 export interface JellyfinLibraryItem {
@@ -341,18 +343,22 @@ class JellyfinAPI extends ExternalAPI {
         );
       })
       .map((Item: JellyfinMediaFolder) => {
+        const collectionType = Item.CollectionType?.toLowerCase();
+        const isAudiobookCollection = collectionType === 'audiobooks';
+
         return <JellyfinLibrary>{
           key: Item.Id,
           title: Item.Name,
           type:
-            Item.CollectionType === 'movies'
+            collectionType === 'movies'
               ? 'movie'
-              : Item.CollectionType === 'tvshows'
+              : collectionType === 'tvshows'
                 ? 'show'
-                : Item.CollectionType === 'books'
+                : collectionType === 'books' || isAudiobookCollection
                   ? 'book'
                   : 'music',
           agent: 'jellyfin',
+          audiobookCollection: isAudiobookCollection,
         };
       });
   }

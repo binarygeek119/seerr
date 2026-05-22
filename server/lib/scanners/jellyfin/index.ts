@@ -464,7 +464,9 @@ class JellyfinScanner
         return;
       }
 
-      const isAudiobook = this.currentLibrary.isAudiobook ?? false;
+      const isAudiobook =
+        this.currentLibrary.audiobookCollection ||
+        (this.currentLibrary.isAudiobook ?? false);
       const resolved = await resolveJellyfinBook(metadata, isAudiobook);
 
       if (!resolved) {

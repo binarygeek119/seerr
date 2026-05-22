@@ -375,12 +375,16 @@ settingsRoutes.get('/jellyfin/library', async (req, res, next) => {
         (l) => l.id === library.key && l.name === library.title
       );
 
+      const audiobookCollection = library.audiobookCollection ?? false;
+
       return {
         id: library.key,
         name: library.title,
         enabled: existing?.enabled ?? false,
         type: library.type,
-        isAudiobook: existing?.isAudiobook ?? false,
+        audiobookCollection,
+        isAudiobook:
+          audiobookCollection || (existing?.isAudiobook ?? false),
       };
     });
 
@@ -396,7 +400,9 @@ settingsRoutes.get('/jellyfin/library', async (req, res, next) => {
   settings.jellyfin.libraries = settings.jellyfin.libraries.map((library) => ({
     ...library,
     enabled: enabledLibraries.includes(library.id),
-    ...(audiobookLibraries !== undefined && library.type === 'book'
+    ...(audiobookLibraries !== undefined &&
+    library.type === 'book' &&
+    !library.audiobookCollection
       ? { isAudiobook: audiobookLibraries.includes(library.id) }
       : {}),
   }));
