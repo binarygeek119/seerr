@@ -16,6 +16,9 @@ import { Notification, shouldSendAdminNotification } from '..';
 import type { NotificationAgent, NotificationPayload } from './agent';
 import { BaseAgent } from './agent';
 
+const PUBLIC_LOGO_URL =
+  'https://raw.githubusercontent.com/seerr-team/seerr/refs/heads/develop/public/logo_full.svg';
+
 const messages = defineMessages('notifications.agents.email', {
   issueType: '{type} issue',
   issue: 'issue',
@@ -96,6 +99,12 @@ class EmailAgent
     const settings = getSettings();
     const { applicationUrl, applicationTitle } = settings.main;
     const { embedPoster } = settings.notifications.agents.email;
+    const { usePublicLogo } = settings.notifications.agents.email.options;
+    const logoUrl = usePublicLogo
+      ? PUBLIC_LOGO_URL
+      : applicationUrl
+        ? `${applicationUrl}/logo_full.svg`
+        : undefined;
 
     if (type === Notification.TEST_NOTIFICATION) {
       return {
@@ -107,6 +116,7 @@ class EmailAgent
           body: payload.message,
           applicationUrl,
           applicationTitle,
+          logoUrl,
           recipientName,
           recipientEmail,
         },
@@ -203,6 +213,7 @@ class EmailAgent
             : undefined,
           applicationUrl,
           applicationTitle,
+          logoUrl,
           recipientName,
           recipientEmail,
         },
@@ -271,6 +282,7 @@ class EmailAgent
             : undefined,
           applicationUrl,
           applicationTitle,
+          logoUrl,
           recipientName,
           recipientEmail,
         },

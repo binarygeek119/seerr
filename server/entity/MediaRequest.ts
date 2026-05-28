@@ -19,6 +19,12 @@ import {
 import { getRepository } from '@server/datasource';
 import OverrideRule from '@server/entity/OverrideRule';
 import type { MediaRequestBody } from '@server/interfaces/api/requestInterfaces';
+import { isTheatrical3dMovie } from '@server/lib/movie3dList';
+import {
+  defaultRadarrServer,
+  movieStatusField,
+  normalizeMovieRequestFlags,
+} from '@server/lib/movieRequestQuality';
 import notificationManager, { Notification } from '@server/lib/notifications';
 import { Permission } from '@server/lib/permissions';
 import { getReadarrServer } from '@server/lib/readarr/getReadarrServer';
@@ -26,12 +32,6 @@ import {
   formatReadarrLookupError,
   lookupBookInReadarr,
 } from '@server/lib/readarr/lookupBook';
-import { isTheatrical3dMovie } from '@server/lib/movie3dList';
-import {
-  defaultRadarrServer,
-  movieStatusField,
-  normalizeMovieRequestFlags,
-} from '@server/lib/movieRequestQuality';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
@@ -296,20 +296,26 @@ export class MediaRequest {
           : undefined,
         status:
           requestBody.mediaType === MediaType.MOVIE &&
-          movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
-            'status'
+          movieStatusField(
+            requestBody.is4k ?? false,
+            requestBody.is3d ?? false
+          ) === 'status'
             ? MediaStatus.PENDING
             : MediaStatus.UNKNOWN,
         status4k:
           requestBody.mediaType === MediaType.MOVIE &&
-          movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
-            'status4k'
+          movieStatusField(
+            requestBody.is4k ?? false,
+            requestBody.is3d ?? false
+          ) === 'status4k'
             ? MediaStatus.PENDING
             : MediaStatus.UNKNOWN,
         status3d:
           requestBody.mediaType === MediaType.MOVIE &&
-          movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
-            'status3d'
+          movieStatusField(
+            requestBody.is4k ?? false,
+            requestBody.is3d ?? false
+          ) === 'status3d'
             ? MediaStatus.PENDING
             : MediaStatus.UNKNOWN,
         mediaType: requestBody.mediaType,
@@ -332,18 +338,24 @@ export class MediaRequest {
 
       if (
         requestBody.mediaType === MediaType.MOVIE &&
-        media.status === MediaStatus.UNKNOWN &&
-        movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
-          'status'
+        (media.status === MediaStatus.UNKNOWN ||
+          media.status === MediaStatus.DELETED) &&
+        movieStatusField(
+          requestBody.is4k ?? false,
+          requestBody.is3d ?? false
+        ) === 'status'
       ) {
         media.status = MediaStatus.PENDING;
       }
 
       if (
         requestBody.mediaType === MediaType.MOVIE &&
-        media.status4k === MediaStatus.UNKNOWN &&
-        movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
-          'status4k'
+        (media.status4k === MediaStatus.UNKNOWN ||
+          media.status4k === MediaStatus.DELETED) &&
+        movieStatusField(
+          requestBody.is4k ?? false,
+          requestBody.is3d ?? false
+        ) === 'status4k'
       ) {
         media.status4k = MediaStatus.PENDING;
       }
@@ -351,8 +363,10 @@ export class MediaRequest {
       if (
         requestBody.mediaType === MediaType.MOVIE &&
         media.status3d === MediaStatus.UNKNOWN &&
-        movieStatusField(requestBody.is4k ?? false, requestBody.is3d ?? false) ===
-          'status3d'
+        movieStatusField(
+          requestBody.is4k ?? false,
+          requestBody.is3d ?? false
+        ) === 'status3d'
       ) {
         media.status3d = MediaStatus.PENDING;
       }
@@ -360,7 +374,7 @@ export class MediaRequest {
 
     const existing = await requestRepository
       .createQueryBuilder('request')
-      .leftJoin('request.media', 'media')
+      .leftJoinAndSelect('request.media', 'media')
       .leftJoinAndSelect('request.requestedBy', 'user')
       .where('request.is4k = :is4k', { is4k: requestBody.is4k ?? false })
       .andWhere('request.is3d = :is3d', { is3d: requestBody.is3d ?? false })
@@ -418,9 +432,13 @@ export class MediaRequest {
 
       // If an existing auto-request for this media exists from the same user,
       // don't allow a new one.
+      const statusKey = requestBody.is4k ? 'status4k' : 'status';
       if (
         existing.find(
-          (r) => r.requestedBy.id === requestUser.id && r.isAutoRequest
+          (r) =>
+            r.requestedBy.id === requestUser.id &&
+            r.isAutoRequest &&
+            r.media?.[statusKey] !== MediaStatus.DELETED
         )
       ) {
         throw new DuplicateMediaRequestError(

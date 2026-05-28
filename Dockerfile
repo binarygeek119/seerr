@@ -20,13 +20,13 @@ RUN du -shL ./node_modules/.pnpm/* | grep '[0-9]M.*' | grep 'linux-x64-gnu@' | a
 # Remove large module files not needed for production
 RUN if [ -d node_modules/.pnpm ]; then \
   find node_modules/.pnpm -type d \( \
-    -path "*ace-builds/src-noconflict" -o \
-    -path "*ace-builds/src" -o \
-    -path "*ace-builds/src-min" -o \
-    -path "*country-flag-icons/react" -o \
-    -path "*country-flag-icons/string" -o \
-    -path "*country-flag-icons/1x1" -o \
-    -path "*@heroicons/react/16" \
+  -path "*ace-builds/src-noconflict" -o \
+  -path "*ace-builds/src" -o \
+  -path "*ace-builds/src-min" -o \
+  -path "*country-flag-icons/react" -o \
+  -path "*country-flag-icons/string" -o \
+  -path "*country-flag-icons/1x1" -o \
+  -path "*@heroicons/react/16" \
   \) -exec rm -rf {} + || true; \
   fi
 
@@ -56,10 +56,7 @@ ARG COMMIT_TAG
 ENV NODE_ENV=production
 ENV COMMIT_TAG=${COMMIT_TAG}
 
-RUN apk add --no-cache tzdata su-exec
-
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN apk add --no-cache tzdata
 
 USER node:node
 
@@ -73,10 +70,6 @@ COPY --chown=node:node --from=build /app/dist ./dist
 RUN touch config/DOCKER && \
   echo "{\"commitTag\": \"${COMMIT_TAG}\"}" > committag.json
 
-VOLUME ["/app/config"]
-
 EXPOSE 5055
 
-USER root
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["node", "dist/index.js"]
+CMD [ "npm", "start" ]

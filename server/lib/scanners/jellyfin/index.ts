@@ -17,6 +17,7 @@ import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
 import { User } from '@server/entity/User';
+import { resolveJellyfinBook } from '@server/lib/jellyfin/resolveJellyfinBook';
 import type {
   ProcessableSeason,
   RunnableScanner,
@@ -25,7 +26,6 @@ import type {
 import BaseScanner from '@server/lib/scanners/baseScanner';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
-import { resolveJellyfinBook } from '@server/lib/jellyfin/resolveJellyfinBook';
 import { getHostname } from '@server/utils/getHostname';
 import { uniqWith } from 'lodash';
 
@@ -289,11 +289,9 @@ class JellyfinScanner
         const processableSeasons: ProcessableSeason[] = [];
 
         const settings = getSettings();
-        const filteredSeasons = (
-          settings.main.enableSpecialEpisodes
-            ? seasons
-            : seasons.filter((sn) => sn.season_number !== 0)
-        ).filter((sn) => sn.episode_count > 0);
+        const filteredSeasons = settings.main.enableSpecialEpisodes
+          ? seasons
+          : seasons.filter((sn) => sn.season_number !== 0);
 
         for (const season of filteredSeasons) {
           const matchedJellyfinSeason = jellyfinSeasons.find((md) => {
@@ -490,10 +488,14 @@ class JellyfinScanner
         title: resolved.title,
       });
     } catch (e) {
-      this.log(`Failed to process Jellyfin book, id: ${jellyfinitem.Id}`, 'error', {
-        errorMessage: e.message,
-        jellyfinitem,
-      });
+      this.log(
+        `Failed to process Jellyfin book, id: ${jellyfinitem.Id}`,
+        'error',
+        {
+          errorMessage: e.message,
+          jellyfinitem,
+        }
+      );
     }
   }
 

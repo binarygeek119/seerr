@@ -17,11 +17,11 @@ import {
   UsersIcon,
 } from '@heroicons/react/24/outline';
 import {
+  BookOpenIcon as FilledBookOpenIcon,
   ClockIcon as FilledClockIcon,
   CogIcon as FilledCogIcon,
   ExclamationTriangleIcon as FilledExclamationTriangleIcon,
   EyeSlashIcon as FilledEyeSlashIcon,
-  BookOpenIcon as FilledBookOpenIcon,
   FilmIcon as FilledFilmIcon,
   MusicalNoteIcon as FilledMusicalNoteIcon,
   SparklesIcon as FilledSparklesIcon,
@@ -31,7 +31,7 @@ import {
 } from '@heroicons/react/24/solid';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { cloneElement, useEffect, useRef, useState } from 'react';
+import { cloneElement, useEffect, useRef, useState, type JSX } from 'react';
 import { useIntl } from 'react-intl';
 
 interface MobileMenuProps {
