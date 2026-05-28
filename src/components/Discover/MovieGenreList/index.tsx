@@ -6,7 +6,7 @@ import GenreCard from '@app/components/GenreCard';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
 import type { GenreSliderItem } from '@server/interfaces/api/discoverInterfaces';
-import { THEATRICAL_3D_GENRE_ID } from '@server/lib/movie3dList';
+import { THEATRICAL_3D_GENRE_ID } from '@server/constants/theatrical3d';
 import { useIntl } from 'react-intl';
 import useSWR from 'swr';
 

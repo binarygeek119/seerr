@@ -1,5 +1,5 @@
 import defineMessages from '@app/utils/defineMessages';
-import { THEATRICAL_3D_GENRE_ID } from '@server/lib/movie3dList';
+import { THEATRICAL_3D_GENRE_ID } from '@server/constants/theatrical3d';
 import type { ParsedUrlQuery } from 'querystring';
 import { z } from 'zod';
 

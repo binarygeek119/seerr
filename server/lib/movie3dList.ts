@@ -1,8 +1,8 @@
 import listData from '@server/data/movie3d-theatrical-list.json';
+import { THEATRICAL_3D_GENRE_ID } from '@server/constants/theatrical3d';
 import logger from '@server/logger';
 
-/** Synthetic genre id for the theatrical 3D browse category (not a TMDB genre). */
-export const THEATRICAL_3D_GENRE_ID = -1;
+export { THEATRICAL_3D_GENRE_ID };
 
 type Theatrical3dListEntry = {
   title: string;

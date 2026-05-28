@@ -4,7 +4,7 @@ import Slider from '@app/components/Slider';
 import defineMessages from '@app/utils/defineMessages';
 import { ArrowRightCircleIcon } from '@heroicons/react/24/outline';
 import type { GenreSliderItem } from '@server/interfaces/api/discoverInterfaces';
-import { THEATRICAL_3D_GENRE_ID } from '@server/lib/movie3dList';
+import { THEATRICAL_3D_GENRE_ID } from '@server/constants/theatrical3d';
 import Link from 'next/link';
 import React from 'react';
 import { useIntl } from 'react-intl';

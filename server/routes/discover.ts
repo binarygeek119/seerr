@@ -21,7 +21,7 @@ import {
   getTheatrical3dDiscoverResults,
   getTheatrical3dGenreBackdrops,
 } from '@server/lib/discoverTheatrical3dMovies';
-import { THEATRICAL_3D_GENRE_ID } from '@server/lib/movie3dList';
+import { THEATRICAL_3D_GENRE_ID } from '@server/constants/theatrical3d';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { mapProductionCompany } from '@server/models/Movie';
