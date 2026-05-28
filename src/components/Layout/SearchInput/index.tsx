@@ -6,7 +6,6 @@ import { useIntl } from 'react-intl';
 
 const messages = defineMessages('components.Layout.SearchInput', {
   searchPlaceholder: 'Search Movies, TV, Music & Books',
-  searchPlaceholder: 'Search Movies & Series',
 });
 
 const SearchInput = () => {

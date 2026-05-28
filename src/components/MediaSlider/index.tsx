@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import ArtistCard from '@app/components/ArtistCard';
 import ShowMoreCard from '@app/components/MediaSlider/ShowMoreCard';
 import PersonCard from '@app/components/PersonCard';
@@ -257,7 +258,7 @@ const MediaSlider = ({
           return null;
       }
     })
-    .filter((item): item is JSX.Element => item !== null);
+    .filter((item): item is ReactElement => item !== null);
 
   const isLoading = !data && !error;
 
