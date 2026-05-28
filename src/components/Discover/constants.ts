@@ -1,4 +1,5 @@
 import defineMessages from '@app/utils/defineMessages';
+import { THEATRICAL_3D_GENRE_ID } from '@server/lib/movie3dList';
 import type { ParsedUrlQuery } from 'querystring';
 import { z } from 'zod';
 
@@ -36,6 +37,7 @@ export const colorTones: Record<AvailableColors, [string, string]> = {
 };
 
 export const genreColorMap: Record<number, [string, string]> = {
+  [THEATRICAL_3D_GENRE_ID]: colorTones.lightblue,
   0: colorTones.black,
   28: colorTones.red, // Action
   12: colorTones.darkpurple, // Adventure

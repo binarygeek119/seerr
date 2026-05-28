@@ -6,12 +6,44 @@ import GenreCard from '@app/components/GenreCard';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
 import type { GenreSliderItem } from '@server/interfaces/api/discoverInterfaces';
+import { THEATRICAL_3D_GENRE_ID } from '@server/lib/movie3dList';
 import { useIntl } from 'react-intl';
 import useSWR from 'swr';
 
 const messages = defineMessages('components.Discover.MovieGenreList', {
   moviegenres: 'Movie Genres',
+  theatrical3d: '3D',
 });
+
+const getGenreName = (
+  genre: GenreSliderItem,
+  formatMessage: (descriptor: {
+    id?: string;
+    defaultMessage?: string;
+  }) => string
+) => {
+  if (genre.id === THEATRICAL_3D_GENRE_ID) {
+    return formatMessage(messages.theatrical3d);
+  }
+
+  return genre.name;
+};
+
+const getGenreUrl = (genre: GenreSliderItem) => {
+  if (genre.id === THEATRICAL_3D_GENRE_ID) {
+    return '/discover/movies/3d';
+  }
+
+  return `/discover/movies/genre/${genre.id}`;
+};
+
+const getGenreImage = (genre: GenreSliderItem) => {
+  const backdrop = genre.backdrops[4] ?? genre.backdrops[0] ?? '';
+
+  return `https://image.tmdb.org/t/p/w1280_filter(duotone,${
+    genreColorMap[genre.id] ?? genreColorMap[0]
+  })${backdrop}`;
+};
 
 const MovieGenreList = () => {
   const intl = useIntl();
@@ -37,11 +69,9 @@ const MovieGenreList = () => {
         {data.map((genre, index) => (
           <li key={`genre-${genre.id}-${index}`}>
             <GenreCard
-              name={genre.name}
-              image={`https://image.tmdb.org/t/p/w1280_filter(duotone,${
-                genreColorMap[genre.id] ?? genreColorMap[0]
-              })${genre.backdrops[4]}`}
-              url={`/discover/movies/genre/${genre.id}`}
+              name={getGenreName(genre, intl.formatMessage)}
+              image={getGenreImage(genre)}
+              url={getGenreUrl(genre)}
               canExpand
             />
           </li>

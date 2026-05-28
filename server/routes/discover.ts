@@ -17,6 +17,11 @@ import type {
   WatchlistResponse,
 } from '@server/interfaces/api/discoverInterfaces';
 import { getDiscoverBooks } from '@server/lib/discoverBooks';
+import {
+  getTheatrical3dDiscoverResults,
+  getTheatrical3dGenreBackdrops,
+} from '@server/lib/discoverTheatrical3dMovies';
+import { THEATRICAL_3D_GENRE_ID } from '@server/lib/movie3dList';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { mapProductionCompany } from '@server/models/Movie';
@@ -246,6 +251,50 @@ discoverRoutes.get<{ language: string }>(
     }
   }
 );
+
+discoverRoutes.get('/movies/3d', async (req, res, next) => {
+  const tmdb = createTmdbWithRegionLanguage(req.user);
+
+  try {
+    const data = await getTheatrical3dDiscoverResults(
+      tmdb,
+      Number(req.query.page) || 1,
+      (req.query.language as string) ?? req.locale
+    );
+
+    const media = await Media.getRelatedMedia(
+      req.user,
+      data.results.map((result) => ({
+        tmdbId: result.id,
+        mediaType: MediaType.MOVIE,
+      }))
+    );
+
+    return res.status(200).json({
+      page: data.page,
+      totalPages: data.totalPages,
+      totalResults: data.totalResults,
+      results: data.results.map((result) =>
+        mapMovieResult(
+          result,
+          media.find(
+            (req) =>
+              req.tmdbId === result.id && req.mediaType === MediaType.MOVIE
+          )
+        )
+      ),
+    });
+  } catch (e) {
+    logger.debug('Something went wrong retrieving theatrical 3D movies', {
+      label: 'API',
+      errorMessage: e.message,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to retrieve theatrical 3D movies.',
+    });
+  }
+});
 
 discoverRoutes.get<{ genreId: string }>(
   '/movies/genre/:genreId',
@@ -867,6 +916,17 @@ discoverRoutes.get<{ language: string }, GenreSliderItem[]>(
       );
 
       const sortedData = sortBy(mappedGenres, 'name');
+
+      const theatrical3dBackdrops = await getTheatrical3dGenreBackdrops(
+        tmdb,
+        (req.query.language as string) ?? req.locale
+      );
+
+      sortedData.unshift({
+        id: THEATRICAL_3D_GENRE_ID,
+        name: '3D',
+        backdrops: theatrical3dBackdrops,
+      });
 
       return res.status(200).json(sortedData);
     } catch (e) {
