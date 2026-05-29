@@ -62,9 +62,9 @@ const bootstrap = async (): Promise<void> => {
   await ensureAppDataDirectories();
   logOpenFileLimit();
 
-  // Persist settings before Next.js prepare(). prepare() opens many files and can
-  // exhaust low Docker nofile limits before settings.json can be written.
-  await getSettings().load();
+  // Persist settings keys before Next.js prepare() without running settings migrations
+  // (some migrations require an initialized database).
+  await getSettings().load(undefined, true);
 
   const dev = process.env.NODE_ENV !== 'production';
   const app = next({ dev });
@@ -72,10 +72,7 @@ const bootstrap = async (): Promise<void> => {
 
   await app.prepare();
 
-  const overseerrMerged = await checkOverseerrMerge();
-  const settings = overseerrMerged
-    ? await getSettings().load()
-    : getSettings();
+  await checkOverseerrMerge();
 
   const dbConnection = dataSource.isInitialized
     ? dataSource
@@ -100,6 +97,7 @@ const bootstrap = async (): Promise<void> => {
     }
   }
 
+  const settings = await getSettings().load();
   restartFlag.initializeSettings(settings);
 
     initI18n();
