@@ -16,7 +16,8 @@ if [ "${LOG_TO_FILE}" != "true" ]; then
 fi
 
 run_app() {
-  if command -v prlimit >/dev/null 2>&1; then
+  # prlimit often fails on capped hosts (e.g. Unraid). Test before exec; always fall back to ulimit.
+  if command -v prlimit >/dev/null 2>&1 && prlimit --nofile=65536:65536 true 2>/dev/null; then
     exec prlimit --nofile=65536:65536 "$@"
   fi
 
