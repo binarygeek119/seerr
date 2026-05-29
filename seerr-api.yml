@@ -6165,6 +6165,45 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/MovieResult'
+  /discover/movies/3d:
+    get:
+      summary: Theatrical 3D movies
+      description: Returns a paginated list of movies with a theatrical 3D release.
+      tags:
+        - search
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+            example: 1
+            default: 1
+        - in: query
+          name: language
+          schema:
+            type: string
+            example: en
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: number
+                    example: 1
+                  totalPages:
+                    type: number
+                    example: 30
+                  totalResults:
+                    type: number
+                    example: 582
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MovieResult'
   /discover/movies/upcoming:
     get:
       summary: Upcoming movies
