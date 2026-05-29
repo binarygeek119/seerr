@@ -82,7 +82,8 @@ const messages = defineMessages('components.Settings', {
   toastTautulliSettingsFailure:
     'Something went wrong while saving Tautulli settings.',
   plexMusicLibrary: 'Music library',
-  plexAudiobookLibrary: 'Audiobook shelf (syncs to audiobook Readarr)',
+  plexAudiobookLibrary:
+    'Audiobook shelf (syncs to audiobook Readarr). Or use Settings → Audiobook Shelf for Audiobookshelf.',
 });
 
 interface Library {

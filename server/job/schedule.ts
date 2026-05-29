@@ -10,6 +10,7 @@ import {
 } from '@server/lib/scanners/jellyfin';
 import { lidarrScanner } from '@server/lib/scanners/lidarr';
 import { readarrScanner } from '@server/lib/scanners/readarr';
+import { audiobookshelfScanner } from '@server/lib/scanners/audiobookshelf';
 import { plexFullScanner, plexRecentScanner } from '@server/lib/scanners/plex';
 import { radarrScanner } from '@server/lib/scanners/radarr';
 import { sonarrScanner } from '@server/lib/scanners/sonarr';
@@ -206,6 +207,22 @@ export const startJobs = (): void => {
     }),
     running: () => readarrScanner.status().running,
     cancelFn: () => readarrScanner.cancel(),
+  });
+
+  scheduledJobs.push({
+    id: 'audiobookshelf-scan',
+    name: 'Audiobookshelf Scan',
+    type: 'process',
+    interval: 'hours',
+    cronSchedule: jobs['audiobookshelf-scan'].schedule,
+    job: schedule.scheduleJob(jobs['audiobookshelf-scan'].schedule, () => {
+      logger.info('Starting scheduled job: Audiobookshelf Scan', {
+        label: 'Jobs',
+      });
+      audiobookshelfScanner.run();
+    }),
+    running: () => audiobookshelfScanner.status().running,
+    cancelFn: () => audiobookshelfScanner.cancel(),
   });
 
   // Checks if media is still available in plex/sonarr/radarr libs

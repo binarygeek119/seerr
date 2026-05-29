@@ -1,5 +1,6 @@
 import type { JellyfinLibraryItem } from '@server/api/jellyfin';
 import JellyfinAPI from '@server/api/jellyfin';
+import AudiobookshelfAPI from '@server/api/audiobookshelf';
 import type { PlexMetadata } from '@server/api/plexapi';
 import PlexAPI from '@server/api/plexapi';
 import LidarrAPI, { type LidarrAlbum } from '@server/api/servarr/lidarr';
@@ -41,6 +42,7 @@ class AvailabilitySync {
   private sonarrServers: SonarrSettings[];
   private lidarrServers: LidarrSettings[];
   private readarrServers: ReadarrSettings[];
+  private audiobookshelfClient?: AudiobookshelfAPI;
 
   readonly tmdb = new TheMovieDb();
 
@@ -59,6 +61,12 @@ class AvailabilitySync {
     this.readarrServers = settings.readarr.filter(
       (server) => server.syncEnabled
     );
+
+    if (settings.audiobookshelf.hostname && settings.audiobookshelf.apiKey) {
+      this.audiobookshelfClient = new AudiobookshelfAPI(
+        settings.audiobookshelf
+      );
+    }
 
     try {
       logger.info(`Starting availability sync...`, {
@@ -505,6 +513,7 @@ class AvailabilitySync {
           let existsInJellyfinEbook = false;
           let existsInJellyfinAudiobook = false;
           let existsInPlexAudiobook = false;
+          let existsInAudiobookshelf = false;
 
           if (
             mediaServerType === MediaServerType.JELLYFIN ||
@@ -527,6 +536,9 @@ class AvailabilitySync {
             );
           }
 
+          existsInAudiobookshelf =
+            await this.mediaBookExistsInAudiobookshelf(media);
+
           const existsEbook = await this.mediaExistsInReadarr(media, false);
           if (
             !existsEbook &&
@@ -540,6 +552,7 @@ class AvailabilitySync {
             !existsAudiobook &&
             !existsInJellyfinAudiobook &&
             !existsInPlexAudiobook &&
+            !existsInAudiobookshelf &&
             media.status4k === MediaStatus.AVAILABLE
           ) {
             await this.mediaUpdater(media, true, mediaServerType);
@@ -1265,6 +1278,21 @@ class AvailabilitySync {
     try {
       const item = await this.jellyfinClient?.getItemData(jellyfinId);
       return !!item?.Id;
+    } catch {
+      return false;
+    }
+  }
+
+  private async mediaBookExistsInAudiobookshelf(media: Media): Promise<boolean> {
+    if (!media.audiobookshelfMediaId || !this.audiobookshelfClient) {
+      return false;
+    }
+
+    try {
+      const item = await this.audiobookshelfClient.getItem(
+        media.audiobookshelfMediaId
+      );
+      return !!item?.id;
     } catch {
       return false;
     }

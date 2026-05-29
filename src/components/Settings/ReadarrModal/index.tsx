@@ -95,11 +95,17 @@ interface TestResponse {
 
 interface ReadarrModalProps {
   readarr: ReadarrSettings | null;
+  createAsAudiobook?: boolean;
   onClose: () => void;
   onSave: () => void;
 }
 
-const ReadarrModal = ({ onClose, readarr, onSave }: ReadarrModalProps) => {
+const ReadarrModal = ({
+  onClose,
+  readarr,
+  createAsAudiobook = false,
+  onSave,
+}: ReadarrModalProps) => {
   const intl = useIntl();
   const initialLoad = useRef(false);
   const { addToast } = useToasts();
@@ -241,8 +247,8 @@ const ReadarrModal = ({ onClose, readarr, onSave }: ReadarrModalProps) => {
           baseUrl: readarr?.baseUrl,
           activeProfileId: readarr?.activeProfileId,
           rootFolder: readarr?.activeDirectory,
-          isDefault: readarr?.isDefault ?? false,
-          isAudiobook: readarr?.isAudiobook ?? false,
+          isDefault: readarr?.isDefault ?? createAsAudiobook ?? false,
+          isAudiobook: readarr?.isAudiobook ?? createAsAudiobook ?? false,
           tags: readarr?.tags ?? [],
           externalUrl: readarr?.externalUrl,
           syncEnabled: readarr?.syncEnabled ?? false,

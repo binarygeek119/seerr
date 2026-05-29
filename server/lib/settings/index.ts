@@ -73,6 +73,22 @@ export interface TautulliSettings {
   externalUrl?: string;
 }
 
+export interface AudiobookshelfLibrary {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
+export interface AudiobookshelfSettings {
+  hostname: string;
+  port: number;
+  useSsl?: boolean;
+  urlBase?: string;
+  apiKey: string;
+  webAppUrl?: string;
+  libraries: AudiobookshelfLibrary[];
+}
+
 export interface DVRSettings {
   id: number;
   name: string;
@@ -384,6 +400,7 @@ export type JobId =
   | 'sonarr-scan'
   | 'lidarr-scan'
   | 'readarr-scan'
+  | 'audiobookshelf-scan'
   | 'download-sync'
   | 'download-sync-reset'
   | 'jellyfin-recently-added-scan'
@@ -401,6 +418,7 @@ export interface AllSettings {
   plex: PlexSettings;
   jellyfin: JellyfinSettings;
   tautulli: TautulliSettings;
+  audiobookshelf: AudiobookshelfSettings;
   radarr: RadarrSettings[];
   sonarr: SonarrSettings[];
   lidarr: LidarrSettings[];
@@ -477,6 +495,15 @@ class Settings {
         apiKey: '',
       },
       tautulli: {},
+      audiobookshelf: {
+        hostname: '',
+        port: 13378,
+        useSsl: false,
+        urlBase: '',
+        apiKey: '',
+        webAppUrl: '',
+        libraries: [],
+      },
       metadataSettings: {
         tv: MetadataProviderType.TMDB,
         anime: MetadataProviderType.TMDB,
@@ -620,6 +647,9 @@ class Settings {
         'readarr-scan': {
           schedule: '0 45 4 * * *',
         },
+        'audiobookshelf-scan': {
+          schedule: '0 15 4 * * *',
+        },
         'availability-sync': {
           schedule: '0 0 5 * * *',
         },
@@ -700,6 +730,26 @@ class Settings {
 
   set tautulli(data: TautulliSettings) {
     this.data.tautulli = mergeSettings(this.data.tautulli, data);
+  }
+
+  get audiobookshelf(): AudiobookshelfSettings {
+    if (!this.data.audiobookshelf) {
+      this.data.audiobookshelf = {
+        hostname: '',
+        port: 13378,
+        useSsl: false,
+        urlBase: '',
+        apiKey: '',
+        webAppUrl: '',
+        libraries: [],
+      };
+    }
+
+    return this.data.audiobookshelf;
+  }
+
+  set audiobookshelf(data: AudiobookshelfSettings) {
+    this.data.audiobookshelf = mergeSettings(this.data.audiobookshelf, data);
   }
 
   get metadataSettings(): MetadataSettings {

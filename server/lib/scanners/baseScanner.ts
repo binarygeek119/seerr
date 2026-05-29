@@ -41,6 +41,7 @@ interface ProcessOptions {
   mediaAddedAt?: Date;
   ratingKey?: string;
   jellyfinMediaId?: string;
+  audiobookshelfMediaId?: string;
   imdbId?: string;
   serviceId?: number;
   externalServiceId?: number;
@@ -760,6 +761,7 @@ class BaseScanner<T> {
       mediaAddedAt,
       ratingKey,
       jellyfinMediaId,
+      audiobookshelfMediaId,
       processing = false,
       title = 'Unknown Title',
     }: ProcessOptions = {}
@@ -800,6 +802,9 @@ class BaseScanner<T> {
           } else {
             newMedia.jellyfinMediaId = jellyfinMediaId;
           }
+        }
+        if (audiobookshelfMediaId) {
+          newMedia.audiobookshelfMediaId = audiobookshelfMediaId;
         }
         if (is4k) {
           newMedia.serviceId4k = serviceId ?? newMedia.serviceId4k;
@@ -879,6 +884,11 @@ class BaseScanner<T> {
             existing[jellyfinField] = jellyfinMediaId;
             hasChanges = true;
           }
+        }
+
+        if (audiobookshelfMediaId && !existing.audiobookshelfMediaId) {
+          existing.audiobookshelfMediaId = audiobookshelfMediaId;
+          hasChanges = true;
         }
 
         if (hasChanges) {

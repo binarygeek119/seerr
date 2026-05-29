@@ -1,3 +1,4 @@
+import AudiobookshelfAPI from '@server/api/audiobookshelf';
 import LidarrAPI from '@server/api/servarr/lidarr';
 import RadarrAPI from '@server/api/servarr/radarr';
 import ReadarrAPI from '@server/api/servarr/readarr';
@@ -296,6 +297,9 @@ class Media {
   @Column({ nullable: true, type: 'varchar' })
   public jellyfinMediaId3d?: string | null;
 
+  @Column({ nullable: true, type: 'varchar' })
+  public audiobookshelfMediaId?: string | null;
+
   public serviceUrl?: string;
   public serviceUrl4k?: string;
   public serviceUrl3d?: string;
@@ -331,6 +335,7 @@ class Media {
     this.jellyfinMediaId = null;
     this.jellyfinMediaId4k = null;
     this.jellyfinMediaId3d = null;
+    this.audiobookshelfMediaId = null;
   }
 
   @AfterLoad()
@@ -506,6 +511,15 @@ class Media {
                 server,
                 `/book/${this.externalServiceSlug4k}`
               );
+        }
+      }
+
+      if (this.audiobookshelfMediaId) {
+        const abs = settings.audiobookshelf;
+        if (abs.webAppUrl) {
+          this.mediaUrl4k = `${abs.webAppUrl.replace(/\/$/, '')}/item/${this.audiobookshelfMediaId}`;
+        } else if (abs.hostname && abs.apiKey) {
+          this.mediaUrl4k = `${AudiobookshelfAPI.buildUrl(abs)}/item/${this.audiobookshelfMediaId}`;
         }
       }
     }

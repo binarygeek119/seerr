@@ -55,6 +55,7 @@ const messages = defineMessages('components.Settings', {
   addsonarr: 'Add Sonarr Server',
   addlidarr: 'Add Lidarr Server',
   addreadarr: 'Add Readarr Server',
+  addaudiobookreadarr: 'Add Audiobook Readarr Server',
   readarrUnavailable:
     'Unable to load Readarr settings. Please verify your server is running the latest code and refresh this page.',
   readarrRouteUnavailable:
@@ -313,9 +314,11 @@ const SettingsServices = () => {
   const [editReadarrModal, setEditReadarrModal] = useState<{
     open: boolean;
     readarr: ReadarrSettings | null;
+    createAsAudiobook?: boolean;
   }>({
     open: false,
     readarr: null,
+    createAsAudiobook: false,
   });
   const [deleteServerModal, setDeleteServerModal] = useState<{
     open: boolean;
@@ -432,11 +435,22 @@ const SettingsServices = () => {
       {editReadarrModal.open && (
         <ReadarrModal
           readarr={editReadarrModal.readarr}
-          onClose={() => setEditReadarrModal({ open: false, readarr: null })}
+          createAsAudiobook={editReadarrModal.createAsAudiobook}
+          onClose={() =>
+            setEditReadarrModal({
+              open: false,
+              readarr: null,
+              createAsAudiobook: false,
+            })
+          }
           onSave={() => {
             revalidateReadarr();
             mutate('/api/v1/settings/public');
-            setEditReadarrModal({ open: false, readarr: null });
+            setEditReadarrModal({
+              open: false,
+              readarr: null,
+              createAsAudiobook: false,
+            });
           }}
         />
       )}
@@ -789,15 +803,32 @@ const SettingsServices = () => {
                 />
               ))}
               <li className="col-span-1 h-32 rounded-lg border-2 border-dashed border-gray-400 shadow sm:h-44">
-                <div className="flex h-full w-full items-center justify-center">
+                <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-4">
                   <Button
                     buttonType="ghost"
                     onClick={() =>
-                      setEditReadarrModal({ open: true, readarr: null })
+                      setEditReadarrModal({
+                        open: true,
+                        readarr: null,
+                        createAsAudiobook: false,
+                      })
                     }
                   >
                     <PlusIcon />
                     <span>{intl.formatMessage(messages.addreadarr)}</span>
+                  </Button>
+                  <Button
+                    buttonType="ghost"
+                    onClick={() =>
+                      setEditReadarrModal({
+                        open: true,
+                        readarr: null,
+                        createAsAudiobook: true,
+                      })
+                    }
+                  >
+                    <PlusIcon />
+                    <span>{intl.formatMessage(messages.addaudiobookreadarr)}</span>
                   </Button>
                 </div>
               </li>
