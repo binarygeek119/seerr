@@ -250,9 +250,15 @@ settingsRoutes.get('/plex/library', async (req, res) => {
   const enabledLibraries = req.query.enable
     ? (req.query.enable as string).split(',')
     : [];
+  const audiobookLibraries = req.query.audiobook
+    ? (req.query.audiobook as string).split(',')
+    : undefined;
   settings.plex.libraries = settings.plex.libraries.map((library) => ({
     ...library,
     enabled: enabledLibraries.includes(library.id),
+    ...(audiobookLibraries !== undefined && library.type === 'music'
+      ? { isAudiobook: audiobookLibraries.includes(library.id) }
+      : {}),
   }));
   await settings.save();
   return res.status(200).json(settings.plex.libraries);

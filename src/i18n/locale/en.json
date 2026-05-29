@@ -1425,6 +1425,8 @@
   "components.Settings.is3d": "3D",
   "components.Settings.is4k": "4K",
   "components.Settings.jellyfinAudiobookLibrary": "Audiobook shelf (syncs to audiobook Readarr)",
+  "components.Settings.plexMusicLibrary": "Music library",
+  "components.Settings.plexAudiobookLibrary": "Audiobook shelf (syncs to audiobook Readarr)",
   "components.Settings.jellyfinBookLibrary": "Book library",
   "components.Settings.jellyfinEmbyAudiobookLibrary": "Audiobook library (Emby)",
   "components.Settings.jellyfinForgotPasswordUrl": "Forgot Password URL",

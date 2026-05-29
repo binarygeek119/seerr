@@ -504,6 +504,7 @@ class AvailabilitySync {
         if (media.mediaType === 'book') {
           let existsInJellyfinEbook = false;
           let existsInJellyfinAudiobook = false;
+          let existsInPlexAudiobook = false;
 
           if (
             mediaServerType === MediaServerType.JELLYFIN ||
@@ -514,6 +515,13 @@ class AvailabilitySync {
               false
             );
             existsInJellyfinAudiobook = await this.mediaBookExistsInJellyfin(
+              media,
+              true
+            );
+          }
+
+          if (mediaServerType === MediaServerType.PLEX) {
+            existsInPlexAudiobook = await this.mediaBookExistsInPlex(
               media,
               true
             );
@@ -531,6 +539,7 @@ class AvailabilitySync {
           if (
             !existsAudiobook &&
             !existsInJellyfinAudiobook &&
+            !existsInPlexAudiobook &&
             media.status4k === MediaStatus.AVAILABLE
           ) {
             await this.mediaUpdater(media, true, mediaServerType);
@@ -1221,6 +1230,24 @@ class AvailabilitySync {
     }
 
     return seasonExistsInPlex;
+  }
+
+  private async mediaBookExistsInPlex(
+    media: Media,
+    isAudiobook: boolean
+  ): Promise<boolean> {
+    const ratingKey = isAudiobook ? media.ratingKey4k : media.ratingKey;
+
+    if (!ratingKey) {
+      return false;
+    }
+
+    try {
+      const plexMedia = await this.plexClient?.getMetadata(ratingKey);
+      return !!plexMedia?.ratingKey;
+    } catch {
+      return false;
+    }
   }
 
   private async mediaBookExistsInJellyfin(

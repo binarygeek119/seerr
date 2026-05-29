@@ -159,6 +159,7 @@ class PlexAPI extends ExternalAPI {
             name: library.title,
             enabled: existing?.enabled ?? false,
             type: library.type === 'artist' ? 'music' : library.type,
+            isAudiobook: existing?.isAudiobook ?? false,
             lastScan: existing?.lastScan,
           };
         });

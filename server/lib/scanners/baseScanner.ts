@@ -787,7 +787,13 @@ class BaseScanner<T> {
           : MediaStatus.UNKNOWN;
         newMedia.mediaType = MediaType.BOOK;
         newMedia.mediaAddedAt = mediaAddedAt ?? newMedia.mediaAddedAt;
-        newMedia.ratingKey = ratingKey ?? newMedia.ratingKey;
+        if (ratingKey) {
+          if (is4k) {
+            newMedia.ratingKey4k = ratingKey;
+          } else {
+            newMedia.ratingKey = ratingKey;
+          }
+        }
         if (jellyfinMediaId) {
           if (is4k) {
             newMedia.jellyfinMediaId4k = jellyfinMediaId;
@@ -858,9 +864,13 @@ class BaseScanner<T> {
           existing.mediaAddedAt = mediaAddedAt;
           hasChanges = true;
         }
-        if (ratingKey && !existing.ratingKey) {
-          existing.ratingKey = ratingKey;
-          hasChanges = true;
+
+        if (ratingKey) {
+          const ratingKeyField = is4k ? 'ratingKey4k' : 'ratingKey';
+          if (!existing[ratingKeyField]) {
+            existing[ratingKeyField] = ratingKey;
+            hasChanges = true;
+          }
         }
 
         if (jellyfinMediaId) {

@@ -12,6 +12,7 @@ import type {
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
 import cacheManager from '@server/lib/cache';
+import { resolvePlexAudiobook } from '@server/lib/plex/resolvePlexAudiobook';
 import type {
   MediaIds,
   ProcessableSeason,
@@ -227,7 +228,14 @@ class PlexScanner
         plexitem.type === 'album' ||
         plexitem.type === 'track'
       ) {
-        await this.processPlexMusic(plexitem);
+        if (
+          this.currentLibrary.type === 'music' &&
+          this.currentLibrary.isAudiobook
+        ) {
+          await this.processPlexAudiobook(plexitem);
+        } else {
+          await this.processPlexMusic(plexitem);
+        }
       }
     } catch (e) {
       this.log('Failed to process Plex media', 'error', {
@@ -390,6 +398,58 @@ class PlexScanner
         title: metadata.title,
       }
     );
+  }
+
+  private async processPlexAudiobook(plexitem: PlexLibraryItem) {
+    const ratingKey =
+      plexitem.grandparentRatingKey ??
+      plexitem.parentRatingKey ??
+      plexitem.ratingKey;
+
+    let metadata;
+    try {
+      metadata = await this.plexClient.getMetadata(ratingKey, {
+        includeChildren: true,
+      });
+
+      if (metadata.Children?.Metadata) {
+        for (const album of metadata.Children.Metadata) {
+          const albumMetadata = await this.plexClient.getMetadata(
+            album.ratingKey
+          );
+
+          const resolved = await resolvePlexAudiobook({
+            title: album.title,
+            artist: metadata.title,
+            guids: albumMetadata.Guid,
+          });
+
+          if (!resolved) {
+            this.log(
+              'Unable to resolve Plex audiobook to a Readarr/Open Library id. Skipping.',
+              'debug',
+              { title: album.title, artist: metadata.title }
+            );
+            continue;
+          }
+
+          await this.processBook(resolved.foreignBookId, {
+            is4k: true,
+            serviceId: resolved.serviceId,
+            externalServiceId: resolved.externalServiceId,
+            externalServiceSlug: resolved.externalServiceSlug,
+            mediaAddedAt: new Date(album.addedAt * 1000),
+            ratingKey: album.ratingKey,
+            title: resolved.title,
+          });
+        }
+      }
+    } catch (e) {
+      this.log('Failed to process Plex audiobook media', 'error', {
+        errorMessage: e.message,
+        title: metadata?.title,
+      });
+    }
   }
 
   private async processPlexMusic(plexitem: PlexLibraryItem) {
