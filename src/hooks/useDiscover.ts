@@ -167,11 +167,11 @@ const useDiscover = <
   }
 
   const isEmpty = !isLoadingInitialData && titles?.length === 0;
+  const lastPageData = data?.[data.length - 1];
   const isReachingEnd =
     isEmpty ||
-    (!!data && (data[data?.length - 1]?.results.length ?? 0) < 20) ||
-    (!!data && (data[data?.length - 1]?.totalResults ?? 0) <= size * 20) ||
-    (!!data && (data[data?.length - 1]?.totalResults ?? 0) < 41);
+    (!!lastPageData && lastPageData.page >= lastPageData.totalPages) ||
+    (!!lastPageData && lastPageData.totalResults <= size * 20);
 
   useEffect(() => {
     if (error && titles.length) {

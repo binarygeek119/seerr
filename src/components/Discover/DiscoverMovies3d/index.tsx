@@ -23,7 +23,9 @@ const DiscoverMovies3d = () => {
     titles,
     fetchMore,
     error,
-  } = useDiscover<MovieResult>(`/api/v1/discover/movies/3d`);
+  } = useDiscover<MovieResult>(`/api/v1/discover/movies/3d`, undefined, {
+    initialSize: 1,
+  });
 
   if (error) {
     return <ErrorPage statusCode={500} />;
