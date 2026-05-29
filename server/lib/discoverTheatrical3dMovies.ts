@@ -1,82 +1,92 @@
 import type TheMovieDb from '@server/api/themoviedb';
 import type { TmdbMovieResult } from '@server/api/themoviedb/interfaces';
-import listData from '@server/data/movie3d-theatrical-list.json';
-import { isTheatrical3dMovie } from '@server/lib/movie3dList';
+import {
+  getTheatrical3dListEntries,
+  isTheatrical3dMovie,
+} from '@server/lib/movie3dList';
 import logger from '@server/logger';
 
 const PAGE_SIZE = 20;
-const RESOLVE_BATCH_SIZE = 10;
+const RESOLVE_BATCH_SIZE = 5;
 const MIN_BACKDROPS = 5;
 const MAX_BACKDROP_SCAN_PAGES = 20;
 
-type Theatrical3dCache = {
-  movies: TmdbMovieResult[];
-};
+const resolvedByListKey = new Map<string, TmdbMovieResult | null>();
 
-let cache: Theatrical3dCache | null = null;
-let cachePromise: Promise<Theatrical3dCache> | null = null;
+const listEntryKey = (title: string, year: number): string =>
+  `${title}|${year}`;
 
-const resolveTheatrical3dMovies = async (
+const resolveTheatrical3dEntry = async (
   tmdb: TheMovieDb,
+  entry: { title: string; year: number },
   language?: string
-): Promise<Theatrical3dCache> => {
-  const movies: TmdbMovieResult[] = [];
-  const seenIds = new Set<number>();
+): Promise<TmdbMovieResult | null> => {
+  const key = listEntryKey(entry.title, entry.year);
 
-  for (let i = 0; i < listData.movies.length; i += RESOLVE_BATCH_SIZE) {
-    const batch = listData.movies.slice(i, i + RESOLVE_BATCH_SIZE);
-
-    await Promise.all(
-      batch.map(async (entry) => {
-        const search = await tmdb.searchMovies({
-          query: entry.title,
-          year: entry.year,
-          language,
-        });
-
-        const match = search.results.find((movie) =>
-          isTheatrical3dMovie({
-            title: movie.title,
-            originalTitle: movie.original_title,
-            releaseDate: movie.release_date,
-          })
-        );
-
-        if (match && !seenIds.has(match.id)) {
-          seenIds.add(match.id);
-          movies.push(match);
-        }
-      })
-    );
+  if (resolvedByListKey.has(key)) {
+    return resolvedByListKey.get(key) ?? null;
   }
 
-  movies.sort((a, b) => b.popularity - a.popularity);
-
-  logger.info('Resolved theatrical 3D movies for discover', {
-    label: 'Movie 3D Discover',
-    resolved: movies.length,
-    total: listData.movies.length,
-  });
-
-  return { movies };
-};
-
-const getTheatrical3dCache = async (
-  tmdb: TheMovieDb,
-  language?: string
-): Promise<Theatrical3dCache> => {
-  if (cache) {
-    return cache;
-  }
-
-  if (!cachePromise) {
-    cachePromise = resolveTheatrical3dMovies(tmdb, language).then((result) => {
-      cache = result;
-      return result;
+  try {
+    const search = await tmdb.searchMovies({
+      query: entry.title,
+      year: entry.year,
+      language,
     });
+
+    const match =
+      search.results.find((movie) =>
+        isTheatrical3dMovie({
+          title: movie.title,
+          originalTitle: movie.original_title,
+          releaseDate: movie.release_date,
+        })
+      ) ?? null;
+
+    resolvedByListKey.set(key, match);
+    return match;
+  } catch (error) {
+    logger.debug('Failed to resolve theatrical 3D movie from TMDB search', {
+      label: 'Movie 3D Discover',
+      title: entry.title,
+      year: entry.year,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    resolvedByListKey.set(key, null);
+    return null;
+  }
+};
+
+const resolveTheatrical3dPage = async (
+  tmdb: TheMovieDb,
+  page: number,
+  language?: string
+): Promise<TmdbMovieResult[]> => {
+  const entries = getTheatrical3dListEntries();
+  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageEntries = entries.slice(start, start + PAGE_SIZE);
+  const movies: TmdbMovieResult[] = [];
+
+  for (let i = 0; i < pageEntries.length; i += RESOLVE_BATCH_SIZE) {
+    const batch = pageEntries.slice(i, i + RESOLVE_BATCH_SIZE);
+    const resolved = await Promise.all(
+      batch.map((entry) => resolveTheatrical3dEntry(tmdb, entry, language))
+    );
+
+    for (const match of resolved) {
+      if (match) {
+        movies.push(match);
+      }
+    }
   }
 
-  return cachePromise;
+  movies.sort(
+    (a, b) => (b.popularity ?? 0) - (a.popularity ?? 0)
+  );
+
+  return movies;
 };
 
 export const getTheatrical3dDiscoverResults = async (
@@ -89,17 +99,26 @@ export const getTheatrical3dDiscoverResults = async (
   totalResults: number;
   results: TmdbMovieResult[];
 }> => {
-  const { movies } = await getTheatrical3dCache(tmdb, language);
-  const totalResults = movies.length;
+  const entries = getTheatrical3dListEntries();
+  const totalResults = entries.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE));
   const currentPage = Math.min(Math.max(1, page), totalPages);
-  const start = (currentPage - 1) * PAGE_SIZE;
+  const results = await resolveTheatrical3dPage(tmdb, currentPage, language);
+
+  if (currentPage === 1) {
+    logger.info('Resolved theatrical 3D discover page', {
+      label: 'Movie 3D Discover',
+      page: currentPage,
+      resolved: results.length,
+      requested: Math.min(PAGE_SIZE, entries.length),
+    });
+  }
 
   return {
     page: currentPage,
     totalPages,
     totalResults,
-    results: movies.slice(start, start + PAGE_SIZE),
+    results,
   };
 };
 
@@ -138,6 +157,5 @@ export const getTheatrical3dGenreBackdrops = async (
 };
 
 export const clearTheatrical3dDiscoverCache = (): void => {
-  cache = null;
-  cachePromise = null;
+  resolvedByListKey.clear();
 };

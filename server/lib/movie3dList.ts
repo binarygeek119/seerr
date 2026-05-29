@@ -44,6 +44,9 @@ export const theatrical3dListSource = file.source;
 
 export const theatrical3dListSize = theatrical3dKeys.size;
 
+export const getTheatrical3dListEntries = (): Theatrical3dListEntry[] =>
+  file.movies;
+
 const releaseYearFromDate = (releaseDate?: string): number | undefined => {
   if (!releaseDate || releaseDate.length < 4) {
     return undefined;

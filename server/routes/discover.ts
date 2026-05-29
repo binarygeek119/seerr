@@ -285,9 +285,10 @@ discoverRoutes.get('/movies/3d', async (req, res, next) => {
       ),
     });
   } catch (e) {
-    logger.debug('Something went wrong retrieving theatrical 3D movies', {
+    logger.error('Something went wrong retrieving theatrical 3D movies', {
       label: 'API',
       errorMessage: e.message,
+      stack: e.stack,
     });
     return next({
       status: 500,
