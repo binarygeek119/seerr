@@ -7,6 +7,7 @@ import Releases from '@app/components/Settings/SettingsAbout/Releases';
 import globalMessages from '@app/i18n/globalMessages';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
+import { formatVersionForDisplay, isDevelopVersion } from '@app/utils/version';
 import type {
   SettingsAboutResponse,
   StatusResponse,
@@ -30,7 +31,7 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
   outofdate: 'Out of Date',
   uptodate: 'Up to Date',
   runningDevelop:
-    'You are running the <code>develop</code> branch of Seerr, which is only recommended for those contributing to development or assisting with bleeding-edge testing.',
+    'You are running a custom fork of Seerr on the <code>develop</code> branch. Versions marked with <code>+</code> indicate fork-specific changes.',
 });
 
 const SettingsAbout = () => {
@@ -59,7 +60,7 @@ const SettingsAbout = () => {
       />
       <div className="section">
         <List title={intl.formatMessage(messages.aboutseerr)}>
-          {data.version.startsWith('develop-') && (
+          {isDevelopVersion(data.version) && (
             <Alert
               title={intl.formatMessage(messages.runningDevelop, {
                 code: (msg: React.ReactNode) => (
@@ -79,8 +80,8 @@ const SettingsAbout = () => {
               (status?.updateAvailable ? (
                 <a
                   href={
-                    data.version.startsWith('develop-')
-                      ? `https://github.com/seerr-team/seerr/compare/${status.commitTag}...develop`
+                    isDevelopVersion(data.version)
+                      ? `https://github.com/binarygeek119/seerr/compare/${status.commitTag}...develop`
                       : 'https://github.com/seerr-team/seerr/releases'
                   }
                   target="_blank"
@@ -96,8 +97,8 @@ const SettingsAbout = () => {
               ) : (
                 <a
                   href={
-                    data.version.startsWith('develop-')
-                      ? 'https://github.com/seerr-team/seerr/commits/develop'
+                    isDevelopVersion(data.version)
+                      ? 'https://github.com/binarygeek119/seerr/commits/develop'
                       : 'https://github.com/seerr-team/seerr/releases'
                   }
                   target="_blank"

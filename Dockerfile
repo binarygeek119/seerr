@@ -56,7 +56,10 @@ ARG COMMIT_TAG
 ENV NODE_ENV=production
 ENV COMMIT_TAG=${COMMIT_TAG}
 
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata su-exec
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 USER node:node
 
@@ -70,6 +73,10 @@ COPY --chown=node:node --from=build /app/dist ./dist
 RUN touch config/DOCKER && \
   echo "{\"commitTag\": \"${COMMIT_TAG}\"}" > committag.json
 
+VOLUME ["/app/config"]
+
 EXPOSE 5055
 
-CMD [ "npm", "start" ]
+USER root
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "dist/index.js"]
