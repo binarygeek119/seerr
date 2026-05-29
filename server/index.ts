@@ -26,7 +26,7 @@ import avatarproxy from '@server/routes/avatarproxy';
 import caaproxy from '@server/routes/caaproxy';
 import tadbproxy from '@server/routes/tadbproxy';
 import tmdbproxy from '@server/routes/tmdbproxy';
-import { appDataPermissions } from '@server/utils/appDataVolume';
+import { appDataPermissions, ensureAppDataDirectories, logOpenFileLimit } from '@server/utils/appDataVolume';
 import { getAppVersion } from '@server/utils/appVersion';
 import createCustomProxyAgent from '@server/utils/customProxyAgent';
 import { initializeDnsCache } from '@server/utils/dnsCache';
@@ -51,9 +51,6 @@ import swaggerUi from 'swagger-ui-express';
 const API_SPEC_PATH = path.join(__dirname, '../seerr-api.yml');
 
 logger.info(`Starting Seerr version ${getAppVersion()}`);
-const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
-const handle = app.getRequestHandler();
 
 if (!appDataPermissions()) {
   logger.error(
@@ -61,38 +58,49 @@ if (!appDataPermissions()) {
   );
 }
 
-app
-  .prepare()
-  .then(async () => {
-    // Run Overseerr to Seerr migration
-    await checkOverseerrMerge();
+const bootstrap = async (): Promise<void> => {
+  await ensureAppDataDirectories();
+  logOpenFileLimit();
 
-    const dbConnection = dataSource.isInitialized
-      ? dataSource
-      : await dataSource.initialize();
+  // Persist settings before Next.js prepare(). prepare() opens many files and can
+  // exhaust low Docker nofile limits before settings.json can be written.
+  await getSettings().load();
 
-    // Run migrations in production before settings migrations touch the DB
-    if (process.env.NODE_ENV === 'production') {
-      let executedMigrations;
-      if (isPgsql) {
-        executedMigrations = await dbConnection.runMigrations();
-      } else {
-        await dbConnection.query('PRAGMA foreign_keys=OFF');
-        executedMigrations = await dbConnection.runMigrations();
-        await dbConnection.query('PRAGMA foreign_keys=ON');
-      }
+  const dev = process.env.NODE_ENV !== 'production';
+  const app = next({ dev });
+  const handle = app.getRequestHandler();
 
-      if (executedMigrations.length > 0) {
-        logger.info(
-          `Applied ${executedMigrations.length} database migration(s)`,
-          { label: 'Database' }
-        );
-      }
+  await app.prepare();
+
+  const overseerrMerged = await checkOverseerrMerge();
+  const settings = overseerrMerged
+    ? await getSettings().load()
+    : getSettings();
+
+  const dbConnection = dataSource.isInitialized
+    ? dataSource
+    : await dataSource.initialize();
+
+  // Run migrations in production before settings migrations touch the DB
+  if (process.env.NODE_ENV === 'production') {
+    let executedMigrations;
+    if (isPgsql) {
+      executedMigrations = await dbConnection.runMigrations();
+    } else {
+      await dbConnection.query('PRAGMA foreign_keys=OFF');
+      executedMigrations = await dbConnection.runMigrations();
+      await dbConnection.query('PRAGMA foreign_keys=ON');
     }
 
-    // Load Settings
-    const settings = await getSettings().load();
-    restartFlag.initializeSettings(settings);
+    if (executedMigrations.length > 0) {
+      logger.info(
+        `Applied ${executedMigrations.length} database migration(s)`,
+        { label: 'Database' }
+      );
+    }
+  }
+
+  restartFlag.initializeSettings(settings);
 
     initI18n();
 
@@ -296,8 +304,9 @@ app
         });
       });
     }
-  })
-  .catch((err) => {
-    logger.error(err.stack);
-    process.exit(1);
-  });
+};
+
+bootstrap().catch((err) => {
+  logger.error(err.stack);
+  process.exit(1);
+});

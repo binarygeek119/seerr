@@ -929,6 +929,7 @@ class Settings {
 
   public async save(): Promise<void> {
     const savePromise = this.saveLock.then(async () => {
+      await fs.mkdir(path.dirname(SETTINGS_PATH), { recursive: true });
       const tmp = SETTINGS_PATH + '.tmp';
       await fs.writeFile(tmp, JSON.stringify(this.data, undefined, ' '));
       await fs.rename(tmp, SETTINGS_PATH);
