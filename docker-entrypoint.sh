@@ -5,9 +5,9 @@ CONFIG_DIR="${CONFIG_DIRECTORY:-/app/config}"
 
 mkdir -p "${CONFIG_DIR}/db" "${CONFIG_DIR}/logs" "${CONFIG_DIR}/cache/images"
 
-if [ ! -f "${CONFIG_DIR}/DOCKER" ]; then
-  touch "${CONFIG_DIR}/DOCKER"
-fi
+# Do not create ${CONFIG_DIR}/DOCKER here. That marker is baked into the image at
+# build time and is hidden when /app/config is bind-mounted or uses a named volume.
+# Seerr uses its absence to detect a properly configured persistent config path.
 
 # Remove stale rotate symlinks/audit files from prior file-logging runs (can cause EBADF).
 if [ "${LOG_TO_FILE}" != "true" ]; then

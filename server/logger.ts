@@ -7,7 +7,7 @@ const configDirectory = process.env.CONFIG_DIRECTORY
   ? process.env.CONFIG_DIRECTORY
   : path.join(__dirname, '../config');
 
-const isDocker = existsSync(path.join(configDirectory, 'DOCKER'));
+const isDocker = existsSync('/.dockerenv');
 
 // In Docker, log to stdout by default (avoids EMFILE/EBADF from rotate + symlinks on low ulimit).
 // Set LOG_TO_FILE=true to persist logs under /app/config/logs.
