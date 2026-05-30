@@ -19,7 +19,6 @@ import cacheManager from '@server/lib/cache';
 import ImageProxy from '@server/lib/imageproxy';
 import { Permission } from '@server/lib/permissions';
 import { jellyfinFullScanner } from '@server/lib/scanners/jellyfin';
-import { audiobookshelfScanner } from '@server/lib/scanners/audiobookshelf';
 import { plexFullScanner } from '@server/lib/scanners/plex';
 import type { JobId, Library, MainSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
@@ -40,7 +39,6 @@ import { rescheduleJob } from 'node-schedule';
 import path from 'path';
 import semver from 'semver';
 import { URL } from 'url';
-import AudiobookshelfAPI from '@server/api/audiobookshelf';
 import lidarrRoutes from './lidarr';
 import audiobookshelfRoutes from './audiobookshelf';
 import readarrRoutes from './readarr';
@@ -494,67 +492,6 @@ settingsRoutes.post('/tautulli', async (req, res, next) => {
   }
 
   return res.status(200).json(settings.tautulli);
-});
-
-settingsRoutes.get('/audiobookshelf/library', async (req, res, next) => {
-  const settings = getSettings();
-
-  try {
-    if (req.query.sync) {
-      const client = new AudiobookshelfAPI(settings.audiobookshelf);
-      const libraries = await client.getLibraries();
-      const existing = settings.audiobookshelf.libraries;
-
-      settings.audiobookshelf.libraries = libraries
-        .filter((library) => library.mediaType === 'book')
-        .map((library) => {
-          const current = existing.find((entry) => entry.id === library.id);
-          return {
-            id: library.id,
-            name: library.name,
-            enabled: current?.enabled ?? false,
-          };
-        });
-    }
-
-    const enabledLibraries = req.query.enable
-      ? (req.query.enable as string).split(',')
-      : [];
-
-    if (req.query.enable) {
-      settings.audiobookshelf.libraries = settings.audiobookshelf.libraries.map(
-        (library) => ({
-          ...library,
-          enabled: enabledLibraries.includes(library.id),
-        })
-      );
-    }
-
-    await settings.save();
-    return res.status(200).json(settings.audiobookshelf.libraries);
-  } catch (e) {
-    logger.error('Something went wrong retrieving Audiobookshelf libraries', {
-      label: 'API',
-      errorMessage: e.message,
-    });
-    return next({
-      status: 500,
-      message: 'Unable to retrieve Audiobookshelf libraries.',
-    });
-  }
-});
-
-settingsRoutes.get('/audiobookshelf/sync', (_req, res) => {
-  return res.status(200).json(audiobookshelfScanner.status());
-});
-
-settingsRoutes.post('/audiobookshelf/sync', (req, res) => {
-  if (req.body.cancel) {
-    audiobookshelfScanner.cancel();
-  } else if (req.body.start) {
-    audiobookshelfScanner.run();
-  }
-  return res.status(200).json(audiobookshelfScanner.status());
 });
 
 settingsRoutes.get(

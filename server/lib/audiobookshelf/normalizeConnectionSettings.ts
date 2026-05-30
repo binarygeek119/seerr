@@ -9,7 +9,30 @@ export type AudiobookshelfConnectionSettings = Pick<
 export const normalizeAudiobookshelfConnection = (
   settings: Partial<AudiobookshelfConnectionSettings>
 ): AudiobookshelfConnectionSettings => {
+  let hostname = settings.hostname?.trim() ?? '';
+  let port = Number(settings.port) || 13378;
+  let useSsl = settings.useSsl ?? false;
   let urlBase = settings.urlBase?.trim() ?? '';
+
+  const protocolMatch = hostname.match(/^(https?):\/\//i);
+  if (protocolMatch) {
+    useSsl = protocolMatch[1].toLowerCase() === 'https';
+    hostname = hostname.replace(/^(https?):\/\//i, '');
+  }
+
+  const pathInHostname = hostname.match(/^([^/]+)(\/.*)$/);
+  if (pathInHostname) {
+    hostname = pathInHostname[1];
+    if (!urlBase) {
+      urlBase = pathInHostname[2].replace(/\/$/, '');
+    }
+  }
+
+  const hostPortMatch = hostname.match(/^([^:]+):(\d+)$/);
+  if (hostPortMatch) {
+    hostname = hostPortMatch[1];
+    port = Number(hostPortMatch[2]);
+  }
 
   if (urlBase && !urlBase.startsWith('/')) {
     urlBase = `/${urlBase}`;
@@ -20,9 +43,9 @@ export const normalizeAudiobookshelfConnection = (
   }
 
   return {
-    hostname: settings.hostname?.trim() ?? '',
-    port: Number(settings.port) || 13378,
-    useSsl: settings.useSsl ?? false,
+    hostname,
+    port,
+    useSsl,
     urlBase,
     apiKey: settings.apiKey ?? '',
   };
@@ -34,6 +57,10 @@ export const getAudiobookshelfConnectionErrorMessage = (
   if (axios.isAxiosError(error)) {
     if (error.response?.status === 401 || error.response?.status === 403) {
       return 'Failed to connect to Audiobookshelf. Check your API key.';
+    }
+
+    if (error.response?.status === 404) {
+      return 'Failed to connect to Audiobookshelf. The server returned not found. Check hostname, port, URL base, and Use SSL. Leave URL base blank unless Audiobookshelf is served from a subpath.';
     }
 
     if (

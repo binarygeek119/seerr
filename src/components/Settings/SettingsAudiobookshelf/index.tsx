@@ -27,6 +27,8 @@ const messages = defineMessages('components.Settings.SettingsAudiobookshelf', {
   settingsDescription:
     'Enter your Audiobookshelf server details. Create an API key in Audiobookshelf under Settings → Users → API Keys.',
   hostname: 'Hostname or IP Address',
+  hostnameTip:
+    'Do not include http:// or https://. Use the hostname Seerr can reach from its container or server.',
   port: 'Port',
   enablessl: 'Use SSL',
   urlBase: 'URL Base',
@@ -213,8 +215,10 @@ const SettingsAudiobookshelf = () => {
             mutate();
             revalidateLibraries();
           } catch (e) {
+            const apiMessage =
+              e?.response?.data?.message ?? e?.response?.data?.error;
             addToast(
-              e?.response?.data?.message ??
+              apiMessage ??
                 intl.formatMessage(messages.toastSettingsFailure),
               {
                 appearance: 'error',
@@ -242,8 +246,12 @@ const SettingsAudiobookshelf = () => {
                     id="hostname"
                     name="hostname"
                     className="rounded-r-only"
+                    placeholder="audiobookshelf"
                   />
                 </div>
+                <p className="description">
+                  {intl.formatMessage(messages.hostnameTip)}
+                </p>
                 {errors.hostname && touched.hostname && (
                   <div className="error">{errors.hostname}</div>
                 )}
