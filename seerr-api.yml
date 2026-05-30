@@ -567,6 +567,48 @@ components:
         externalUrl:
           type: string
           nullable: true
+    AudiobookshelfLibrary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: Audiobooks
+        enabled:
+          type: boolean
+          example: false
+      required:
+        - id
+        - name
+        - enabled
+    AudiobookshelfSettings:
+      type: object
+      properties:
+        hostname:
+          type: string
+          example: 'audiobookshelf'
+        port:
+          type: number
+          example: 13378
+        useSsl:
+          type: boolean
+          nullable: true
+        urlBase:
+          type: string
+          nullable: true
+          example: ''
+        apiKey:
+          type: string
+          nullable: true
+        webAppUrl:
+          type: string
+          nullable: true
+        libraries:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/AudiobookshelfLibrary'
     RadarrSettings:
       type: object
       properties:
@@ -2855,6 +2897,159 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TautulliSettings'
+  /settings/audiobookshelf:
+    get:
+      summary: Get Audiobookshelf settings
+      description: Retrieves current Audiobookshelf settings.
+      tags:
+        - settings
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudiobookshelfSettings'
+    post:
+      summary: Update Audiobookshelf settings
+      description: Updates Audiobookshelf settings with the provided values.
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudiobookshelfSettings'
+      responses:
+        '200':
+          description: 'Values were successfully updated'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudiobookshelfSettings'
+  /settings/audiobookshelf/test:
+    post:
+      summary: Test Audiobookshelf configuration
+      description: Tests if the Audiobookshelf configuration is valid.
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudiobookshelfSettings'
+      responses:
+        '200':
+          description: 'Successfully connected to Audiobookshelf'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /settings/audiobookshelf/library:
+    get:
+      summary: Get Audiobookshelf libraries
+      description: Returns a list of Audiobookshelf libraries in a JSON array.
+      tags:
+        - settings
+      parameters:
+        - in: query
+          name: sync
+          description: Syncs the current libraries with the current Audiobookshelf server
+          schema:
+            type: string
+            nullable: true
+        - in: query
+          name: enable
+          explode: false
+          allowReserved: true
+          description: Comma separated list of libraries to enable. Any libraries not passed will be disabled!
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: 'Audiobookshelf libraries returned'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AudiobookshelfLibrary'
+  /settings/audiobookshelf/sync:
+    get:
+      summary: Get status of full Audiobookshelf library sync
+      description: Returns sync progress in a JSON object.
+      tags:
+        - settings
+      responses:
+        '200':
+          description: Status of Audiobookshelf sync
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running:
+                    type: boolean
+                    example: false
+                  progress:
+                    type: number
+                    example: 0
+                  total:
+                    type: number
+                    example: 100
+                  currentLibrary:
+                    $ref: '#/components/schemas/AudiobookshelfLibrary'
+                  libraries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AudiobookshelfLibrary'
+    post:
+      summary: Start full Audiobookshelf library sync
+      description: Runs a full Audiobookshelf library sync and returns the progress in a JSON object.
+      tags:
+        - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancel:
+                  type: boolean
+                  example: false
+                start:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Status of Audiobookshelf sync
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running:
+                    type: boolean
+                    example: false
+                  progress:
+                    type: number
+                    example: 0
+                  total:
+                    type: number
+                    example: 100
+                  currentLibrary:
+                    $ref: '#/components/schemas/AudiobookshelfLibrary'
+                  libraries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AudiobookshelfLibrary'
   /settings/radarr:
     get:
       summary: Get Radarr settings
