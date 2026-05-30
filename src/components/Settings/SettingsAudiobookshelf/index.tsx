@@ -54,6 +54,8 @@ const messages = defineMessages('components.Settings.SettingsAudiobookshelf', {
   validationHostnameRequired: 'You must provide a valid hostname or IP address',
   validationPortRequired: 'You must provide a valid port number',
   validationApiKeyRequired: 'You must provide an API key',
+  validationUrlBaseLeadingSlash: 'URL base must have a leading slash',
+  validationUrlBaseTrailingSlash: 'URL base must not end in a trailing slash',
 });
 
 interface Library {
@@ -133,11 +135,23 @@ const SettingsAudiobookshelf = () => {
       intl.formatMessage(messages.validationHostnameRequired)
     ),
     port: Yup.number()
+      .typeError(intl.formatMessage(messages.validationPortRequired))
       .nullable()
       .required(intl.formatMessage(messages.validationPortRequired)),
     apiKey: Yup.string().required(
       intl.formatMessage(messages.validationApiKeyRequired)
     ),
+    urlBase: Yup.string()
+      .test(
+        'leading-slash',
+        intl.formatMessage(messages.validationUrlBaseLeadingSlash),
+        (value) => !value || value.startsWith('/')
+      )
+      .test(
+        'trailing-slash',
+        intl.formatMessage(messages.validationUrlBaseTrailingSlash),
+        (value) => !value || !value.endsWith('/')
+      ),
   });
 
   if (!data && !error) {
@@ -184,25 +198,29 @@ const SettingsAudiobookshelf = () => {
         validationSchema={validationSchema}
         onSubmit={async (values, { setSubmitting }) => {
           try {
-            await axios.post('/api/v1/settings/audiobookshelf/test', {
+            await axios.post('/api/v1/settings/audiobookshelf', {
               hostname: values.hostname,
               port: Number(values.port),
               useSsl: values.useSsl,
               urlBase: values.urlBase,
               apiKey: values.apiKey,
+              webAppUrl: values.webAppUrl,
             });
-            await axios.post('/api/v1/settings/audiobookshelf', values);
             addToast(intl.formatMessage(messages.toastSettingsSuccess), {
               appearance: 'success',
               autoDismiss: true,
             });
             mutate();
             revalidateLibraries();
-          } catch {
-            addToast(intl.formatMessage(messages.toastSettingsFailure), {
-              appearance: 'error',
-              autoDismiss: true,
-            });
+          } catch (e) {
+            addToast(
+              e?.response?.data?.message ??
+                intl.formatMessage(messages.toastSettingsFailure),
+              {
+                appearance: 'error',
+                autoDismiss: true,
+              }
+            );
           } finally {
             setSubmitting(false);
           }
@@ -261,6 +279,11 @@ const SettingsAudiobookshelf = () => {
               </label>
               <div className="form-input-area">
                 <Field type="text" id="urlBase" name="urlBase" />
+                {errors.urlBase &&
+                  touched.urlBase &&
+                  typeof errors.urlBase === 'string' && (
+                    <div className="error">{errors.urlBase}</div>
+                  )}
               </div>
             </div>
             <div className="form-row">

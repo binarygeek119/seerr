@@ -1,5 +1,10 @@
+import {
+  normalizeAudiobookshelfConnection,
+  type AudiobookshelfConnectionSettings,
+} from '@server/lib/audiobookshelf/normalizeConnectionSettings';
 import type { AudiobookshelfSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
+import { requestInterceptorFunction } from '@server/utils/customProxyAgent';
 import axios, { type AxiosInstance } from 'axios';
 
 export interface AudiobookshelfLibrary {
@@ -29,11 +34,6 @@ export interface AudiobookshelfLibraryItemsResponse {
   total: number;
 }
 
-type AudiobookshelfConnection = Pick<
-  AudiobookshelfSettings,
-  'hostname' | 'port' | 'useSsl' | 'urlBase' | 'apiKey'
->;
-
 class AudiobookshelfAPI {
   private axios: AxiosInstance;
 
@@ -41,20 +41,28 @@ class AudiobookshelfAPI {
     settings: Pick<AudiobookshelfSettings, 'hostname' | 'port' | 'useSsl' | 'urlBase'>,
     path = ''
   ): string {
-    const protocol = settings.useSsl ? 'https' : 'http';
-    const base = settings.urlBase ?? '';
-    return `${protocol}://${settings.hostname}:${settings.port}${base}${path}`;
+    const normalized = normalizeAudiobookshelfConnection(settings);
+    const protocol = normalized.useSsl ? 'https' : 'http';
+    const suffix = path
+      ? path.startsWith('/')
+        ? path
+        : `/${path}`
+      : '';
+
+    return `${protocol}://${normalized.hostname}:${normalized.port}${normalized.urlBase ?? ''}${suffix}`;
   }
 
-  constructor(settings: AudiobookshelfConnection) {
+  constructor(settings: AudiobookshelfConnectionSettings) {
+    const normalized = normalizeAudiobookshelfConnection(settings);
     const configuredTimeout = getSettings().network.apiRequestTimeout;
     this.axios = axios.create({
-      baseURL: AudiobookshelfAPI.buildUrl(settings),
+      baseURL: AudiobookshelfAPI.buildUrl(normalized),
       headers: {
-        Authorization: `Bearer ${settings.apiKey}`,
+        Authorization: `Bearer ${normalized.apiKey}`,
       },
       timeout: configuredTimeout > 0 ? configuredTimeout : 30000,
     });
+    this.axios.interceptors.request.use(requestInterceptorFunction);
   }
 
   public async getLibraries(): Promise<AudiobookshelfLibrary[]> {
