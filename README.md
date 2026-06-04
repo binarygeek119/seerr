@@ -38,6 +38,15 @@ Once music and book/audiobook support land in [official Seerr](https://github.co
 
 For the official project, roadmap, and support, see [seerr-team/seerr](https://github.com/seerr-team/seerr).
 
+### Support official Seerr
+
+This fork is built on **[official Seerr](https://github.com/seerr-team/seerr)**. The maintainers and contributors upstream do the heavy lifting — please support them, not only this fork:
+
+- ⭐ Star [seerr-team/seerr](https://github.com/seerr-team/seerr) on GitHub
+- 🐛 Report core bugs and features on [upstream issues](https://github.com/seerr-team/seerr/issues) when they are not specific to this fork’s 3D mod
+- 💬 Join official community: [docs.seerr.dev](https://docs.seerr.dev) and [Discord (seerr-team)](https://discord.gg/seerr)
+- 💝 **Donate** via [Open Collective → Seerr](https://opencollective.com/seerr) — contributions go to the official project (see backers/sponsors at the bottom of this README)
+
 ## Current Features
 
 - Full Jellyfin/Emby/Plex integration including authentication with user import & management.
@@ -84,13 +93,17 @@ You can access the API documentation from your local Seerr install at http://loc
 
 ## Community
 
-If you would like to chat with other members of our growing community, [join the Seerr Discord server](https://discord.gg/xmNs5ecFX)!
+For **this fork**, chat on [Open Repository's Discord](https://discord.gg/xmNs5ecFX). For **official Seerr**, use [discord.gg/seerr](https://discord.gg/seerr).
 
 Our [Code of Conduct](./CODE_OF_CONDUCT.md) applies to all Seerr community channels.
 
 ## Contributing
 
 You can help improve Seerr too! Check out our [Contribution Guide](./CONTRIBUTING.md) to get started.
+
+## Support official Seerr (donations)
+
+The badges below support the **official** [Seerr](https://github.com/seerr-team/seerr) maintainers via [Open Collective](https://opencollective.com/seerr), not this fork.
 
 ## Contributors ✨
 
