@@ -3,10 +3,10 @@
 </p>
 <p align="center">
 <a href="https://github.com/binarygeek119/seerr/actions/workflows/release.yml">
-<img src="https://img.shields.io/github/actions/workflow/status/binarygeek119/seerr/release.yml?label=release" alt="Fork release workflow" />
+<img src="https://github.com/binarygeek119/seerr/actions/workflows/release.yml/badge.svg" alt="Fork release workflow" />
 </a>
 <a href="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml">
-<img src="https://img.shields.io/github/actions/workflow/status/binarygeek119/seerr/ci.yml?branch=develop&label=ci" alt="Fork CI (develop)" />
+<img src="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml/badge.svg?branch=develop" alt="Fork CI (develop)" />
 </a>
 </p>
 <p align="center">

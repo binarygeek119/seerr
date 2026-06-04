@@ -18,6 +18,12 @@ export const GITHUB_REPO_FULL = GITHUB_REPO_URL.replace(
 export const GITHUB_RELEASES_URL = `${GITHUB_REPO_URL}/releases`;
 export const GITHUB_COMMITS_DEVELOP_URL = `${GITHUB_REPO_URL}/commits/develop`;
 
+export const GITHUB_CI_WORKFLOW_URL = `${GITHUB_REPO_URL}/actions/workflows/ci.yml`;
+export const GITHUB_CI_BADGE_URL = `${GITHUB_CI_WORKFLOW_URL}/badge.svg?branch=develop`;
+
+export const GITHUB_RELEASE_WORKFLOW_URL = `${GITHUB_REPO_URL}/actions/workflows/release.yml`;
+export const GITHUB_RELEASE_BADGE_URL = `${GITHUB_RELEASE_WORKFLOW_URL}/badge.svg`;
+
 export const githubCompareDevelopUrl = (commitTag: string): string =>
   `${GITHUB_REPO_URL}/compare/${commitTag}...develop`;
 
