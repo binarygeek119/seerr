@@ -7,7 +7,7 @@
 </p>
 <p align="center">
 <a href="https://discord.gg/xmNs5ecFX"><img src="https://img.shields.io/badge/Discord-Open%20Repository's-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
-<a href="https://hub.docker.com/r/seerr/seerr"><img src="https://img.shields.io/docker/pulls/seerr/seerr" alt="Docker pulls"></a>
+<a href="https://hub.docker.com/r/binarygeek119/seerr"><img src="https://img.shields.io/docker/pulls/binarygeek119/seerr" alt="Docker pulls"></a>
 <a href="https://translate.seerr.dev/engage/seerr/"><img src="https://translate.seerr.dev/widget/seerr/svg-badge.svg" alt="Translation status" /></a>
 <a href="https://github.com/binarygeek119/seerr/blob/develop/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/binarygeek119/seerr"></a>
 
