@@ -8,6 +8,7 @@ import globalMessages from '@app/i18n/globalMessages';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
 import { formatVersionForDisplay, isDevelopVersion } from '@app/utils/version';
+import { DISCORD_INVITE_URL } from '@server/constants/community';
 import {
   GITHUB_COMMITS_DEVELOP_URL,
   GITHUB_ISSUES_URL,
@@ -159,12 +160,12 @@ const SettingsAbout = () => {
           </List.Item>
           <List.Item title="Discord">
             <a
-              href="https://discord.gg/seerr"
+              href={DISCORD_INVITE_URL}
               target="_blank"
               rel="noreferrer"
               className="text-indigo-500 transition duration-300 hover:underline"
             >
-              https://discord.gg/seerr
+              {DISCORD_INVITE_URL}
             </a>
           </List.Item>
         </List>

@@ -6,7 +6,7 @@
 <img src="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml/badge.svg" alt="Seerr CI">
 </p>
 <p align="center">
-<a href="https://discord.gg/seerr"><img src="https://img.shields.io/discord/783137440809746482" alt="Discord"></a>
+<a href="https://discord.gg/xmNs5ecFX"><img src="https://img.shields.io/badge/Discord-Open%20Repository's-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 <a href="https://hub.docker.com/r/seerr/seerr"><img src="https://img.shields.io/docker/pulls/seerr/seerr" alt="Docker pulls"></a>
 <a href="https://translate.seerr.dev/engage/seerr/"><img src="https://translate.seerr.dev/widget/seerr/svg-badge.svg" alt="Translation status" /></a>
 <a href="https://github.com/binarygeek119/seerr/blob/develop/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/binarygeek119/seerr"></a>
@@ -65,7 +65,7 @@ Please follow our [migration guide](https://docs.seerr.dev/migration-guide) for 
 ## Support
 
 - Check out the [Seerr Documentation](https://docs.seerr.dev) before asking for help. Your question might already be in the docs!
-- You can get support on [Discord](https://discord.gg/seerr).
+- You can get support on [Discord](https://discord.gg/xmNs5ecFX).
 - Questions, bug reports, and feature requests can be submitted via [GitHub Issues](/../../issues).
 
 ## API Documentation
@@ -74,7 +74,7 @@ You can access the API documentation from your local Seerr install at http://loc
 
 ## Community
 
-If you would like to chat with other members of our growing community, [join the Seerr Discord server](https://discord.gg/seerr)!
+If you would like to chat with other members of our growing community, [join the Seerr Discord server](https://discord.gg/xmNs5ecFX)!
 
 Our [Code of Conduct](./CODE_OF_CONDUCT.md) applies to all Seerr community channels.
 

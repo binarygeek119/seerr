@@ -94,4 +94,4 @@ Security updates and advisories will be published on our [GitHub Security Adviso
 For general questions and support (non-security related):
 
 - [GitHub Issues](../../issues)
-- [Discord](https://discord.gg/seerr)
+- [Discord](https://discord.gg/xmNs5ecFX)
