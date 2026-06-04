@@ -856,7 +856,7 @@
   "components.Settings.SettingsAbout.Releases.releases": "Izdanja",
   "components.Settings.SettingsAbout.documentation": "Dokumentacija",
   "components.Settings.SettingsAbout.gettingsupport": "Dobivanje pomoći",
-  "components.Settings.SettingsAbout.githubdiscussions": "Rasprave na GitHubu",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Zastarjela verzija",
   "components.Settings.SettingsAbout.runningDevelop": "Pokrećeš <code>razvojnu</code> Seerr granu, koja se preporučuje samo onima koji doprinose razvoju ili pomažu najnovijem testiranju.",
   "components.Settings.SettingsAbout.timezone": "Vremenska zona",

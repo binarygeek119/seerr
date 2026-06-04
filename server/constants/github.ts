@@ -15,7 +15,6 @@ export const GITHUB_REPO_FULL = GITHUB_REPO_URL.replace(
   ''
 );
 
-export const GITHUB_DISCUSSIONS_URL = `${GITHUB_REPO_URL}/discussions`;
 export const GITHUB_RELEASES_URL = `${GITHUB_REPO_URL}/releases`;
 export const GITHUB_COMMITS_DEVELOP_URL = `${GITHUB_REPO_URL}/commits/develop`;
 

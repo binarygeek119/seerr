@@ -467,7 +467,7 @@
   "components.Settings.SettingsAbout.Releases.releasedataMissing": "Të dhënat e lëshimit nuk janë të disponueshme.",
   "components.Settings.SettingsAbout.documentation": "Dokumentacioni",
   "components.Settings.SettingsAbout.gettingsupport": "Marrja e mbështetjes",
-  "components.Settings.SettingsAbout.githubdiscussions": "Diskutimet e GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.Notifications.sendSilentlyTip": "Dërgo njoftime pa zë",
   "components.Settings.Notifications.senderName": "Emri i dërguesit",
   "components.Settings.Notifications.smtpPort": "Porta SMTP",

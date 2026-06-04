@@ -107,7 +107,7 @@
   "components.Settings.SettingsAbout.version": "Verzija",
   "components.Settings.SettingsAbout.totalrequests": "Ukupno zahteva",
   "components.Settings.SettingsAbout.totalmedia": "Ukupno medija",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub rasprave",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Pomoć",
   "components.Settings.RadarrModal.validationRootFolderRequired": "Morate odabrati root folder",
   "components.Settings.RadarrModal.validationProfileRequired": "Morate odabrati profil kvaliteta",

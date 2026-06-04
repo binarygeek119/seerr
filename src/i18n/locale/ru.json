@@ -303,7 +303,7 @@
   "components.Discover.DiscoverStudio.studioMovies": "Фильмы {studio}",
   "components.Discover.DiscoverMovieLanguage.languageMovies": "Фильмы на языке \"{language}\"",
   "components.Discover.DiscoverMovieGenre.genreMovies": "Фильмы в жанре \"{genre}\"",
-  "components.Settings.SettingsAbout.githubdiscussions": "Обсуждения на GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.enablessl": "Использовать SSL",
   "components.Settings.is4k": "4К",
   "components.Settings.mediaTypeMovie": "фильм",

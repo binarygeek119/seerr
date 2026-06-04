@@ -895,7 +895,7 @@
   "components.Settings.SettingsAbout.contribute": "Panusta arendusse",
   "components.Settings.SettingsAbout.documentation": "Dokumentatsioon",
   "components.Settings.SettingsAbout.gettingsupport": "Abi saamine",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHubi arutelud",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Vananenud",
   "components.Settings.SettingsAbout.runningDevelop": "Kasutate Seerri <code>develop</code> haru, mis on soovitatav ainult arendajatele või neile, kes aitavad katsetada kõige värskemaid (bleeding-edge) muudatusi.",
   "components.Settings.SettingsAbout.supportseerr": "Toeta Seerri",

@@ -175,8 +175,8 @@ const config: Config = {
               href: 'https://discord.gg/seerr',
             },
             {
-              label: 'Github Discussions',
-              href: 'https://github.com/seerr-team/seerr/discussions',
+              label: 'GitHub Issues',
+              href: 'https://github.com/binarygeek119/seerr/issues',
             },
           ],
         },

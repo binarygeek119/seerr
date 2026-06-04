@@ -283,7 +283,7 @@
   "components.Settings.SettingsAbout.version": "Version",
   "components.Settings.SettingsAbout.totalrequests": "Total des demandes",
   "components.Settings.SettingsAbout.totalmedia": "Total des médias",
-  "components.Settings.SettingsAbout.githubdiscussions": "Discussions GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Obtenir de l'aide",
   "components.Settings.RadarrModal.validationNameRequired": "Vous devez fournir un nom de serveur",
   "i18n.deleting": "Suppression…",

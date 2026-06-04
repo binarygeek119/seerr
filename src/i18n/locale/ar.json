@@ -541,7 +541,7 @@
   "components.Settings.SettingsAbout.appDataPath": "مكان تخزين البيانات",
   "components.Settings.SettingsAbout.documentation": "الوثائق",
   "components.Settings.SettingsAbout.gettingsupport": "الحصول على دعم",
-  "components.Settings.SettingsAbout.githubdiscussions": "نقاشات GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "غير محدث",
   "components.Settings.SettingsJobsCache.cache": "الملفات المؤقتة",
   "components.Settings.SettingsAbout.totalmedia": "المجموع الكلي للمحتوى",

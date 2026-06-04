@@ -885,7 +885,7 @@
   "components.Settings.SettingsAbout.contribute": "Egin ekarpen bat",
   "components.Settings.SettingsAbout.documentation": "Dokumentazioa",
   "components.Settings.SettingsAbout.gettingsupport": "Lortu laguntza",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub eztabaidak",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Zaharkituta",
   "components.Settings.SettingsAbout.runningDevelop": "Seerr-en <code>garapen</code> adarra exekutatzen ari zara, garapenean laguntzen duten edo \"bleeding-edge\" probetan laguntzen dutenentzat bakarrik gomendatzen dena.",
   "components.Settings.SettingsAbout.supportseerr": "Lagundu Seerr-i",

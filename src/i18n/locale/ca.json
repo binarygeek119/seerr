@@ -541,7 +541,7 @@
   "components.Settings.SettingsJobsCache.cacheflushed": "La memòria cau de {cachename} s'ha buidat.",
   "components.Settings.SettingsAbout.totalrequests": "Sol·licituds totals",
   "components.Settings.SettingsAbout.totalmedia": "Total de contingut",
-  "components.Settings.SettingsAbout.githubdiscussions": "Debats de GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.Releases.viewongithub": "Visualitza a GitHub",
   "components.Settings.SettingsAbout.Releases.viewchangelog": "Visualitza el registre de canvis",
   "components.Settings.SettingsAbout.Releases.versionChangelog": "Registre de canvis {version}",

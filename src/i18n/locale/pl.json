@@ -533,7 +533,7 @@
   "components.Settings.SettingsAbout.about": "O Seerr",
   "components.Settings.SettingsAbout.documentation": "Dokumentacja",
   "components.Settings.SettingsAbout.gettingsupport": "Uzyskiwanie pomocy technicznej",
-  "components.Settings.SettingsAbout.githubdiscussions": "Dyskusje na GitHubie",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Nieaktualne",
   "components.Settings.SettingsAbout.runningDevelop": "Korzystasz z gałęzi <code>deweloperskiej</code> Seerr, która jest zalecana tylko dla osób przyczyniających się do rozwoju lub pomagających w testach.",
   "components.Settings.SettingsAbout.timezone": "Strefa czasowa",

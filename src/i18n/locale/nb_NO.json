@@ -386,7 +386,7 @@
   "components.Settings.SettingsAbout.totalmedia": "Totalt antall tilgjengelig",
   "components.Settings.SettingsAbout.totalrequests": "Forespørsler totalt",
   "components.Settings.SettingsAbout.timezone": "Tidssone",
-  "components.Settings.SettingsAbout.githubdiscussions": "Diskuter på GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Få hjelp",
   "components.Settings.SettingsAbout.documentation": "Dokumentasjon",
   "components.Settings.SettingsAbout.about": "Om",

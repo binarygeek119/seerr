@@ -867,7 +867,7 @@
   "components.Settings.SettingsAbout.contribute": "Fazer uma contribuição",
   "components.Settings.SettingsAbout.documentation": "Documentação",
   "components.Settings.SettingsAbout.gettingsupport": "Obtenha Suporte",
-  "components.Settings.SettingsAbout.githubdiscussions": "Discussões no GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Desatualizado",
   "components.Settings.SettingsAbout.runningDevelop": "Você está usando a versão <code>develop</code> do Seerr que é recomendada apenas para àqueles contribuindo com o desenvolvimento ou ajudando no teste de novas funcionalidades.",
   "components.Settings.SettingsAbout.supportseerr": "Suporte Seerr",

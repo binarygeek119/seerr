@@ -6,7 +6,7 @@ Maintainers and community take security bugs seriously. We appreciate your effor
 
 To report a security issue, please use the GitHub Security Advisory ["Report a Vulnerability"](../../security/advisories/new) tab.
 
-**Please do not report security vulnerabilities through public GitHub issues, discussions, or Discord.**
+**Please do not report security vulnerabilities through public GitHub issues or Discord.**
 
 ## AI Assistance Notice
 
@@ -93,5 +93,5 @@ Security updates and advisories will be published on our [GitHub Security Adviso
 
 For general questions and support (non-security related):
 
-- [GitHub Discussions](../../discussions)
+- [GitHub Issues](../../issues)
 - [Discord](https://discord.gg/seerr)

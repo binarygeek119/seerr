@@ -895,7 +895,7 @@
   "components.Settings.SettingsAbout.contribute": "Einen Beitrag leisten",
   "components.Settings.SettingsAbout.documentation": "Dokumentation",
   "components.Settings.SettingsAbout.gettingsupport": "Hilfe erhalten",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub-Diskussionen",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Veraltet",
   "components.Settings.SettingsAbout.runningDevelop": "Es wird der <code>develop</code>-Branch von Seerr verwendet, der nur für Mitwirkende an der Entwicklung oder für Tests der neuesten Funktionen empfohlen wird.",
   "components.Settings.SettingsAbout.supportseerr": "Seerr unterstützen",

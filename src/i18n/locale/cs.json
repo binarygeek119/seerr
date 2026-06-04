@@ -895,7 +895,7 @@
   "components.Settings.SettingsAbout.contribute": "Přispět",
   "components.Settings.SettingsAbout.documentation": "Dokumentace",
   "components.Settings.SettingsAbout.gettingsupport": "Získání podpory",
-  "components.Settings.SettingsAbout.githubdiscussions": "Diskuze na GitHubu",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Zastaralé",
   "components.Settings.SettingsAbout.runningDevelop": "Používáte <code>vývojovou</code> větev Seerr, která je doporučena pouze těm, kteří se podílejí na vývoji nebo pomáhají s testováním.",
   "components.Settings.SettingsAbout.supportseerr": "Podpořit Seerr",

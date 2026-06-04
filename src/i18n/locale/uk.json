@@ -596,7 +596,7 @@
   "components.Settings.SettingsAbout.appDataPath": "Каталог даних",
   "components.Settings.SettingsAbout.documentation": "Документація",
   "components.Settings.SettingsAbout.gettingsupport": "Отримати підтримку",
-  "components.Settings.SettingsAbout.githubdiscussions": "Обговорення на GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Застаріла",
   "components.Settings.SettingsAbout.runningDevelop": "Ви використовуєте гілку <code>develop</code> проєкту Seerr, яка рекомендується тільки для тих, хто робить внесок у розробку або допомагає в тестуванні.",
   "components.Settings.SettingsAbout.timezone": "Часовий пояс",

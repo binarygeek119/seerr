@@ -1047,7 +1047,7 @@
   "components.Settings.Notifications.encryptionTip": "대부분의 경우 암시적 TLS는 465 포트를 사용하고 STARTTLS는 587 포트를 사용합니다",
   "components.Settings.SettingsAbout.Releases.versionChangelog": "{version} 변경 로그",
   "components.Settings.SettingsAbout.uptodate": "최신",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub 토론",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.version": "버전",
   "components.Settings.SettingsJobsCache.cachevsize": "값 크기",
   "components.Settings.SettingsJobsCache.cachemisses": "누락",

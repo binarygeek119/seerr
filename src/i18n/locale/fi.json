@@ -600,7 +600,7 @@
   "components.Settings.SettingsAbout.Releases.viewongithub": "Näytä GitHub:issa",
   "components.Settings.SettingsAbout.appDataPath": "Datakansio",
   "components.Settings.SettingsAbout.gettingsupport": "Tukea",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub keskustelut",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsJobsCache.cacheflushed": "{cachename} välimuisti tyhjennetty.",
   "components.Settings.SettingsJobsCache.cachemisses": "Huteja",
   "components.Settings.SettingsJobsCache.cachename": "Välimuistin nimi",

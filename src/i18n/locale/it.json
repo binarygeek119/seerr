@@ -146,7 +146,7 @@
   "components.Settings.SonarrModal.add": "Aggiungi un server",
   "components.Settings.SettingsAbout.totalrequests": "Totale richieste",
   "components.Settings.SettingsAbout.totalmedia": "Media totali",
-  "components.Settings.SettingsAbout.githubdiscussions": "Discussioni su GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Ottieni aiuto",
   "components.Settings.RadarrModal.validationRootFolderRequired": "È necessario selezionare una cartella principale",
   "components.Settings.RadarrModal.validationProfileRequired": "È necessario selezionare un profilo di qualità",

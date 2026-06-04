@@ -425,7 +425,7 @@
   "components.Settings.SettingsAbout.totalrequests": "Σύνολο αιτημάτων",
   "components.Settings.SettingsAbout.totalmedia": "Σύνολο μέσων",
   "components.Settings.SettingsAbout.timezone": "Ζώνη ώρας",
-  "components.Settings.SettingsAbout.githubdiscussions": "Συζητήσεις στο GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Λήψη Υποστήριξης",
   "components.Settings.SettingsAbout.documentation": "Εγχειρίδιο",
   "components.Settings.SettingsAbout.about": "Σχετικά",

@@ -67,7 +67,7 @@
   "components.Settings.SettingsAbout.version": "Version",
   "components.Settings.SettingsAbout.totalrequests": "Totalt antal förfrågningar",
   "components.Settings.SettingsAbout.totalmedia": "Totalt antal mediaobjekt",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub-diskussioner",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Få support",
   "components.Settings.RadarrModal.validationRootFolderRequired": "Du måste ange en rotmapp",
   "components.Settings.RadarrModal.validationProfileRequired": "Du måste välja en kvalitetsprofil",

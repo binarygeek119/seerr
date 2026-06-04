@@ -272,7 +272,7 @@
   "components.Settings.SettingsAbout.totalrequests": "Todos os Pedidos",
   "components.Settings.SettingsAbout.totalmedia": "Total de Multimédia",
   "components.Settings.SettingsAbout.timezone": "Fuso Horário",
-  "components.Settings.SettingsAbout.githubdiscussions": "Discussões no GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Obter Suporte",
   "components.Settings.SettingsAbout.documentation": "Documentação",
   "components.Settings.SettingsAbout.Releases.viewongithub": "Ver no GitHub",

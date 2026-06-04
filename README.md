@@ -66,16 +66,13 @@ Please follow our [migration guide](https://docs.seerr.dev/migration-guide) for 
 
 - Check out the [Seerr Documentation](https://docs.seerr.dev) before asking for help. Your question might already be in the docs!
 - You can get support on [Discord](https://discord.gg/seerr).
-- You can ask questions in the Help category of our [GitHub Discussions](/../../discussions).
-- Bug reports and feature requests can be submitted via [GitHub Issues](/../../issues).
+- Questions, bug reports, and feature requests can be submitted via [GitHub Issues](/../../issues).
 
 ## API Documentation
 
 You can access the API documentation from your local Seerr install at http://localhost:5055/api-docs
 
 ## Community
-
-You can ask questions, share ideas, and more in [GitHub Discussions](/../../discussions).
 
 If you would like to chat with other members of our growing community, [join the Seerr Discord server](https://discord.gg/seerr)!
 

@@ -166,7 +166,7 @@
   "components.Settings.menuGeneralSettings": "一般",
   "components.Settings.SettingsAbout.totalrequests": "請求數",
   "components.Settings.SettingsAbout.totalmedia": "媒體數",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub 討論區",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.startscan": "執行掃描",
   "components.Settings.cancelscan": "取消掃描",
   "components.Settings.RadarrModal.toastRadarrTestSuccess": "Radarr 伺服器連線成功！",

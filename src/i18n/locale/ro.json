@@ -812,7 +812,7 @@
   "components.Settings.SettingsAbout.appDataPath": "Directorul de date",
   "components.Settings.SettingsAbout.documentation": "Documentație",
   "components.Settings.SettingsAbout.gettingsupport": "Obține ajutor",
-  "components.Settings.SettingsAbout.githubdiscussions": "Discuții GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Vechi",
   "components.Settings.SettingsAbout.runningDevelop": "Rulezi branch-ul de <code>develop</code> de Seerr, ceea ce este recomandat doar pentru cei ce contribuie la dezvoltare sau la testare.",
   "components.Settings.SettingsAbout.timezone": "Fus orar",

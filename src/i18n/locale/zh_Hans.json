@@ -492,7 +492,7 @@
   "components.Settings.SettingsAbout.totalmedia": "媒体数",
   "components.Settings.SettingsAbout.timezone": "时区",
   "components.Settings.SettingsAbout.outofdate": "過时",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub 讨论区",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "支援",
   "components.Settings.SettingsAbout.documentation": "文档",
   "components.Settings.SettingsAbout.about": "关于 Seerr",

@@ -895,7 +895,7 @@
   "components.Settings.SettingsAbout.contribute": "貢献する",
   "components.Settings.SettingsAbout.documentation": "ドキュメント",
   "components.Settings.SettingsAbout.gettingsupport": "サポート",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub ディスカッション",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "期限切れ",
   "components.Settings.SettingsAbout.runningDevelop": "あなたはSeerrの<code>開発版</code>のブランチを実行しています。このブランチは開発に貢献する方や最先端のテストを支援する方にのみ推奨されます。",
   "components.Settings.SettingsAbout.supportseerr": "Seerr サポート",

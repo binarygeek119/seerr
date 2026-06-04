@@ -429,7 +429,7 @@
   "components.Settings.SettingsAbout.totalmedia": "Teljes média",
   "components.Settings.SettingsAbout.timezone": "Időzóna",
   "components.Settings.SettingsAbout.outofdate": "Lejárt",
-  "components.Settings.SettingsAbout.githubdiscussions": "GitHub‑beszélgetések",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Támogatás kérése",
   "components.Settings.SettingsAbout.documentation": "Dokumentáció",
   "components.Settings.SettingsAbout.about": "Az oldalról",

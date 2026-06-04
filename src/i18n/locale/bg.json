@@ -895,7 +895,7 @@
   "components.Settings.SettingsAbout.contribute": "Допринесете",
   "components.Settings.SettingsAbout.documentation": "Документация",
   "components.Settings.SettingsAbout.gettingsupport": "Получаване на поддръжка",
-  "components.Settings.SettingsAbout.githubdiscussions": "Дискусии в GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.outofdate": "Остаряла версия",
   "components.Settings.SettingsAbout.runningDevelop": "Използвате клона <code>develop</code> на Seerr, който се препоръчва само за хора, които допринасят за разработката или помагат с тестване на най-новите функции.",
   "components.Settings.SettingsAbout.supportseerr": "Подкрепете Seerr",

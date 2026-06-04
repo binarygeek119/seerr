@@ -18,7 +18,7 @@
   "components.Settings.SettingsAbout.version": "Versión",
   "components.Settings.SettingsAbout.totalrequests": "Peticiones Totales",
   "components.Settings.SettingsAbout.totalmedia": "Contenido Total",
-  "components.Settings.SettingsAbout.githubdiscussions": "Discursiones en GitHub",
+  "components.Settings.SettingsAbout.githubissues": "GitHub Issues",
   "components.Settings.SettingsAbout.gettingsupport": "Soporte",
   "components.Settings.RadarrModal.validationRootFolderRequired": "Debes seleccionar una carpeta raíz",
   "components.Settings.RadarrModal.validationProfileRequired": "Debes seleccionar un perfil de calidad",
