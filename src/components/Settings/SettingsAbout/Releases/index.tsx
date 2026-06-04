@@ -8,6 +8,7 @@ import { Transition } from '@headlessui/react';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
 import dynamic from 'next/dynamic';
 import { Fragment, useState } from 'react';
+import { GITHUB_API_REPO_BASE } from '@server/constants/github';
 import { FormattedRelativeTime, useIntl } from 'react-intl';
 import useSWR from 'swr';
 
@@ -28,8 +29,7 @@ const messages = defineMessages('components.Settings.SettingsAbout.Releases', {
   viewchangelog: 'View Changelog',
 });
 
-const REPO_RELEASE_API =
-  'https://api.github.com/repos/seerr-team/seerr/releases?per_page=20';
+const REPO_RELEASE_API = `https://api.github.com${GITHUB_API_REPO_BASE}/releases?per_page=20`;
 
 interface GitHubRelease {
   url: string;

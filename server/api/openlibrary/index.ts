@@ -27,7 +27,7 @@ class OpenLibrary extends ExternalAPI {
       {},
       {
         headers: {
-          'User-Agent': 'Seerr/1.0.0 (https://github.com/seerr-team/seerr)',
+          'User-Agent': 'Seerr/1.0.0 (https://github.com/binarygeek119/seerr)',
           Accept: 'application/json',
         },
         nodeCache: cacheManager.getCache('openlibrary').data,

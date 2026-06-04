@@ -4,17 +4,17 @@
 
 Seerr helm chart for Kubernetes
 
-**Homepage:** <https://github.com/seerr-team/seerr>
+**Homepage:** <https://github.com/binarygeek119/seerr>
 
 ## Maintainers
 
 | Name | Email | Url |
 | ---- | ------ | --- |
-| Seerr Team |  | <https://github.com/orgs/seerr-team/people> |
+| binarygeek119 |  | <https://github.com/binarygeek119> |
 
 ## Source Code
 
-* <https://github.com/seerr-team/seerr/tree/main/charts/seerr-chart>
+* <https://github.com/binarygeek119/seerr/tree/develop/charts/seerr-chart>
 
 ## Requirements
 
@@ -58,7 +58,7 @@ If `replicaCount` value was used - remove it. Helm update should work fine after
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
-| image.repository | string | `"seerr-team/seerr"` |  |
+| image.repository | string | `"binarygeek119/seerr"` |  |
 | image.sha | string | `""` |  |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` |  |

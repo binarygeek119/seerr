@@ -1,3 +1,4 @@
+import { githubRawDevelopUrl } from '@server/constants/github';
 import { IssueType, IssueTypeName } from '@server/constants/issue';
 import { MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
@@ -16,8 +17,7 @@ import { Notification, shouldSendAdminNotification } from '..';
 import type { NotificationAgent, NotificationPayload } from './agent';
 import { BaseAgent } from './agent';
 
-const PUBLIC_LOGO_URL =
-  'https://raw.githubusercontent.com/seerr-team/seerr/refs/heads/develop/public/logo_full.svg';
+const PUBLIC_LOGO_URL = githubRawDevelopUrl('public/logo_full.svg');
 
 const messages = defineMessages('notifications.agents.email', {
   issueType: '{type} issue',

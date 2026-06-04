@@ -8,6 +8,12 @@ import globalMessages from '@app/i18n/globalMessages';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
 import { formatVersionForDisplay, isDevelopVersion } from '@app/utils/version';
+import {
+  GITHUB_COMMITS_DEVELOP_URL,
+  GITHUB_ISSUES_URL,
+  GITHUB_RELEASES_URL,
+  githubCompareDevelopUrl,
+} from '@server/constants/github';
 import type {
   SettingsAboutResponse,
   StatusResponse,
@@ -22,7 +28,7 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
   totalmedia: 'Total Media',
   totalrequests: 'Total Requests',
   gettingsupport: 'Getting Support',
-  githubdiscussions: 'GitHub Discussions',
+  githubissues: 'GitHub Issues',
   timezone: 'Time Zone',
   appDataPath: 'Data Directory',
   supportseerr: 'Support Seerr',
@@ -81,8 +87,8 @@ const SettingsAbout = () => {
                 <a
                   href={
                     isDevelopVersion(data.version)
-                      ? `https://github.com/binarygeek119/seerr/compare/${status.commitTag}...develop`
-                      : 'https://github.com/seerr-team/seerr/releases'
+                      ? githubCompareDevelopUrl(status.commitTag)
+                      : GITHUB_RELEASES_URL
                   }
                   target="_blank"
                   rel="noopener noreferrer"
@@ -98,8 +104,8 @@ const SettingsAbout = () => {
                 <a
                   href={
                     isDevelopVersion(data.version)
-                      ? 'https://github.com/binarygeek119/seerr/commits/develop'
-                      : 'https://github.com/seerr-team/seerr/releases'
+                      ? GITHUB_COMMITS_DEVELOP_URL
+                      : GITHUB_RELEASES_URL
                   }
                   target="_blank"
                   rel="noopener noreferrer"
@@ -141,14 +147,14 @@ const SettingsAbout = () => {
               https://docs.seerr.dev
             </a>
           </List.Item>
-          <List.Item title={intl.formatMessage(messages.githubdiscussions)}>
+          <List.Item title={intl.formatMessage(messages.githubissues)}>
             <a
-              href="https://github.com/seerr-team/seerr/discussions"
+              href={GITHUB_ISSUES_URL}
               target="_blank"
               rel="noreferrer"
               className="text-indigo-500 transition duration-300 hover:underline"
             >
-              https://github.com/seerr-team/seerr/discussions
+              {GITHUB_ISSUES_URL}
             </a>
           </List.Item>
           <List.Item title="Discord">
