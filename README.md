@@ -2,11 +2,11 @@
 <img src="./public/logo_full.svg" alt="Seerr" style="margin: 20px 0;">
 </p>
 <p align="center">
-<a href="https://github.com/binarygeek119/seerr/actions/workflows/release.yml">
-<img src="https://github.com/binarygeek119/seerr/actions/workflows/release.yml/badge.svg" alt="Fork release workflow" />
-</a>
 <a href="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml">
-<img src="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml/badge.svg?branch=develop" alt="Fork CI (develop)" />
+<img src="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml/badge.svg?branch=develop" alt="Seerr CI (develop)" />
+</a>
+<a href="https://hub.docker.com/r/binarygeek119/seerr/tags">
+<img src="https://img.shields.io/docker/v/binarygeek119/seerr?sort=semver&label=docker&logo=docker" alt="Docker image (binarygeek119/seerr)" />
 </a>
 </p>
 <p align="center">
@@ -39,6 +39,8 @@ This fork was used to add **music (Lidarr)** and **book / audiobook (Readarr & A
 | **Books / audiobooks (Readarr, Audiobookshelf)** | Added here first; **will not be maintained** on this fork once official Seerr ships it. |
 
 Once music and book/audiobook support land in [official Seerr](https://github.com/seerr-team/seerr), use upstream for those features. Keep using **binarygeek119/seerr** if you want the **3D mod** and fork-specific fixes until or unless upstream adopts them.
+
+**Docker:** `docker pull binarygeek119/seerr:develop` (built by CI on each push to `develop`). Tagged `v*` releases use the separate [Release workflow](https://github.com/binarygeek119/seerr/actions/workflows/release.yml) when you publish a version.
 
 For the official project, roadmap, and support, see [seerr-team/seerr](https://github.com/seerr-team/seerr).
 

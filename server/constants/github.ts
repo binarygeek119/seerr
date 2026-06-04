@@ -21,8 +21,10 @@ export const GITHUB_COMMITS_DEVELOP_URL = `${GITHUB_REPO_URL}/commits/develop`;
 export const GITHUB_CI_WORKFLOW_URL = `${GITHUB_REPO_URL}/actions/workflows/ci.yml`;
 export const GITHUB_CI_BADGE_URL = `${GITHUB_CI_WORKFLOW_URL}/badge.svg?branch=develop`;
 
-export const GITHUB_RELEASE_WORKFLOW_URL = `${GITHUB_REPO_URL}/actions/workflows/release.yml`;
-export const GITHUB_RELEASE_BADGE_URL = `${GITHUB_RELEASE_WORKFLOW_URL}/badge.svg`;
+export const GITHUB_DOCKER_HUB_URL = 'https://hub.docker.com/r/binarygeek119/seerr';
+export const GITHUB_DOCKER_TAGS_URL = `${GITHUB_DOCKER_HUB_URL}/tags`;
+export const GITHUB_DOCKER_VERSION_BADGE_URL =
+  'https://img.shields.io/docker/v/binarygeek119/seerr?sort=semver&label=docker&logo=docker';
 
 export const githubCompareDevelopUrl = (commitTag: string): string =>
   `${GITHUB_REPO_URL}/compare/${commitTag}...develop`;
