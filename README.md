@@ -66,7 +66,8 @@ Please follow our [migration guide](https://docs.seerr.dev/migration-guide) for 
 
 - Check out the [Seerr Documentation](https://docs.seerr.dev) before asking for help. Your question might already be in the docs!
 - You can get support on [Discord](https://discord.gg/xmNs5ecFX).
-- Questions, bug reports, and feature requests can be submitted via [GitHub Issues](/../../issues).
+- **Bug reports & features:** [GitHub Issues](/../../issues/new/choose) (use the templates).
+- **Help & setup questions:** [Discord](https://discord.gg/xmNs5ecFX) (do not open an issue for general support).
 
 ## API Documentation
 

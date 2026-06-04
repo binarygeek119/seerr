@@ -1,46 +1,32 @@
 name: ✨ Feature Request
-description: Suggest an idea
-labels: ['awaiting triage']
+description: Suggest an improvement
+labels: ['enhancement', 'awaiting triage']
 type: feature
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this feature request!
+        **binarygeek119/seerr** — feature ideas for this fork.
 
-        Please note that we use GitHub issues exclusively for bug reports and feature requests. For support requests, please use our other support channels to get help.
+        For questions or support, use [Discord](https://discord.gg/xmNs5ecFX).
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: Is your feature request related to a problem? If so, please provide a clear and concise description of the problem; e.g., "I'm always frustrated when [...]."
-    validations:
-      required: true
-  - type: textarea
-    id: desired-behavior
-    attributes:
-      label: Desired Behavior
-      description: Provide a clear and concise description of what you want to happen.
+      label: What would you like?
+      description: Problem you're solving and the feature you want.
     validations:
       required: true
   - type: textarea
     id: additional-context
     attributes:
-      label: Additional Context
-      description: Provide any additional information or screenshots that may be relevant or helpful.
+      label: Extra details (optional)
+      description: Screenshots, links, or related upstream Seerr issues.
   - type: checkboxes
     id: search-existing
     attributes:
-      label: Search Existing Issues
-      description: Have you searched existing issues to see if this feature has already been requested?
+      label: Checklist
       options:
-        - label: Yes, I have searched existing issues.
+        - label: I searched [existing issues](https://github.com/binarygeek119/seerr/issues) and did not find this request already.
           required: true
-  - type: checkboxes
-    id: terms
-    attributes:
-      label: Code of Conduct
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/binarygeek119/seerr/blob/develop/CODE_OF_CONDUCT.md)
-      options:
-        - label: I agree to follow Seerr's Code of Conduct
+        - label: I agree to the [Code of Conduct](https://github.com/binarygeek119/seerr/blob/develop/CODE_OF_CONDUCT.md).
           required: true

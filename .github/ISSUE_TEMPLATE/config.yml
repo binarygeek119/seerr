@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 💬 Support via Discord
-    url: https://discord.gg/xmNs5ecFX
-    about: Chat with the Open Repository's community
-  - name: 🐛 Report an Issue
+  - name: 🐛 Bug or feature request
     url: https://github.com/binarygeek119/seerr/issues/new/choose
-    about: Report bugs or request features on this fork
+    about: Use the templates below for bugs and feature requests
+  - name: 💬 Help & questions (Discord)
+    url: https://discord.gg/xmNs5ecFX
+    about: Get help from the Open Repository's community on Discord
