@@ -22,12 +22,21 @@
 
 Report issues and contribute on this fork: **[binarygeek119/seerr](https://github.com/binarygeek119/seerr)**.
 
-This fork adds **music (Lidarr)** and **book / audiobook (Readarr)** request support, inspired by the upstream feature requests and community work in:
+### Why this fork exists
 
-- **[seerr-team/seerr#2132](https://github.com/seerr-team/seerr/issues/2132)** — feat: music support (Lidarr integration)
-- **[seerr-team/seerr#1918](https://github.com/seerr-team/seerr/issues/1918)** — feat: add book support (Readarr integration)
+This fork was used to add **music (Lidarr)** and **book / audiobook (Readarr & Audiobookshelf)** support before those features existed in official Seerr. That work was inspired by upstream requests such as [seerr-team/seerr#2132](https://github.com/seerr-team/seerr/issues/2132) (music) and [seerr-team/seerr#1918](https://github.com/seerr-team/seerr/issues/1918) (books).
 
-Those issues and their related pull requests are still open upstream. This fork implements similar functionality locally for testing and personal use. For the official Seerr project, roadmap, and support, see [seerr-team/seerr](https://github.com/seerr-team/seerr).
+### Maintenance plan
+
+| Area | Status |
+|------|--------|
+| **3D movie support** (Radarr 3D, theatrical 3D list, UI badges) | **Actively maintained** on this fork — this is the main reason the repo stays online. |
+| **Music (Lidarr)** | Added here first; **will not be maintained** on this fork once official Seerr ships it. |
+| **Books / audiobooks (Readarr, Audiobookshelf)** | Added here first; **will not be maintained** on this fork once official Seerr ships it. |
+
+Once music and book/audiobook support land in [official Seerr](https://github.com/seerr-team/seerr), use upstream for those features. Keep using **binarygeek119/seerr** if you want the **3D mod** and fork-specific fixes until or unless upstream adopts them.
+
+For the official project, roadmap, and support, see [seerr-team/seerr](https://github.com/seerr-team/seerr).
 
 ## Current Features
 
