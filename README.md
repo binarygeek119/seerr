@@ -2,8 +2,12 @@
 <img src="./public/logo_full.svg" alt="Seerr" style="margin: 20px 0;">
 </p>
 <p align="center">
-<img src="https://github.com/binarygeek119/seerr/actions/workflows/release.yml/badge.svg" alt="Seerr Release" />
-<img src="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml/badge.svg" alt="Seerr CI">
+<a href="https://github.com/binarygeek119/seerr/actions/workflows/release.yml">
+<img src="https://img.shields.io/github/actions/workflow/status/binarygeek119/seerr/release.yml?label=release" alt="Fork release workflow" />
+</a>
+<a href="https://github.com/binarygeek119/seerr/actions/workflows/ci.yml">
+<img src="https://img.shields.io/github/actions/workflow/status/binarygeek119/seerr/ci.yml?branch=develop&label=ci" alt="Fork CI (develop)" />
+</a>
 </p>
 <p align="center">
 <a href="https://discord.gg/xmNs5ecFX"><img src="https://img.shields.io/badge/Discord-Open%20Repository's-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
