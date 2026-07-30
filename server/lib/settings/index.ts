@@ -918,8 +918,7 @@ class Settings {
    * This will load settings from file unless an optional argument of the object structure
    * is passed in.
    * @param overrideSettings If passed in, will override all existing settings with these
-   * @param raw If true, will load the settings without running migrations or generating missing
-   * values
+   * @param raw If true, will load the settings without running migrations
    */
   public async load(
     overrideSettings?: AllSettings,
@@ -930,10 +929,15 @@ class Settings {
       return this;
     }
 
+    // Always merge onto fresh defaults so new keys (e.g. jobs added in a
+    // release) are filled even after an earlier raw load replaced this.data.
+    const defaults = new Settings().data;
+
     let data;
     try {
       data = await fs.readFile(SETTINGS_PATH, 'utf-8');
     } catch {
+      this.data = defaults;
       await this.save();
     }
 
@@ -941,7 +945,7 @@ class Settings {
     if (data && !raw) {
       const parsedJson = JSON.parse(data);
       const migratedData = await runMigrations(parsedJson, SETTINGS_PATH);
-      const merged = mergeSettings(this.data, migratedData);
+      const merged = mergeSettings(defaults, migratedData);
 
       if (JSON.stringify(merged) !== JSON.stringify(migratedData)) {
         change = true;
@@ -949,7 +953,14 @@ class Settings {
 
       this.data = merged;
     } else if (data) {
-      this.data = JSON.parse(data);
+      const parsedJson = JSON.parse(data);
+      const merged = mergeSettings(defaults, parsedJson);
+
+      if (JSON.stringify(merged) !== JSON.stringify(parsedJson)) {
+        change = true;
+      }
+
+      this.data = merged;
     }
 
     // generate keys and ids if it's missing

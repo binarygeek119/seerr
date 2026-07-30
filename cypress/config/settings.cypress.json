@@ -153,14 +153,26 @@
     "plex-full-scan": {
       "schedule": "0 0 3 * * *"
     },
+    "plex-watchlist-sync": {
+      "schedule": "0 */10 * * * *"
+    },
+    "plex-refresh-token": {
+      "schedule": "0 0 5 * * *"
+    },
     "radarr-scan": {
       "schedule": "0 0 4 * * *"
     },
     "sonarr-scan": {
       "schedule": "0 30 4 * * *"
     },
-    "plex-watchlist-sync": {
-      "schedule": "0 */10 * * * *"
+    "lidarr-scan": {
+      "schedule": "0 30 4 * * *"
+    },
+    "readarr-scan": {
+      "schedule": "0 45 4 * * *"
+    },
+    "audiobookshelf-scan": {
+      "schedule": "0 15 4 * * *"
     },
     "availability-sync": {
       "schedule": "0 0 5 * * *"
@@ -179,6 +191,9 @@
     },
     "image-cache-cleanup": {
       "schedule": "0 0 5 * * *"
+    },
+    "process-blocklisted-tags": {
+      "schedule": "0 30 1 */7 * *"
     }
   },
   "network": {
