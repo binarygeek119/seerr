@@ -309,23 +309,24 @@ mediaRoutes.delete(
             : media.mediaType === MediaType.TV
               ? 'Sonarr'
               : 'Lidarr';
-
-        logger.warn(
-          `There is no default ${
-            is3d && media.mediaType !== MediaType.MUSIC
-              ? '3D '
-              : is4k && media.mediaType !== MediaType.MUSIC
-                ? '4K '
-                : ''
-          }${serviceType} server configured.`,
+        const arrName = `${
+          is3d && media.mediaType !== MediaType.MUSIC
+            ? '3D '
+            : is4k && media.mediaType !== MediaType.MUSIC
+              ? '4K '
+              : ''
+        }${serviceType}`;
+        logger.info(
+          `There is no default ${arrName} server configured. Did you set any of your ${arrName} servers as default?`,
           {
             label: 'Media Request',
             mediaId: media.id,
           }
         );
-        return res
-          .status(500)
-          .json({ message: `No default ${serviceType} server configured` });
+        return next({
+          status: 409,
+          message: `No ${arrName} server configured to delete media files`,
+        });
       }
 
       let service;
@@ -357,6 +358,10 @@ mediaRoutes.delete(
           throw new Error('TVDB ID not found');
         }
         await (service as SonarrAPI).removeSeries(tvdbId);
+
+        for (const season of media.seasons) {
+          season[is4k ? 'status4k' : 'status'] = MediaStatus.DELETED;
+        }
       } else if (media.mediaType == MediaType.MUSIC) {
         service = new LidarrAPI({
           apiKey: serviceSettings.apiKey,
@@ -370,13 +375,30 @@ mediaRoutes.delete(
         );
       }
 
+      if (is3d) {
+        media.status3d = MediaStatus.DELETED;
+        media.serviceId3d = null;
+        media.externalServiceId3d = null;
+        media.externalServiceSlug3d = null;
+        media.ratingKey3d = null;
+        media.jellyfinMediaId3d = null;
+      } else {
+        media[is4k ? 'status4k' : 'status'] = MediaStatus.DELETED;
+        media.resetServiceData(is4k);
+      }
+      await mediaRepository.save(media);
+
       return res.status(204).send();
     } catch (e) {
+      if (e instanceof EntityNotFoundError) {
+        return next({ status: 404, message: 'Media not found' });
+      }
       logger.error('Something went wrong deleting media file', {
         label: 'Media',
+        mediaId: req.params.id,
         message: e.message,
       });
-      next({ status: 404, message: 'Media not found' });
+      next({ status: 500, message: 'Failed to delete media file' });
     }
   }
 );

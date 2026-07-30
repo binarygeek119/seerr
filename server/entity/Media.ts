@@ -319,23 +319,29 @@ class Media {
     Object.assign(this, init);
   }
 
-  public resetServiceData(): void {
-    this.serviceId = null;
-    this.serviceId4k = null;
-    this.serviceId3d = null;
-    this.externalServiceId = null;
-    this.externalServiceId4k = null;
-    this.externalServiceId3d = null;
-    this.externalServiceSlug = null;
-    this.externalServiceSlug4k = null;
-    this.externalServiceSlug3d = null;
-    this.ratingKey = null;
-    this.ratingKey4k = null;
-    this.ratingKey3d = null;
-    this.jellyfinMediaId = null;
-    this.jellyfinMediaId4k = null;
-    this.jellyfinMediaId3d = null;
-    this.audiobookshelfMediaId = null;
+  public resetServiceData(is4k?: boolean): void {
+    if (is4k === undefined || !is4k) {
+      this.serviceId = null;
+      this.externalServiceId = null;
+      this.externalServiceSlug = null;
+      this.ratingKey = null;
+      this.jellyfinMediaId = null;
+    }
+    if (is4k === undefined || is4k) {
+      this.serviceId4k = null;
+      this.externalServiceId4k = null;
+      this.externalServiceSlug4k = null;
+      this.ratingKey4k = null;
+      this.jellyfinMediaId4k = null;
+    }
+    if (is4k === undefined) {
+      this.serviceId3d = null;
+      this.externalServiceId3d = null;
+      this.externalServiceSlug3d = null;
+      this.ratingKey3d = null;
+      this.jellyfinMediaId3d = null;
+      this.audiobookshelfMediaId = null;
+    }
   }
 
   @AfterLoad()

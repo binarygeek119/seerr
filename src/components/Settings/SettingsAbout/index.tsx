@@ -4,10 +4,11 @@ import List from '@app/components/Common/List';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import PageTitle from '@app/components/Common/PageTitle';
 import Releases from '@app/components/Settings/SettingsAbout/Releases';
+import useSettings from '@app/hooks/useSettings';
 import globalMessages from '@app/i18n/globalMessages';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
-import { formatVersionForDisplay, isDevelopVersion } from '@app/utils/version';
+import { isDevelopVersion } from '@app/utils/version';
 import { DISCORD_INVITE_URL } from '@server/constants/community';
 import {
   GITHUB_COMMITS_DEVELOP_URL,
@@ -37,17 +38,21 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
   documentation: 'Documentation',
   outofdate: 'Out of Date',
   uptodate: 'Up to Date',
+  versionCheckDisabled: 'Version Check Disabled',
   runningDevelop:
     'You are running a custom fork of Seerr on the <code>develop</code> branch. Versions marked with <code>+</code> indicate fork-specific changes.',
 });
 
 const SettingsAbout = () => {
+  const settings = useSettings();
   const intl = useIntl();
   const { data, error } = useSWR<SettingsAboutResponse>(
     '/api/v1/settings/about'
   );
 
-  const { data: status } = useSWR<StatusResponse>('/api/v1/status');
+  const { data: status } = useSWR<StatusResponse>(
+    settings.currentSettings.versionCheck ? '/api/v1/status' : null
+  );
 
   if (!data && !error) {
     return <LoadingSpinner />;
@@ -83,42 +88,62 @@ const SettingsAbout = () => {
             <code className="truncate">
               {data.version.replace('develop-', '')}
             </code>
-            {status?.commitTag !== 'local' &&
-              (status?.updateAvailable ? (
-                <a
-                  href={
-                    isDevelopVersion(data.version)
-                      ? githubCompareDevelopUrl(status.commitTag)
-                      : GITHUB_RELEASES_URL
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Badge
-                    badgeType="warning"
-                    className="ml-2 !cursor-pointer transition hover:bg-yellow-400"
+            {settings.currentSettings.versionCheck ? (
+              status && status.commitTag !== 'local' ? (
+                status.updateAvailable ? (
+                  <a
+                    href={
+                      isDevelopVersion(data.version)
+                        ? githubCompareDevelopUrl(status.commitTag)
+                        : GITHUB_RELEASES_URL
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    {intl.formatMessage(messages.outofdate)}
-                  </Badge>
-                </a>
-              ) : (
-                <a
-                  href={
-                    isDevelopVersion(data.version)
-                      ? GITHUB_COMMITS_DEVELOP_URL
-                      : GITHUB_RELEASES_URL
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Badge
-                    badgeType="success"
-                    className="ml-2 !cursor-pointer transition hover:bg-green-400"
+                    <Badge
+                      badgeType="warning"
+                      className="ml-2 !cursor-pointer transition hover:bg-yellow-400"
+                    >
+                      {intl.formatMessage(messages.outofdate)}
+                    </Badge>
+                  </a>
+                ) : (
+                  <a
+                    href={
+                      isDevelopVersion(data.version)
+                        ? GITHUB_COMMITS_DEVELOP_URL
+                        : GITHUB_RELEASES_URL
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    {intl.formatMessage(messages.uptodate)}
-                  </Badge>
-                </a>
-              ))}
+                    <Badge
+                      badgeType="success"
+                      className="ml-2 !cursor-pointer transition hover:bg-green-400"
+                    >
+                      {intl.formatMessage(messages.uptodate)}
+                    </Badge>
+                  </a>
+                )
+              ) : null
+            ) : (
+              <a
+                href={
+                  isDevelopVersion(data.version)
+                    ? GITHUB_COMMITS_DEVELOP_URL
+                    : GITHUB_RELEASES_URL
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Badge
+                  badgeType="primary"
+                  className="ml-2 !cursor-pointer transition hover:bg-yellow-400"
+                >
+                  {intl.formatMessage(messages.versionCheckDisabled)}
+                </Badge>
+              </a>
+            )}
           </List.Item>
           <List.Item title={intl.formatMessage(messages.totalmedia)}>
             {intl.formatNumber(data.totalMediaItems)}

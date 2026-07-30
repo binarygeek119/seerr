@@ -1,2 +1,3 @@
-
-exec < /dev/tty && npx cz --hook || true
+# Run commitizen only when a controlling TTY is available.
+# Use a subshell so a failed /dev/tty redirect cannot abort the hook (set -e).
+(exec < /dev/tty && npx cz --hook) || true

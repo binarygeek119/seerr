@@ -30,6 +30,9 @@ class RadarrScanner
   private didScanStandard = false;
   private didScan4k = false;
   private didScan3d = false;
+  private serverReturnedEmpty = false;
+  private server4kReturnedEmpty = false;
+  private server3dReturnedEmpty = false;
 
   constructor() {
     super('Radarr Scan', { bundleSize: 50 });
@@ -54,6 +57,9 @@ class RadarrScanner
     this.didScanStandard = false;
     this.didScan4k = false;
     this.didScan3d = false;
+    this.serverReturnedEmpty = false;
+    this.server4kReturnedEmpty = false;
+    this.server3dReturnedEmpty = false;
 
     try {
       this.servers = uniqWith(settings.radarr, (radarrA, radarrB) => {
@@ -91,6 +97,20 @@ class RadarrScanner
             this.didScanStandard = true;
           }
 
+          if (this.items.length === 0) {
+            if (server4k) {
+              this.server4kReturnedEmpty = true;
+            } else if (server3d) {
+              this.server3dReturnedEmpty = true;
+            } else {
+              this.serverReturnedEmpty = true;
+            }
+            this.log(
+              `Radarr server ${server.name} returned no movies. Orphan cleanup for this profile type will be skipped.`,
+              'warn'
+            );
+          }
+
           await this.loop(this.processRadarrMovie.bind(this), { sessionId });
         } else {
           this.log(`Sync not enabled. Skipping Radarr server: ${server.name}`);
@@ -114,6 +134,16 @@ class RadarrScanner
         this.didScan4k = false;
       }
       if (!all3dScanned) {
+        this.didScan3d = false;
+      }
+
+      if (this.serverReturnedEmpty) {
+        this.didScanStandard = false;
+      }
+      if (this.server4kReturnedEmpty) {
+        this.didScan4k = false;
+      }
+      if (this.server3dReturnedEmpty) {
         this.didScan3d = false;
       }
 
@@ -168,12 +198,14 @@ class RadarrScanner
     if (this.didScanStandard) {
       const processingMovies = await mediaRepository.find({
         where: { mediaType: MediaType.MOVIE, status: MediaStatus.PROCESSING },
+        relations: { requests: true },
       });
 
       for (const media of processingMovies) {
         if (media.tmdbId != null && !this.scannedTmdbIds.has(media.tmdbId)) {
           media.status = MediaStatus.UNKNOWN;
           await mediaRepository.save(media);
+          await this.declineOrphanedRequests(media, false);
           this.log(
             `Movie ${media.tmdbId} not found in any Radarr server. Status reset to UNKNOWN.`,
             'info'
@@ -193,12 +225,14 @@ class RadarrScanner
           mediaType: MediaType.MOVIE,
           status4k: MediaStatus.PROCESSING,
         },
+        relations: { requests: true },
       });
 
       for (const media of processing4kMovies) {
         if (media.tmdbId != null && !this.scanned4kTmdbIds.has(media.tmdbId)) {
           media.status4k = MediaStatus.UNKNOWN;
           await mediaRepository.save(media);
+          await this.declineOrphanedRequests(media, true);
           this.log(
             `Movie ${media.tmdbId} not found in any 4K Radarr server. 4K status reset to UNKNOWN.`,
             'info'

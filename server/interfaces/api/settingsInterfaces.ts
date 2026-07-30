@@ -50,6 +50,7 @@ export interface PublicSettingsResponse {
   emailEnabled: boolean;
   newPlexLogin: boolean;
   youtubeUrl: string;
+  versionCheck: boolean;
   plexClientIdentifier: string;
 }
 
@@ -80,7 +81,7 @@ export interface CacheResponse {
 export interface StatusResponse {
   version: string;
   commitTag: string;
-  updateAvailable: boolean;
-  commitsBehind: number;
+  updateAvailable?: boolean;
+  commitsBehind?: number;
   restartRequired: boolean;
 }

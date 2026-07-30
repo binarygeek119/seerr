@@ -99,6 +99,7 @@ const MovieRequestModal = ({
         mediaType: 'movie',
         is4k,
         is3d,
+        ignoreQuota: requestOverrides?.ignoreQuota,
         ...overrideParams,
       });
       mutate('/api/v1/request?filter=all&take=10&sort=modified&skip=0');
@@ -340,7 +341,10 @@ const MovieRequestModal = ({
       backgroundClickable
       onCancel={onCancel}
       onOk={sendRequest}
-      okDisabled={isUpdating || quota?.movie.restricted}
+      okDisabled={
+        isUpdating ||
+        (quota?.movie.restricted && !requestOverrides?.ignoreQuota)
+      }
       title={intl.formatMessage(
         is3d
           ? messages.requestmovie3dtitle
@@ -382,6 +386,7 @@ const MovieRequestModal = ({
           type="movie"
           is4k={is4k}
           is3d={is3d}
+          quota={quota}
           onChange={(overrides) => {
             setRequestOverrides(overrides);
           }}
