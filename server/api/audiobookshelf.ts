@@ -4,7 +4,7 @@ import {
 } from '@server/lib/audiobookshelf/normalizeConnectionSettings';
 import type { AudiobookshelfSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
-import { requestInterceptorFunction } from '@server/utils/customProxyAgent';
+import { proxyRequestInterceptor } from '@server/utils/customProxyAgent';
 import axios, { type AxiosInstance } from 'axios';
 
 export interface AudiobookshelfLibrary {
@@ -38,16 +38,15 @@ class AudiobookshelfAPI {
   private axios: AxiosInstance;
 
   public static buildUrl(
-    settings: Pick<AudiobookshelfSettings, 'hostname' | 'port' | 'useSsl' | 'urlBase'>,
+    settings: Pick<
+      AudiobookshelfSettings,
+      'hostname' | 'port' | 'useSsl' | 'urlBase'
+    >,
     path = ''
   ): string {
     const normalized = normalizeAudiobookshelfConnection(settings);
     const protocol = normalized.useSsl ? 'https' : 'http';
-    const suffix = path
-      ? path.startsWith('/')
-        ? path
-        : `/${path}`
-      : '';
+    const suffix = path ? (path.startsWith('/') ? path : `/${path}`) : '';
 
     return `${protocol}://${normalized.hostname}:${normalized.port}${normalized.urlBase ?? ''}${suffix}`;
   }
@@ -62,7 +61,7 @@ class AudiobookshelfAPI {
       },
       timeout: configuredTimeout > 0 ? configuredTimeout : 30000,
     });
-    this.axios.interceptors.request.use(requestInterceptorFunction);
+    this.axios.interceptors.request.use(proxyRequestInterceptor);
   }
 
   public async getLibraries(): Promise<AudiobookshelfLibrary[]> {
@@ -100,7 +99,9 @@ class AudiobookshelfAPI {
     await this.getLibraries();
   }
 
-  public async getItem(itemId: string): Promise<AudiobookshelfLibraryItem | null> {
+  public async getItem(
+    itemId: string
+  ): Promise<AudiobookshelfLibraryItem | null> {
     try {
       const { data } = await this.axios.get<AudiobookshelfLibraryItem>(
         `/api/items/${itemId}`
