@@ -1,15 +1,15 @@
+import AudiobookshelfAPI from '@server/api/audiobookshelf';
 import type { JellyfinLibraryItem } from '@server/api/jellyfin';
 import JellyfinAPI from '@server/api/jellyfin';
 import type { PlexMetadata } from '@server/api/plexapi';
 import PlexAPI from '@server/api/plexapi';
+import LidarrAPI, { type LidarrAlbum } from '@server/api/servarr/lidarr';
 import RadarrAPI, { type RadarrMovie } from '@server/api/servarr/radarr';
+import ReadarrAPI, { type ReadarrBook } from '@server/api/servarr/readarr';
 import type { SonarrSeason, SonarrSeries } from '@server/api/servarr/sonarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import TheMovieDb from '@server/api/themoviedb';
-import type {
-  TmdbTvDetails,
-  TmdbTvScanDetails,
-} from '@server/api/themoviedb/interfaces';
+import type { TmdbTvDetails } from '@server/api/themoviedb/interfaces';
 import { MediaRequestStatus, MediaStatus } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
@@ -17,7 +17,12 @@ import Media from '@server/entity/Media';
 import MediaRequest from '@server/entity/MediaRequest';
 import type Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
-import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
+import type {
+  LidarrSettings,
+  RadarrSettings,
+  ReadarrSettings,
+  SonarrSettings,
+} from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { getHostname } from '@server/utils/getHostname';
@@ -35,6 +40,9 @@ class AvailabilitySync {
   private sonarrSeasonsCache: Record<string, SonarrSeason[]>;
   private radarrServers: RadarrSettings[];
   private sonarrServers: SonarrSettings[];
+  private lidarrServers: LidarrSettings[];
+  private readarrServers: ReadarrSettings[];
+  private audiobookshelfClient?: AudiobookshelfAPI;
   private enable4kMovie: boolean;
   private enable4kShow: boolean;
 
@@ -49,10 +57,20 @@ class AvailabilitySync {
     this.jellyfinSeasonsCache = {};
     this.jellyfinEpisodeExistsCache = {};
     this.sonarrSeasonsCache = {};
-    this.radarrServers = settings.radarr;
-    this.sonarrServers = settings.sonarr;
-    this.enable4kMovie = this.radarrServers.some((server) => server.is4k);
-    this.enable4kShow = this.sonarrServers.some((server) => server.is4k);
+    this.radarrServers = settings.radarr.filter((server) => server.syncEnabled);
+    this.sonarrServers = settings.sonarr.filter((server) => server.syncEnabled);
+    this.lidarrServers = settings.lidarr.filter((server) => server.syncEnabled);
+    this.readarrServers = settings.readarr.filter(
+      (server) => server.syncEnabled
+    );
+    this.enable4kMovie = settings.radarr.some((server) => server.is4k);
+    this.enable4kShow = settings.sonarr.some((server) => server.is4k);
+
+    if (settings.audiobookshelf.hostname && settings.audiobookshelf.apiKey) {
+      this.audiobookshelfClient = new AudiobookshelfAPI(
+        settings.audiobookshelf
+      );
+    }
 
     try {
       logger.info(`Starting availability sync...`, {
@@ -365,14 +383,14 @@ class AvailabilitySync {
           }
 
           // We need to fetch from TMDB to get the episode count for each season
-          let tvShow: TmdbTvScanDetails | TmdbTvDetails | undefined;
+          let tvShow: TmdbTvDetails | undefined;
           try {
             if (media.tmdbId) {
-              tvShow = await this.tmdb.getTvShowForScan({
+              tvShow = await this.tmdb.getTvShow({
                 tvId: Number(media.tmdbId),
               });
             } else if (media.tvdbId) {
-              tvShow = await this.tmdb.getShowByTvdbIdForScan({
+              tvShow = await this.tmdb.getShowByTvdbId({
                 tvdbId: Number(media.tvdbId),
               });
             }
@@ -456,6 +474,97 @@ class AvailabilitySync {
               true,
               mediaServerType
             );
+          }
+        }
+
+        if (media.mediaType === 'music') {
+          let musicExists = false;
+
+          const existsInLidarr = await this.mediaExistsInLidarr(media);
+
+          // Check media server existence (Plex/Jellyfin/Emby)
+          if (mediaServerType === MediaServerType.PLEX) {
+            const { existsInPlex } = await this.mediaExistsInPlex(media, false);
+            if (existsInPlex || existsInLidarr) {
+              musicExists = true;
+              logger.info(
+                `The album [Foreign ID ${media.mbId}] still exists. Preventing removal.`,
+                {
+                  label: 'AvailabilitySync',
+                }
+              );
+            }
+          } else if (
+            mediaServerType === MediaServerType.JELLYFIN ||
+            mediaServerType === MediaServerType.EMBY
+          ) {
+            const { existsInJellyfin } = await this.mediaExistsInJellyfin(
+              media,
+              false
+            );
+            if (existsInJellyfin || existsInLidarr) {
+              musicExists = true;
+              logger.info(
+                `The album [Foreign ID ${media.mbId}] still exists. Preventing removal.`,
+                {
+                  label: 'AvailabilitySync',
+                }
+              );
+            }
+          }
+
+          if (!musicExists && media.status === MediaStatus.AVAILABLE) {
+            await this.mediaUpdater(media, false, mediaServerType);
+          }
+        }
+
+        if (media.mediaType === 'book') {
+          let existsInJellyfinEbook = false;
+          let existsInJellyfinAudiobook = false;
+          let existsInPlexAudiobook = false;
+          let existsInAudiobookshelf = false;
+
+          if (
+            mediaServerType === MediaServerType.JELLYFIN ||
+            mediaServerType === MediaServerType.EMBY
+          ) {
+            existsInJellyfinEbook = await this.mediaBookExistsInJellyfin(
+              media,
+              false
+            );
+            existsInJellyfinAudiobook = await this.mediaBookExistsInJellyfin(
+              media,
+              true
+            );
+          }
+
+          if (mediaServerType === MediaServerType.PLEX) {
+            existsInPlexAudiobook = await this.mediaBookExistsInPlex(
+              media,
+              true
+            );
+          }
+
+          existsInAudiobookshelf =
+            await this.mediaBookExistsInAudiobookshelf(media);
+
+          const existsEbook = await this.mediaExistsInReadarr(media, false);
+          if (
+            !existsEbook &&
+            !existsInJellyfinEbook &&
+            media.status === MediaStatus.AVAILABLE
+          ) {
+            await this.mediaUpdater(media, false, mediaServerType);
+          }
+          const existsAudiobook = await this.mediaExistsInReadarr(media, true);
+          if (
+            !existsAudiobook &&
+            !existsInJellyfinAudiobook &&
+            !existsInPlexAudiobook &&
+            !existsInAudiobookshelf &&
+            media.status4k === MediaStatus.AVAILABLE
+          ) {
+            await this.mediaUpdater(media, true, mediaServerType);
           }
         }
       }
@@ -563,11 +672,22 @@ class AvailabilitySync {
             ? media[is4k ? 'jellyfinMediaId4k' : 'jellyfinMediaId']
             : null;
       }
+
       logger.debug(
         `The ${is4k ? '4K' : 'non-4K'} ${
-          media.mediaType === 'movie' ? 'movie' : 'show'
-        } [TMDB ID ${media.tmdbId}] was not found in any ${
-          media.mediaType === 'movie' ? 'Radarr' : 'Sonarr'
+          media.mediaType === 'movie'
+            ? 'movie'
+            : media.mediaType === 'tv'
+              ? 'show'
+              : 'album'
+        } [${media.mediaType === 'music' ? 'Foreign ID' : 'TMDB ID'} ${
+          media.mediaType === 'music' ? media.mbId : media.tmdbId
+        }] was not found in any ${
+          media.mediaType === 'movie'
+            ? 'Radarr'
+            : media.mediaType === 'tv'
+              ? 'Sonarr'
+              : 'Lidarr'
         } and ${
           mediaServerType === MediaServerType.PLEX
             ? 'plex'
@@ -582,8 +702,14 @@ class AvailabilitySync {
     } catch (ex) {
       logger.debug(
         `Failure updating the ${is4k ? '4K' : 'non-4K'} ${
-          media.mediaType === 'tv' ? 'show' : 'movie'
-        } [TMDB ID ${media.tmdbId}].`,
+          media.mediaType === 'movie'
+            ? 'movie'
+            : media.mediaType === 'tv'
+              ? 'show'
+              : 'album'
+        } [${media.mediaType === 'music' ? 'Foreign ID' : 'TMDB ID'} ${
+          media.mediaType === 'music' ? media.mbId : media.tmdbId
+        }].`,
         {
           errorMessage: ex.message,
           label: 'AvailabilitySync',
@@ -867,6 +993,95 @@ class AvailabilitySync {
     return seasonExists;
   }
 
+  private async mediaExistsInLidarr(media: Media): Promise<boolean> {
+    let existsInLidarr = false;
+
+    // Check for availability in all configured Lidarr servers
+    // If any find the media, we will assume the media exists
+    for (const server of this.lidarrServers) {
+      const lidarrAPI = new LidarrAPI({
+        apiKey: server.apiKey,
+        url: LidarrAPI.buildUrl(server, '/api/v1'),
+      });
+
+      try {
+        let lidarr: LidarrAlbum | undefined;
+
+        if (media.externalServiceId) {
+          lidarr = await lidarrAPI.getAlbum({
+            id: media.externalServiceId,
+          });
+        }
+
+        if (
+          lidarr?.statistics &&
+          lidarr.statistics.totalTrackCount > 0 &&
+          lidarr.statistics.trackFileCount === lidarr.statistics.totalTrackCount
+        ) {
+          existsInLidarr = true;
+          break;
+        }
+      } catch (ex) {
+        if (!ex.message.includes('404')) {
+          existsInLidarr = true;
+          logger.debug(
+            `Failed to retrieve album [Foreign ID ${media.mbId}] from Lidarr.`,
+            {
+              errorMessage: ex.message,
+              label: 'AvailabilitySync',
+            }
+          );
+        }
+      }
+    }
+
+    return existsInLidarr;
+  }
+
+  private async mediaExistsInReadarr(
+    media: Media,
+    isAudiobook: boolean
+  ): Promise<boolean> {
+    let existsInReadarr = false;
+
+    const servers = this.readarrServers.filter(
+      (server) => (server.isAudiobook ?? false) === isAudiobook
+    );
+
+    for (const server of servers) {
+      const readarrAPI = new ReadarrAPI({
+        apiKey: server.apiKey,
+        url: ReadarrAPI.buildUrl(server, '/api/v1'),
+      });
+
+      try {
+        let readarrBook: ReadarrBook | undefined;
+
+        if (media.externalServiceId) {
+          readarrBook = await readarrAPI.getBookById(media.externalServiceId);
+        }
+
+        if (readarrBook?.hasFile) {
+          existsInReadarr = true;
+          break;
+        }
+      } catch (ex) {
+        if (!ex.message.includes('404')) {
+          existsInReadarr = true;
+          logger.debug(
+            `Failed to retrieve book [Foreign ID ${media.foreignBookId}] from Readarr.`,
+            {
+              errorMessage: ex.message,
+              label: 'AvailabilitySync',
+            }
+          );
+        }
+      }
+    }
+
+    return existsInReadarr;
+  }
+
   // Plex
   private async mediaExistsInPlex(
     media: Media,
@@ -963,8 +1178,14 @@ class AvailabilitySync {
         preventSeasonSearch = true;
         logger.debug(
           `Failure retrieving the ${is4k ? '4K' : 'non-4K'} ${
-            media.mediaType === 'tv' ? 'show' : 'movie'
-          } [TMDB ID ${media.tmdbId}] from Plex.`,
+            media.mediaType === 'movie'
+              ? 'movie'
+              : media.mediaType === 'tv'
+                ? 'show'
+                : 'album'
+          } [${media.mediaType === 'music' ? 'Foreign ID' : 'TMDB ID'} ${
+            media.mediaType === 'music' ? media.mbId : media.tmdbId
+          }] from Plex.`,
           {
             errorMessage: ex.message,
             label: 'AvailabilitySync',
@@ -1069,6 +1290,61 @@ class AvailabilitySync {
     return seasonExistsInPlex;
   }
 
+  private async mediaBookExistsInPlex(
+    media: Media,
+    isAudiobook: boolean
+  ): Promise<boolean> {
+    const ratingKey = isAudiobook ? media.ratingKey4k : media.ratingKey;
+
+    if (!ratingKey) {
+      return false;
+    }
+
+    try {
+      const plexMedia = await this.plexClient?.getMetadata(ratingKey);
+      return !!plexMedia?.ratingKey;
+    } catch {
+      return false;
+    }
+  }
+
+  private async mediaBookExistsInJellyfin(
+    media: Media,
+    isAudiobook: boolean
+  ): Promise<boolean> {
+    const jellyfinId = isAudiobook
+      ? media.jellyfinMediaId4k
+      : media.jellyfinMediaId;
+
+    if (!jellyfinId) {
+      return false;
+    }
+
+    try {
+      const item = await this.jellyfinClient?.getItemData(jellyfinId);
+      return !!item?.Id;
+    } catch {
+      return false;
+    }
+  }
+
+  private async mediaBookExistsInAudiobookshelf(
+    media: Media
+  ): Promise<boolean> {
+    if (!media.audiobookshelfMediaId || !this.audiobookshelfClient) {
+      return false;
+    }
+
+    try {
+      const item = await this.audiobookshelfClient.getItem(
+        media.audiobookshelfMediaId
+      );
+      return !!item?.id;
+    } catch {
+      return false;
+    }
+  }
+
   // Jellyfin
   private async mediaExistsInJellyfin(
     media: Media,
@@ -1112,8 +1388,14 @@ class AvailabilitySync {
         preventSeasonSearch = true;
         logger.debug(
           `Failure retrieving the ${is4k ? '4K' : 'non-4K'} ${
-            media.mediaType === 'tv' ? 'show' : 'movie'
-          } [TMDB ID ${media.tmdbId}] from Jellyfin.`,
+            media.mediaType === 'movie'
+              ? 'movie'
+              : media.mediaType === 'tv'
+                ? 'show'
+                : 'album'
+          } [${media.mediaType === 'music' ? 'Foreign ID' : 'TMDB ID'} ${
+            media.mediaType === 'music' ? media.mbId : media.tmdbId
+          }] from Jellyfin.`,
           {
             errorMessage: ex.message,
             label: 'AvailabilitySync',

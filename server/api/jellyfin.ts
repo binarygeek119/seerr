@@ -73,17 +73,26 @@ interface JellyfinMediaFolder {
 }
 
 export interface JellyfinLibrary {
-  type: 'show' | 'movie';
+  type: 'show' | 'movie' | 'music' | 'book';
   key: string;
   title: string;
   agent: string;
+  /** Emby exposes audiobooks as a separate collection (not ebooks/books). */
+  audiobookCollection?: boolean;
 }
 
 export interface JellyfinLibraryItem {
   Name: string;
   Id: string;
   HasSubtitles: boolean;
-  Type: 'Movie' | 'Episode' | 'Season' | 'Series';
+  Type:
+    | 'Movie'
+    | 'Episode'
+    | 'Season'
+    | 'Series'
+    | 'MusicAlbum'
+    | 'MusicArtist'
+    | 'Book';
   LocationType: 'FileSystem' | 'Offline' | 'Remote' | 'Virtual';
   SeriesName?: string;
   SeriesId?: string;
@@ -93,6 +102,8 @@ export interface JellyfinLibraryItem {
   IndexNumberEnd?: number;
   ParentIndexNumber?: number;
   MediaType: string;
+  AlbumId?: string;
+  ArtistId?: string;
 }
 
 export interface JellyfinMediaStream {
@@ -122,6 +133,16 @@ export interface JellyfinLibraryItemExtended extends JellyfinLibraryItem {
     Imdb?: string;
     Tvdb?: string;
     AniDB?: string;
+    MusicBrainzReleaseGroup?: string;
+    MusicBrainzAlbum?: string;
+    MusicBrainzArtistId?: string;
+    OpenLibrary?: string;
+    openlibrary?: string;
+    Openlibrary?: string;
+    'Open Library'?: string;
+    Goodreads?: string;
+    Audible?: string;
+    [key: string]: string | undefined;
   };
   MediaSources?: JellyfinMediaSource[];
   Width?: number;
@@ -233,11 +254,7 @@ class JellyfinAPI extends ExternalAPI {
         }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.Unknown);
+      throw new ApiError(e.response?.status, ApiErrorCode.Unknown);
     }
   }
 
@@ -254,11 +271,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.Unknown);
+      throw new ApiError(e.response?.status, ApiErrorCode.Unknown);
     }
   }
 
@@ -278,11 +291,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.Unknown);
+      throw new ApiError(e.response?.status, ApiErrorCode.Unknown);
     }
   }
 
@@ -301,11 +310,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.Unknown);
+      throw new ApiError(e.response?.status, ApiErrorCode.Unknown);
     }
   }
 
@@ -320,11 +325,7 @@ class JellyfinAPI extends ExternalAPI {
 
       return systemInfoResponse;
     } catch (e) {
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -341,11 +342,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.Unknown);
+      throw new ApiError(e.response?.status, ApiErrorCode.Unknown);
     }
   }
 
@@ -360,11 +357,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -380,11 +373,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -411,23 +400,13 @@ class JellyfinAPI extends ExternalAPI {
           }
         );
 
-        if (!e.response) {
-          throw new ApiError(502, ApiErrorCode.ConnectionError);
-        }
-
         return [];
       }
     }
   }
 
   private mapLibraries(mediaFolders: JellyfinMediaFolder[]): JellyfinLibrary[] {
-    const excludedTypes = [
-      'music',
-      'books',
-      'musicvideos',
-      'homevideos',
-      'boxsets',
-    ];
+    const excludedTypes = ['musicvideos', 'homevideos', 'boxsets'];
 
     return mediaFolders
       .filter((Item: JellyfinMediaFolder) => {
@@ -437,19 +416,37 @@ class JellyfinAPI extends ExternalAPI {
         );
       })
       .map((Item: JellyfinMediaFolder) => {
+        const collectionType = Item.CollectionType?.toLowerCase();
+        const isAudiobookCollection = collectionType === 'audiobooks';
+
         return <JellyfinLibrary>{
           key: Item.Id,
           title: Item.Name,
-          type: Item.CollectionType === 'movies' ? 'movie' : 'show',
+          type:
+            collectionType === 'movies'
+              ? 'movie'
+              : collectionType === 'tvshows'
+                ? 'show'
+                : collectionType === 'books' || isAudiobookCollection
+                  ? 'book'
+                  : 'music',
           agent: 'jellyfin',
+          audiobookCollection: isAudiobookCollection,
         };
       });
   }
 
-  public async getLibraryContents(id: string): Promise<JellyfinLibraryItem[]> {
+  public async getLibraryContents(
+    id: string,
+    { bookLibrary = false }: { bookLibrary?: boolean } = {}
+  ): Promise<JellyfinLibraryItem[]> {
+    const includeItemTypes = bookLibrary
+      ? 'Book'
+      : 'Series,Movie,MusicAlbum,MusicArtist,Others';
+
     try {
       const libraryItemsResponse = await this.get<any>(
-        `/Items?SortBy=SortName&SortOrder=Ascending&IncludeItemTypes=Series,Movie,Others&Recursive=true&StartIndex=0&ParentId=${id}&collapseBoxSetItems=false`
+        `/Items?SortBy=SortName&SortOrder=Ascending&IncludeItemTypes=${includeItemTypes}&Recursive=true&StartIndex=0&ParentId=${id}&collapseBoxSetItems=false`
       );
 
       return libraryItemsResponse.Items.filter(
@@ -461,11 +458,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e?.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -490,11 +483,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -521,11 +510,7 @@ class JellyfinAPI extends ExternalAPI {
         `Something went wrong while getting library content from the Jellyfin server: ${e.message}`,
         { label: 'Jellyfin API', error: e.response?.status }
       );
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -540,11 +525,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -567,9 +548,7 @@ class JellyfinAPI extends ExternalAPI {
       );
 
       return episodeResponse.Items.filter(
-        (item: JellyfinLibraryItem) =>
-          item.LocationType !== 'Virtual' &&
-          (!item.SeasonId || item.SeasonId === seasonID)
+        (item: JellyfinLibraryItem) => item.LocationType !== 'Virtual'
       );
     } catch (e) {
       logger.error(
@@ -577,11 +556,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 
@@ -598,11 +573,7 @@ class JellyfinAPI extends ExternalAPI {
         { label: 'Jellyfin API', error: e.response?.status }
       );
 
-      if (!e.response) {
-        throw new ApiError(502, ApiErrorCode.ConnectionError);
-      }
-
-      throw new ApiError(e.response.status, ApiErrorCode.InvalidAuthToken);
+      throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
   }
 }

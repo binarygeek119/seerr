@@ -28,7 +28,6 @@ import Media from '@server/entity/Media';
 import MediaRequest from '@server/entity/MediaRequest';
 import Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
-import availabilitySync from '@server/lib/availabilitySync';
 import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import { setupTestDb } from '@server/test/db';
@@ -153,7 +152,7 @@ let getShowByTvdbIdImpl: (args: {
   language?: string;
 }) => Promise<TmdbTvDetails> = async () => fakeTmdbShow(1);
 
-Object.defineProperty(TheMovieDb.prototype, 'getTvShowForScan', {
+Object.defineProperty(TheMovieDb.prototype, 'getTvShow', {
   get() {
     return async (args: { tvId: number; language?: string }) =>
       getTvShowImpl(args);
@@ -162,20 +161,12 @@ Object.defineProperty(TheMovieDb.prototype, 'getTvShowForScan', {
   configurable: true,
 });
 
-Object.defineProperty(TheMovieDb.prototype, 'getShowByTvdbIdForScan', {
+Object.defineProperty(TheMovieDb.prototype, 'getShowByTvdbId', {
   get() {
     return async (args: { tvdbId: number; language?: string }) =>
       getShowByTvdbIdImpl(args);
   },
   set() {},
-  configurable: true,
-});
-
-// getTvShowForScan is assigned in the constructor, so the prototype stub misses
-// the instance availabilitySync built when it was first imported
-Object.defineProperty(availabilitySync.tmdb, 'getTvShowForScan', {
-  value: async (args: { tvId: number; language?: string }) =>
-    getTvShowImpl(args),
   configurable: true,
 });
 
@@ -229,6 +220,8 @@ function fakeTmdbShow(
     videos: { results: [] },
   };
 }
+
+import availabilitySync from '@server/lib/availabilitySync';
 
 setupTestDb();
 

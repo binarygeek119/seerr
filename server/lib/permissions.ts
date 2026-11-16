@@ -1,5 +1,7 @@
 export enum Permission {
   NONE = 0,
+  /** Bit 0 — book requests (Readarr); previously unused in the 32-bit permission mask. */
+  REQUEST_BOOK = 1,
   ADMIN = 2,
   MANAGE_SETTINGS = 4,
   MANAGE_USERS = 8,
@@ -29,6 +31,8 @@ export enum Permission {
   WATCHLIST_VIEW = 134217728,
   MANAGE_BLOCKLIST = 268435456,
   VIEW_BLOCKLIST = 1073741824,
+  /** Bit 31 — must stay within JS 32-bit signed bitmask used by `hasPermission`. */
+  REQUEST_MUSIC = 2147483648,
 }
 
 export interface PermissionCheckOptions {

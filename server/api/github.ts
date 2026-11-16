@@ -1,3 +1,4 @@
+import { GITHUB_API_REPO_BASE } from '@server/constants/github';
 import cacheManager from '@server/lib/cache';
 import logger from '@server/logger';
 import ExternalAPI from './externalapi';
@@ -83,7 +84,7 @@ class GithubAPI extends ExternalAPI {
   } = {}): Promise<GitHubRelease[]> {
     try {
       const data = await this.get<GitHubRelease[]>(
-        '/repos/seerr-team/seerr/releases',
+        `${GITHUB_API_REPO_BASE}/releases`,
         {
           params: {
             per_page: take,
@@ -110,7 +111,7 @@ class GithubAPI extends ExternalAPI {
   } = {}): Promise<GithubCommit[]> {
     try {
       const data = await this.get<GithubCommit[]>(
-        '/repos/seerr-team/seerr/commits',
+        `${GITHUB_API_REPO_BASE}/commits`,
         {
           params: {
             per_page: take,

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 💬 Support via Discord
-    url: https://discord.gg/seerr
-    about: Chat with other users and the Seerr dev team
-  - name: 💬 Support via GitHub Discussions
-    url: https://github.com/seerr-team/seerr/discussions
-    about: Ask questions and discuss with other community members
+  - name: 🐛 Bug or feature request
+    url: https://github.com/binarygeek119/seerr/issues/new/choose
+    about: Use the templates below for bugs and feature requests
+  - name: 💬 Help & questions (Discord)
+    url: https://discord.gg/xmNs5ecFX
+    about: Get help from the Open Repository's community on Discord

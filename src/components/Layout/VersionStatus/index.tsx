@@ -1,5 +1,6 @@
 import useSettings from '@app/hooks/useSettings';
 import defineMessages from '@app/utils/defineMessages';
+import { formatVersionForDisplay, isDevelopVersion } from '@app/utils/version';
 import {
   ArrowUpCircleIcon,
   BeakerIcon,
@@ -12,7 +13,7 @@ import { useIntl } from 'react-intl';
 import useSWR from 'swr';
 
 const messages = defineMessages('components.Layout.VersionStatus', {
-  streamdevelop: 'Seerr Develop',
+  streamdevelop: 'Seerr Develop+',
   streamstable: 'Seerr Stable',
   outofdate: 'Out of Date',
   commitsbehind:
@@ -40,7 +41,7 @@ const VersionStatus = ({ onClick }: VersionStatusProps) => {
   const versionStream =
     data.commitTag === 'local'
       ? 'Keep it up! 👍'
-      : data.version.startsWith('develop-')
+      : isDevelopVersion(data.version)
         ? intl.formatMessage(messages.streamdevelop)
         : intl.formatMessage(messages.streamstable);
 
@@ -63,7 +64,7 @@ const VersionStatus = ({ onClick }: VersionStatusProps) => {
     >
       {data.commitTag === 'local' ? (
         <CodeBracketIcon className="h-6 w-6" />
-      ) : data.version.startsWith('develop-') ? (
+      ) : isDevelopVersion(data.version) ? (
         <BeakerIcon className="h-6 w-6" />
       ) : (
         <ServerIcon className="h-6 w-6" />
@@ -82,7 +83,7 @@ const VersionStatus = ({ onClick }: VersionStatusProps) => {
               intl.formatMessage(messages.outofdate)
             ) : (
               <code className="bg-transparent p-0">
-                {data.version.replace('develop-', '')}
+                {formatVersionForDisplay(data.version)}
               </code>
             )}
           </span>

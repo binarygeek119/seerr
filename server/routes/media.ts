@@ -1,3 +1,4 @@
+import LidarrAPI from '@server/api/servarr/lidarr';
 import RadarrAPI from '@server/api/servarr/radarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import TautulliAPI from '@server/api/tautulli';
@@ -5,6 +6,7 @@ import TheMovieDb from '@server/api/themoviedb';
 import { MediaStatus, MediaType } from '@server/constants/media';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
+import MetadataAlbum from '@server/entity/MetadataAlbum';
 import Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
 import type {
@@ -23,6 +25,7 @@ const mediaRoutes = Router();
 
 mediaRoutes.get('/', async (req, res, next) => {
   const mediaRepository = getRepository(Media);
+  const metadataAlbumRepository = getRepository(MetadataAlbum);
 
   const pageSize = req.query.take ? Number(req.query.take) : 20;
   const skip = req.query.skip ? Number(req.query.skip) : 0;
@@ -81,6 +84,37 @@ mediaRoutes.get('/', async (req, res, next) => {
       take: pageSize,
       skip,
     });
+
+    const musicMediaItems = media.filter(
+      (item) => item.mediaType === 'music' && item.mbId
+    );
+
+    const mbIds = musicMediaItems.map((item) => item.mbId as string);
+
+    const albumMetadata =
+      mbIds.length > 0
+        ? await metadataAlbumRepository.find({
+            where: { mbAlbumId: In(mbIds) },
+            select: ['mbAlbumId', 'caaUrl'],
+          })
+        : [];
+
+    const albumMetadataMap = new Map(
+      albumMetadata.map((metadata) => [metadata.mbAlbumId, metadata])
+    );
+
+    const mediaWithCoverArt = media.map((item) => {
+      if (item.mediaType === 'music' && item.mbId) {
+        const metadata = albumMetadataMap.get(item.mbId);
+        return {
+          ...item,
+          posterPath: metadata?.caaUrl || null,
+          needsCoverArt: !metadata?.caaUrl,
+        };
+      }
+      return item;
+    });
+
     return res.status(200).json({
       pageInfo: {
         pages: Math.ceil(mediaCount / pageSize),
@@ -88,10 +122,14 @@ mediaRoutes.get('/', async (req, res, next) => {
         results: mediaCount,
         page: Math.ceil(skip / pageSize) + 1,
       },
-      results: media,
+      results: mediaWithCoverArt,
     } as MediaResultsResponse);
   } catch (e) {
-    next({ status: 500, message: e.message });
+    logger.error('Something went wrong retrieving media', {
+      label: 'Media',
+      error: e instanceof Error ? e.message : 'Unknown error',
+    });
+    next({ status: 500, message: 'Unable to retrieve media' });
   }
 });
 
@@ -117,10 +155,18 @@ mediaRoutes.post<
     }
 
     const is4k = String(req.body.is4k) === 'true';
+    const is3d = String(req.body.is3d) === 'true';
+    const mediaStatusKey =
+      media.mediaType === MediaType.MOVIE && is3d
+        ? 'status3d'
+        : is4k
+          ? 'status4k'
+          : 'status';
+    const seasonStatusKey = is4k ? 'status4k' : 'status';
 
     switch (req.params.status) {
       case 'available':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.AVAILABLE;
+        media[mediaStatusKey] = MediaStatus.AVAILABLE;
 
         if (media.mediaType === MediaType.TV) {
           const expectedSeasons = req.body.seasons ?? [];
@@ -138,7 +184,7 @@ mediaRoutes.post<
               media.seasons.push(season);
             }
 
-            season[is4k ? 'status4k' : 'status'] = MediaStatus.AVAILABLE;
+            season[seasonStatusKey] = MediaStatus.AVAILABLE;
           }
         }
         break;
@@ -149,16 +195,16 @@ mediaRoutes.post<
             message: 'Only series can be set to be partially available',
           });
         }
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.PARTIALLY_AVAILABLE;
+        media[mediaStatusKey] = MediaStatus.PARTIALLY_AVAILABLE;
         break;
       case 'processing':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.PROCESSING;
+        media[mediaStatusKey] = MediaStatus.PROCESSING;
         break;
       case 'pending':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.PENDING;
+        media[mediaStatusKey] = MediaStatus.PENDING;
         break;
       case 'unknown':
-        media[is4k ? 'status4k' : 'status'] = MediaStatus.UNKNOWN;
+        media[mediaStatusKey] = MediaStatus.UNKNOWN;
     }
 
     await mediaRepository.save(media);
@@ -212,38 +258,64 @@ mediaRoutes.delete(
       });
 
       const is4k = String(req.query.is4k) === 'true';
-      const isMovie = media.mediaType === MediaType.MOVIE;
+      const is3d = String(req.query.is3d) === 'true';
 
       let serviceSettings;
-      if (isMovie) {
+
+      if (media.mediaType === MediaType.MOVIE) {
         serviceSettings = settings.radarr.find(
-          (radarr) => radarr.isDefault && radarr.is4k === is4k
+          (radarr) =>
+            radarr.isDefault &&
+            radarr.is4k === is4k &&
+            (radarr.is3d ?? false) === is3d
         );
-      } else {
+      } else if (media.mediaType === MediaType.TV) {
         serviceSettings = settings.sonarr.find(
           (sonarr) => sonarr.isDefault && sonarr.is4k === is4k
         );
+      } else {
+        serviceSettings = settings.lidarr.find((lidarr) => lidarr.isDefault);
       }
 
-      const specificServiceId = is4k ? media.serviceId4k : media.serviceId;
+      const specificServiceId = is3d
+        ? media.serviceId3d
+        : is4k
+          ? media.serviceId4k
+          : media.serviceId;
       if (
         specificServiceId &&
         specificServiceId >= 0 &&
         serviceSettings?.id !== specificServiceId
       ) {
-        if (isMovie) {
+        if (media.mediaType === MediaType.MOVIE) {
           serviceSettings = settings.radarr.find(
             (radarr) => radarr.id === specificServiceId
           );
-        } else {
+        } else if (media.mediaType === MediaType.TV) {
           serviceSettings = settings.sonarr.find(
             (sonarr) => sonarr.id === specificServiceId
+          );
+        } else {
+          serviceSettings = settings.lidarr.find(
+            (lidarr) => lidarr.id === media.serviceId
           );
         }
       }
 
       if (!serviceSettings) {
-        const arrName = `${is4k ? '4K ' : ''}${isMovie ? 'Radarr' : 'Sonarr'}`;
+        const serviceType =
+          media.mediaType === MediaType.MOVIE
+            ? 'Radarr'
+            : media.mediaType === MediaType.TV
+              ? 'Sonarr'
+              : 'Lidarr';
+        const arrName = `${
+          is3d && media.mediaType !== MediaType.MUSIC
+            ? '3D '
+            : is4k && media.mediaType !== MediaType.MUSIC
+              ? '4K '
+              : ''
+        }${serviceType}`;
         logger.info(
           `There is no default ${arrName} server configured. Did you set any of your ${arrName} servers as default?`,
           {
@@ -258,24 +330,30 @@ mediaRoutes.delete(
       }
 
       let service;
-      if (isMovie) {
+
+      if (media.mediaType === MediaType.MOVIE) {
+        if (media.tmdbId == null) {
+          throw new Error('TMDB ID missing for movie');
+        }
         service = new RadarrAPI({
-          apiKey: serviceSettings?.apiKey,
+          apiKey: serviceSettings.apiKey,
           url: RadarrAPI.buildUrl(serviceSettings, '/api/v3'),
         });
-      } else {
+
+        await (service as RadarrAPI).removeMovie(media.tmdbId);
+      } else if (media.mediaType === MediaType.TV) {
+        if (media.tmdbId == null) {
+          throw new Error('TMDB ID missing for series');
+        }
         service = new SonarrAPI({
           apiKey: serviceSettings?.apiKey,
           url: SonarrAPI.buildUrl(serviceSettings, '/api/v3'),
         });
-      }
 
-      if (isMovie) {
-        await (service as RadarrAPI).removeMovie(media.tmdbId);
-      } else {
         const tmdb = new TheMovieDb();
         const series = await tmdb.getTvShow({ tvId: media.tmdbId });
         const tvdbId = series.external_ids.tvdb_id ?? media.tvdbId;
+
         if (!tvdbId) {
           throw new Error('TVDB ID not found');
         }
@@ -284,10 +362,30 @@ mediaRoutes.delete(
         for (const season of media.seasons) {
           season[is4k ? 'status4k' : 'status'] = MediaStatus.DELETED;
         }
+      } else if (media.mediaType == MediaType.MUSIC) {
+        service = new LidarrAPI({
+          apiKey: serviceSettings.apiKey,
+          url: LidarrAPI.buildUrl(serviceSettings, '/api/v1'),
+        });
+
+        await service.removeAlbum(
+          media.externalServiceId
+            ? parseInt(media.externalServiceId.toString())
+            : 0
+        );
       }
 
-      media[is4k ? 'status4k' : 'status'] = MediaStatus.DELETED;
-      media.resetServiceData(is4k);
+      if (is3d) {
+        media.status3d = MediaStatus.DELETED;
+        media.serviceId3d = null;
+        media.externalServiceId3d = null;
+        media.externalServiceSlug3d = null;
+        media.ratingKey3d = null;
+        media.jellyfinMediaId3d = null;
+      } else {
+        media[is4k ? 'status4k' : 'status'] = MediaStatus.DELETED;
+        media.resetServiceData(is4k);
+      }
       await mediaRepository.save(media);
 
       return res.status(204).send();

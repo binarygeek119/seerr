@@ -1,4 +1,6 @@
+import LidarrAPI from '@server/api/servarr/lidarr';
 import RadarrAPI from '@server/api/servarr/radarr';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import TheMovieDb from '@server/api/themoviedb';
 import type {
@@ -19,6 +21,7 @@ serviceRoutes.get('/radarr', async (req, res) => {
       id: radarr.id,
       name: radarr.name,
       is4k: radarr.is4k,
+      is3d: radarr.is3d ?? false,
       isDefault: radarr.isDefault,
       activeDirectory: radarr.activeDirectory,
       activeProfileId: radarr.activeProfileId,
@@ -59,6 +62,7 @@ serviceRoutes.get<{ radarrId: string }>(
         id: radarrSettings.id,
         name: radarrSettings.name,
         is4k: radarrSettings.is4k,
+        is3d: radarrSettings.is3d ?? false,
         isDefault: radarrSettings.isDefault,
         activeDirectory: radarrSettings.activeDirectory,
         activeProfileId: radarrSettings.activeProfileId,
@@ -212,5 +216,144 @@ serviceRoutes.get<{ tmdbId: string }>(
     }
   }
 );
+
+serviceRoutes.get('/lidarr', async (req, res) => {
+  const settings = getSettings();
+
+  const filteredLidarrServers: ServiceCommonServer[] = settings.lidarr.map(
+    (lidarr) => ({
+      id: lidarr.id,
+      name: lidarr.name,
+      activeDirectory: lidarr.activeDirectory,
+      activeProfileId: lidarr.activeProfileId,
+      activeTags: lidarr.tags ?? [],
+      isDefault: lidarr.isDefault,
+    })
+  );
+
+  return res.status(200).json(filteredLidarrServers);
+});
+
+serviceRoutes.get<{ id: string }>('/lidarr/:id', async (req, res, next) => {
+  const settings = getSettings();
+
+  const lidarrSettings = settings.lidarr.find(
+    (lidarr) => lidarr.id === Number(req.params.id)
+  );
+
+  if (!lidarrSettings) {
+    return next({
+      status: 404,
+      message: 'Lidarr server not found.',
+    });
+  }
+
+  const lidarr = new LidarrAPI({
+    apiKey: lidarrSettings.apiKey,
+    url: LidarrAPI.buildUrl(lidarrSettings, '/api/v1'),
+  });
+
+  try {
+    const [profiles, metadataProfiles, rootFolders, tags] = await Promise.all([
+      lidarr.getProfiles(),
+      lidarr.getMetadataProfiles(),
+      lidarr.getRootFolders(),
+      lidarr.getTags(),
+    ]);
+
+    return res.status(200).json({
+      server: {
+        id: lidarrSettings.id,
+        name: lidarrSettings.name,
+        isDefault: lidarrSettings.isDefault,
+        activeDirectory: lidarrSettings.activeDirectory,
+        activeProfileId: lidarrSettings.activeProfileId,
+        activeMetadataProfileId: lidarrSettings.activeMetadataProfileId,
+        activeTags: lidarrSettings.tags ?? [],
+      },
+      profiles,
+      metadataProfiles,
+      rootFolders: rootFolders.map((folder) => ({
+        id: folder.id,
+        path: folder.path,
+        freeSpace: folder.freeSpace,
+        totalSpace: folder.totalSpace,
+      })),
+      tags,
+    } as ServiceCommonServerWithDetails);
+  } catch (e) {
+    next({ status: 500, message: e.message });
+  }
+});
+
+serviceRoutes.get('/readarr', async (req, res) => {
+  const settings = getSettings();
+
+  const filteredReadarrServers: ServiceCommonServer[] = settings.readarr.map(
+    (readarr) => ({
+      id: readarr.id,
+      name: readarr.name,
+      activeDirectory: readarr.activeDirectory,
+      activeProfileId: readarr.activeProfileId,
+      activeTags: readarr.tags ?? [],
+      isDefault: readarr.isDefault,
+      is4k: readarr.isAudiobook ?? false,
+    })
+  );
+
+  return res.status(200).json(filteredReadarrServers);
+});
+
+serviceRoutes.get<{ id: string }>('/readarr/:id', async (req, res, next) => {
+  const settings = getSettings();
+
+  const readarrSettings = settings.readarr.find(
+    (readarr) => readarr.id === Number(req.params.id)
+  );
+
+  if (!readarrSettings) {
+    return next({
+      status: 404,
+      message: 'Readarr server not found.',
+    });
+  }
+
+  const readarr = new ReadarrAPI({
+    apiKey: readarrSettings.apiKey,
+    url: ReadarrAPI.buildUrl(readarrSettings, '/api/v1'),
+  });
+
+  try {
+    const [profiles, metadataProfiles, rootFolders, tags] = await Promise.all([
+      readarr.getProfiles(),
+      readarr.getMetadataProfiles(),
+      readarr.getRootFolders(),
+      readarr.getTags(),
+    ]);
+
+    return res.status(200).json({
+      server: {
+        id: readarrSettings.id,
+        name: readarrSettings.name,
+        isDefault: readarrSettings.isDefault,
+        activeDirectory: readarrSettings.activeDirectory,
+        activeProfileId: readarrSettings.activeProfileId,
+        activeMetadataProfileId: readarrSettings.activeMetadataProfileId,
+        activeTags: readarrSettings.tags ?? [],
+      },
+      profiles,
+      metadataProfiles,
+      rootFolders: rootFolders.map((folder) => ({
+        id: folder.id,
+        path: folder.path,
+        freeSpace: folder.freeSpace,
+        totalSpace: folder.totalSpace,
+      })),
+      tags,
+    } as ServiceCommonServerWithDetails);
+  } catch (e) {
+    next({ status: 500, message: e.message });
+  }
+});
 
 export default serviceRoutes;

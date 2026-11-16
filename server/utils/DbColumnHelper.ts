@@ -1,4 +1,4 @@
-import { isPgsql } from '@server/utils/dbType';
+import { isPgsql } from '@server/datasource';
 import type { ColumnOptions, ColumnType } from 'typeorm';
 import { Column } from 'typeorm';
 const pgTypeMapping: { [key: string]: ColumnType } = {

@@ -41,9 +41,6 @@ const messages = defineMessages('components.Settings', {
   toastPlexRefresh: 'Retrieving server list from Plex…',
   toastPlexRefreshSuccess: 'Plex server list retrieved successfully!',
   toastPlexRefreshFailure: 'Failed to retrieve Plex server list.',
-  toastPlexSyncFailure: 'Failed to sync Plex libraries.',
-  invalidurlerror: 'Unable to connect to {mediaServerName} server.',
-  toggleLibraryFailure: 'Failed to update library.',
   toastPlexConnecting: 'Attempting to connect to Plex…',
   toastPlexConnectingSuccess: 'Plex connection established successfully!',
   toastPlexConnectingFailure: 'Failed to connect to Plex.',
@@ -69,7 +66,7 @@ const messages = defineMessages('components.Settings', {
   validationPortRequired: 'You must provide a valid port number',
   webAppUrl: '<WebAppLink>Web App</WebAppLink> URL',
   webAppUrlTip:
-    'Optionally direct users to the web app on your server instead of https://app.plex.tv/desktop',
+    'Optionally direct users to the web app on your server instead of the "hosted" web app',
   tautulliSettings: 'Tautulli Settings',
   tautulliSettingsDescription:
     'Optionally configure the settings for your Tautulli server. Seerr fetches watch history data for your Plex media from Tautulli.',
@@ -84,12 +81,17 @@ const messages = defineMessages('components.Settings', {
   toastTautulliSettingsSuccess: 'Tautulli settings saved successfully!',
   toastTautulliSettingsFailure:
     'Something went wrong while saving Tautulli settings.',
+  plexMusicLibrary: 'Music library',
+  plexAudiobookLibrary:
+    'Audiobook shelf (syncs to audiobook Readarr). Or use Settings → Audiobook Shelf for Audiobookshelf.',
 });
 
 interface Library {
   id: string;
   name: string;
   enabled: boolean;
+  type?: 'show' | 'movie' | 'music' | 'book';
+  isAudiobook?: boolean;
 }
 
 interface SyncStatus {
@@ -111,10 +113,10 @@ interface PresetServerDisplay {
   message?: string;
 }
 interface SettingsPlexProps {
-  isSetupSettings?: boolean;
+  onComplete?: () => void;
 }
 
-const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
+const SettingsPlex = ({ onComplete }: SettingsPlexProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRefreshingPresets, setIsRefreshingPresets] = useState(false);
   const [availableServers, setAvailableServers] = useState<PlexDevice[] | null>(
@@ -125,17 +127,12 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
     error,
     mutate: revalidate,
   } = useSWR<PlexSettings>('/api/v1/settings/plex');
-  const {
-    data: dataTautulli,
-    error: errorTautulli,
-    mutate: revalidateTautulli,
-  } = useSWR<TautulliSettings>(
-    isSetupSettings ? null : '/api/v1/settings/tautulli'
-  );
+  const { data: dataTautulli, mutate: revalidateTautulli } =
+    useSWR<TautulliSettings>('/api/v1/settings/tautulli');
   const { data: dataSync, mutate: revalidateSync } = useSWR<SyncStatus>(
     '/api/v1/settings/plex/sync',
     {
-      refreshInterval: (latestData) => (latestData?.running ? 1000 : 10000),
+      refreshInterval: 1000,
     }
   );
   const intl = useIntl();
@@ -225,6 +222,27 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
       .filter((library) => library.enabled)
       .map((library) => library.id) ?? [];
 
+  const audiobookLibraries =
+    data?.libraries
+      .filter((library) => library.type === 'music' && library.isAudiobook)
+      .map((library) => library.id) ?? [];
+
+  const saveLibrarySettings = async (
+    enabledIds: string[],
+    audiobookIds: string[]
+  ) => {
+    const params: { enable?: string; audiobook?: string } = {};
+
+    if (enabledIds.length > 0) {
+      params.enable = enabledIds.join(',');
+    }
+    if (audiobookIds.length > 0) {
+      params.audiobook = audiobookIds.join(',');
+    }
+
+    await axios.get('/api/v1/settings/plex/library', { params });
+  };
+
   const availablePresets = useMemo(() => {
     const finalPresets: PresetServerDisplay[] = [];
     availableServers?.forEach((dev) => {
@@ -248,24 +266,22 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
   const syncLibraries = async () => {
     setIsSyncing(true);
 
-    try {
-      await axios.post('/api/v1/settings/plex/library/sync');
-    } catch (e) {
-      addToast(
-        e?.response?.data?.message === 'CONNECTION_ERROR'
-          ? intl.formatMessage(messages.invalidurlerror, {
-              mediaServerName: 'Plex',
-            })
-          : intl.formatMessage(messages.toastPlexSyncFailure),
-        {
-          autoDismiss: true,
-          appearance: 'error',
-        }
-      );
-    } finally {
-      setIsSyncing(false);
-      revalidate();
+    const params: { sync: boolean; enable?: string; audiobook?: string } = {
+      sync: true,
+    };
+
+    if (activeLibraries.length > 0) {
+      params.enable = activeLibraries.join(',');
     }
+    if (audiobookLibraries.length > 0) {
+      params.audiobook = audiobookLibraries.join(',');
+    }
+
+    await axios.get('/api/v1/settings/plex/library', {
+      params,
+    });
+    setIsSyncing(false);
+    revalidate();
   };
 
   const refreshPresetServers = async () => {
@@ -324,26 +340,34 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
 
   const toggleLibrary = async (libraryId: string) => {
     setIsSyncing(true);
-    try {
-      await axios.put(`/api/v1/settings/plex/library/${libraryId}`, {
-        enabled: !activeLibraries.includes(libraryId),
-      });
-    } catch {
-      addToast(intl.formatMessage(messages.toggleLibraryFailure), {
-        autoDismiss: true,
-        appearance: 'error',
-      });
-    } finally {
-      setIsSyncing(false);
-      revalidate();
+    const nextEnabled = activeLibraries.includes(libraryId)
+      ? activeLibraries.filter((id) => id !== libraryId)
+      : [...activeLibraries, libraryId];
+    const nextAudiobook = audiobookLibraries.filter((id) =>
+      nextEnabled.includes(id)
+    );
+
+    await saveLibrarySettings(nextEnabled, nextAudiobook);
+
+    if (onComplete) {
+      onComplete();
     }
+    setIsSyncing(false);
+    revalidate();
   };
 
-  if (
-    (!data || (!isSetupSettings && !dataTautulli)) &&
-    !error &&
-    !errorTautulli
-  ) {
+  const toggleAudiobookLibrary = async (libraryId: string) => {
+    setIsSyncing(true);
+    const nextAudiobook = audiobookLibraries.includes(libraryId)
+      ? audiobookLibraries.filter((id) => id !== libraryId)
+      : [...audiobookLibraries, libraryId];
+
+    await saveLibrarySettings(activeLibraries, nextAudiobook);
+    setIsSyncing(false);
+    revalidate();
+  };
+
+  if ((!data || !dataTautulli) && !error) {
     return <LoadingSpinner />;
   }
   return (
@@ -359,7 +383,7 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
         <p className="description">
           {intl.formatMessage(messages.plexsettingsDescription)}
         </p>
-        {isSetupSettings && (
+        {!!onComplete && (
           <div className="section">
             <Alert
               title={intl.formatMessage(messages.settingUpPlexDescription, {
@@ -602,7 +626,7 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
                       inputMode="url"
                       id="webAppUrl"
                       name="webAppUrl"
-                      placeholder="https://your-server-fqdn.com/web/index.html"
+                      placeholder="https://app.plex.tv/desktop"
                     />
                   </div>
                   {errors.webAppUrl &&
@@ -659,12 +683,35 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
         </Button>
         <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           {data?.libraries.map((library) => (
-            <LibraryItem
-              name={library.name}
-              isEnabled={library.enabled}
+            <div
               key={`setting-library-${library.id}`}
-              onToggle={() => toggleLibrary(library.id)}
-            />
+              className="col-span-1 flex flex-col gap-2"
+            >
+              <LibraryItem
+                name={
+                  library.type === 'music'
+                    ? `${library.name} (${intl.formatMessage(
+                        messages.plexMusicLibrary
+                      )})`
+                    : library.name
+                }
+                isEnabled={library.enabled}
+                onToggle={() => toggleLibrary(library.id)}
+              />
+              {library.type === 'music' && library.enabled && (
+                <label className="flex cursor-pointer items-center justify-between rounded-md border border-gray-700 bg-gray-600 px-4 py-3 text-sm text-gray-200">
+                  <span>
+                    {intl.formatMessage(messages.plexAudiobookLibrary)}
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={library.isAudiobook ?? false}
+                    onChange={() => toggleAudiobookLibrary(library.id)}
+                  />
+                </label>
+              )}
+            </div>
           ))}
         </ul>
       </div>
@@ -743,7 +790,7 @@ const SettingsPlex = ({ isSetupSettings }: SettingsPlexProps) => {
           </div>
         </div>
       </div>
-      {!isSetupSettings && (
+      {!onComplete && (
         <>
           <div className="mb-6 mt-10">
             <h3 className="heading">

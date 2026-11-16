@@ -10,7 +10,6 @@
 import { pipeline } from '@huggingface/transformers';
 import { existsSync, readFileSync } from 'node:fs';
 import {
-  EMBEDDING,
   addLabel,
   dotProduct,
   fetchIssues,
@@ -19,8 +18,10 @@ import {
   postComment,
 } from './utils.mjs';
 
+const SIMILARITY_THRESHOLD = 0.55;
 const TOP_K = 5;
 const MAX_COMMENT_CANDIDATES = 3;
+const MODEL_NAME = process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const INDEX_PATH = 'issue_index.json';
 const LABEL_NAME = 'possible-duplicate';
@@ -44,7 +45,7 @@ function loadIndex(path) {
 function findSimilar(
   queryEmbedding,
   index,
-  { topK = TOP_K, threshold = EMBEDDING.threshold, excludeNumber } = {}
+  { topK = TOP_K, threshold = SIMILARITY_THRESHOLD, excludeNumber } = {}
 ) {
   const { issues, embeddings } = index;
   if (!issues.length) return [];
@@ -79,8 +80,8 @@ Example:
 
 async function confirmWithLlm(newIssue, candidates) {
   if (!GROQ_API_KEY) {
-    console.warn('GROQ_API_KEY not set - posting unconfirmed candidates');
-    return candidates.map((c) => ({ ...c, unconfirmed: true }));
+    console.warn('GROQ_API_KEY not set — skipping LLM confirmation');
+    return candidates;
   }
 
   const candidateText = candidates
@@ -160,20 +161,17 @@ async function confirmWithLlm(newIssue, candidates) {
     return confirmed;
   } catch (err) {
     console.warn(
-      `LLM confirmation failed: ${err.message} - posting unconfirmed candidates`
+      `LLM confirmation failed: ${err.message} - falling back to all candidates`
     );
-    return candidates.map((c) => ({ ...c, unconfirmed: true }));
+    return candidates;
   }
 }
 
 function formatComment(candidates) {
-  const method = candidates.some((c) => c.unconfirmed)
-    ? 'semantic similarity only, LLM review was unavailable'
-    : 'semantic similarity + LLM review';
   const lines = [
     '**Possible duplicate detected**',
     '',
-    `This issue may be a duplicate of the following (detected via ${method}):`,
+    'This issue may be a duplicate of the following (detected via semantic similarity + LLM review):',
     '',
   ];
 
@@ -229,29 +227,19 @@ async function main() {
     return;
   }
 
-  const index = loadIndex(INDEX_PATH);
-  if (index.model !== EMBEDDING.model) {
-    console.log(
-      `Index was built with ${index.model}, expected ${EMBEDDING.model} - skipping`
-    );
-    return;
-  }
-
-  console.log(`Loading model: ${EMBEDDING.model}`);
-  const extractor = await pipeline('feature-extraction', EMBEDDING.model, {
+  console.log(`Loading model: ${MODEL_NAME}`);
+  const extractor = await pipeline('feature-extraction', MODEL_NAME, {
     dtype: 'fp32',
   });
+  const index = loadIndex(INDEX_PATH);
 
   const text = issueText(issue.title, issue.body);
-  const output = await extractor([text], {
-    pooling: EMBEDDING.pooling,
-    normalize: true,
-  });
+  const output = await extractor(text, { pooling: 'mean', normalize: true });
   const queryEmbedding = output.tolist()[0];
 
   let candidates = findSimilar(queryEmbedding, index, {
     topK: TOP_K,
-    threshold: EMBEDDING.threshold,
+    threshold: SIMILARITY_THRESHOLD,
     excludeNumber: issue.number,
   });
 

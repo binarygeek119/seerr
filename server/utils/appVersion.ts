@@ -11,8 +11,21 @@ if (existsSync(COMMIT_TAG_PATH)) {
   logger.info(`Commit Tag: ${commitTag}`);
 }
 
+export const FORK_VERSION_SUFFIX = '+';
+
 export const getCommitTag = (): string => {
   return commitTag;
+};
+
+export const isDevelopVersion = (version: string): boolean =>
+  version.startsWith('develop-');
+
+export const formatVersionForDisplay = (version: string): string => {
+  if (isDevelopVersion(version)) {
+    return version.slice('develop-'.length);
+  }
+
+  return version;
 };
 
 export const getAppVersion = (): string => {
@@ -22,7 +35,7 @@ export const getAppVersion = (): string => {
   let finalVersion = version;
 
   if (version === '0.1.0') {
-    finalVersion = `develop-${getCommitTag()}`;
+    finalVersion = `develop-${getCommitTag()}${FORK_VERSION_SUFFIX}`;
   }
 
   return finalVersion;

@@ -47,9 +47,6 @@ const messages = defineMessages('components.Settings', {
     'Custom authentication with Automatic Library Grouping not supported',
   jellyfinSyncFailedGenericError:
     'Something went wrong while syncing libraries',
-  jellyfinSyncFailedConnectionError:
-    'Unable to reach the {mediaServerName} server. Check that it is running and reachable from Seerr.',
-  toggleLibraryFailure: 'Failed to update library.',
   invalidurlerror: 'Unable to connect to {mediaServerName} server.',
   syncing: 'Syncing',
   syncJellyfin: 'Sync Libraries',
@@ -70,12 +67,18 @@ const messages = defineMessages('components.Settings', {
   tip: 'Tip',
   scanbackground:
     'Scanning will run in the background. You can continue the setup process in the meantime.',
+  jellyfinBookLibrary: 'Book library',
+  jellyfinAudiobookLibrary: 'Audiobook shelf',
+  jellyfinEmbyAudiobookLibrary: 'Audiobook library (Emby)',
 });
 
 interface Library {
   id: string;
   name: string;
   enabled: boolean;
+  type?: 'show' | 'movie' | 'music' | 'book';
+  isAudiobook?: boolean;
+  audiobookCollection?: boolean;
 }
 
 interface SyncStatus {
@@ -88,9 +91,11 @@ interface SyncStatus {
 
 interface SettingsJellyfinProps {
   isSetupSettings?: boolean;
+  onComplete?: () => void;
 }
 
 const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
+  onComplete,
   isSetupSettings,
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -102,7 +107,7 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
   const { data: dataSync, mutate: revalidateSync } = useSWR<SyncStatus>(
     '/api/v1/settings/jellyfin/sync',
     {
-      refreshInterval: (latestData) => (latestData?.running ? 1000 : 10000),
+      refreshInterval: 1000,
     }
   );
   const intl = useIntl();
@@ -159,11 +164,45 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
       .filter((library) => library.enabled)
       .map((library) => library.id) ?? [];
 
+  const audiobookLibraries =
+    data?.libraries
+      .filter((library) => library.type === 'book' && library.isAudiobook)
+      .map((library) => library.id) ?? [];
+
+  const saveLibrarySettings = async (
+    enabledIds: string[],
+    audiobookIds: string[]
+  ) => {
+    const params: { enable?: string; audiobook?: string } = {};
+
+    if (enabledIds.length > 0) {
+      params.enable = enabledIds.join(',');
+    }
+    if (audiobookIds.length > 0) {
+      params.audiobook = audiobookIds.join(',');
+    }
+
+    await axios.get('/api/v1/settings/jellyfin/library', { params });
+  };
+
   const syncLibraries = async () => {
     setIsSyncing(true);
 
+    const params: { sync: boolean; enable?: string; audiobook?: string } = {
+      sync: true,
+    };
+
+    if (activeLibraries.length > 0) {
+      params.enable = activeLibraries.join(',');
+    }
+    if (audiobookLibraries.length > 0) {
+      params.audiobook = audiobookLibraries.join(',');
+    }
+
     try {
-      await axios.post('/api/v1/settings/jellyfin/library/sync');
+      await axios.get('/api/v1/settings/jellyfin/library', {
+        params,
+      });
       setIsSyncing(false);
       revalidate();
     } catch (e) {
@@ -175,19 +214,6 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
           {
             autoDismiss: true,
             appearance: 'warning',
-          }
-        );
-      } else if (e?.response?.data?.message === 'CONNECTION_ERROR') {
-        addToast(
-          intl.formatMessage(messages.jellyfinSyncFailedConnectionError, {
-            mediaServerName:
-              settings.currentSettings.mediaServerType === MediaServerType.EMBY
-                ? 'Emby'
-                : 'Jellyfin',
-          }),
-          {
-            autoDismiss: true,
-            appearance: 'error',
           }
         );
       } else if (e?.response?.data?.message === 'SYNC_ERROR_NO_LIBRARIES') {
@@ -225,19 +251,30 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
 
   const toggleLibrary = async (libraryId: string) => {
     setIsSyncing(true);
-    try {
-      await axios.put(`/api/v1/settings/jellyfin/library/${libraryId}`, {
-        enabled: !activeLibraries.includes(libraryId),
-      });
-    } catch {
-      addToast(intl.formatMessage(messages.toggleLibraryFailure), {
-        autoDismiss: true,
-        appearance: 'error',
-      });
-    } finally {
-      setIsSyncing(false);
-      revalidate();
+    const nextEnabled = activeLibraries.includes(libraryId)
+      ? activeLibraries.filter((id) => id !== libraryId)
+      : [...activeLibraries, libraryId];
+    const nextAudiobook = audiobookLibraries.filter((id) =>
+      nextEnabled.includes(id)
+    );
+
+    await saveLibrarySettings(nextEnabled, nextAudiobook);
+    if (onComplete) {
+      onComplete();
     }
+    setIsSyncing(false);
+    revalidate();
+  };
+
+  const toggleAudiobookLibrary = async (libraryId: string) => {
+    setIsSyncing(true);
+    const nextAudiobook = audiobookLibraries.includes(libraryId)
+      ? audiobookLibraries.filter((id) => id !== libraryId)
+      : [...audiobookLibraries, libraryId];
+
+    await saveLibrarySettings(activeLibraries, nextAudiobook);
+    setIsSyncing(false);
+    revalidate();
   };
 
   if (!data && !error) {
@@ -289,12 +326,41 @@ const SettingsJellyfin: React.FC<SettingsJellyfinProps> = ({
         </Button>
         <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           {data?.libraries.map((library) => (
-            <LibraryItem
-              name={library.name}
-              isEnabled={library.enabled}
+            <div
               key={`setting-library-${library.id}`}
-              onToggle={() => toggleLibrary(library.id)}
-            />
+              className="col-span-1 flex flex-col gap-2"
+            >
+              <LibraryItem
+                name={
+                  library.type === 'book'
+                    ? `${library.name} (${
+                        library.audiobookCollection
+                          ? intl.formatMessage(
+                              messages.jellyfinEmbyAudiobookLibrary
+                            )
+                          : intl.formatMessage(messages.jellyfinBookLibrary)
+                      })`
+                    : library.name
+                }
+                isEnabled={library.enabled}
+                onToggle={() => toggleLibrary(library.id)}
+              />
+              {library.type === 'book' &&
+                library.enabled &&
+                !library.audiobookCollection && (
+                  <label className="flex cursor-pointer items-center justify-between rounded-md border border-gray-700 bg-gray-600 px-4 py-3 text-sm text-gray-200">
+                    <span>
+                      {intl.formatMessage(messages.jellyfinAudiobookLibrary)}
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={library.isAudiobook ?? false}
+                      onChange={() => toggleAudiobookLibrary(library.id)}
+                    />
+                  </label>
+                )}
+            </div>
           ))}
         </ul>
       </div>

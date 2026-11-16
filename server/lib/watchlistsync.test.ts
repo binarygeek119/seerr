@@ -11,7 +11,6 @@ import { MediaRequest } from '@server/entity/MediaRequest';
 import { User } from '@server/entity/User';
 import { UserSettings } from '@server/entity/UserSettings';
 import { Permission } from '@server/lib/permissions';
-import watchlistSync from '@server/lib/watchlistsync';
 import { setupTestDb } from '@server/test/db';
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
@@ -41,6 +40,8 @@ Object.defineProperty(MediaRequest, 'request', {
   writable: true,
   configurable: true,
 });
+
+import watchlistSync from '@server/lib/watchlistsync';
 
 setupTestDb();
 

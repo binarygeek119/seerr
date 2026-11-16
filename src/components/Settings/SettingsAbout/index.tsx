@@ -8,6 +8,14 @@ import useSettings from '@app/hooks/useSettings';
 import globalMessages from '@app/i18n/globalMessages';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
+import { isDevelopVersion } from '@app/utils/version';
+import { DISCORD_INVITE_URL } from '@server/constants/community';
+import {
+  GITHUB_COMMITS_DEVELOP_URL,
+  GITHUB_ISSUES_URL,
+  GITHUB_RELEASES_URL,
+  githubCompareDevelopUrl,
+} from '@server/constants/github';
 import type {
   SettingsAboutResponse,
   StatusResponse,
@@ -22,7 +30,7 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
   totalmedia: 'Total Media',
   totalrequests: 'Total Requests',
   gettingsupport: 'Getting Support',
-  githubdiscussions: 'GitHub Discussions',
+  githubissues: 'GitHub Issues',
   timezone: 'Time Zone',
   appDataPath: 'Data Directory',
   supportseerr: 'Support Seerr',
@@ -32,7 +40,7 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
   uptodate: 'Up to Date',
   versionCheckDisabled: 'Version Check Disabled',
   runningDevelop:
-    'You are running the <code>develop</code> branch of Seerr, which is only recommended for those contributing to development or assisting with bleeding-edge testing.',
+    'You are running a custom fork of Seerr on the <code>develop</code> branch. Versions marked with <code>+</code> indicate fork-specific changes.',
 });
 
 const SettingsAbout = () => {
@@ -64,7 +72,7 @@ const SettingsAbout = () => {
       />
       <div className="section">
         <List title={intl.formatMessage(messages.aboutseerr)}>
-          {data.version.startsWith('develop-') && (
+          {isDevelopVersion(data.version) && (
             <Alert
               title={intl.formatMessage(messages.runningDevelop, {
                 code: (msg: React.ReactNode) => (
@@ -85,9 +93,9 @@ const SettingsAbout = () => {
                 status.updateAvailable ? (
                   <a
                     href={
-                      data.version.startsWith('develop-')
-                        ? `https://github.com/seerr-team/seerr/compare/${status.commitTag}...develop`
-                        : 'https://github.com/seerr-team/seerr/releases'
+                      isDevelopVersion(data.version)
+                        ? githubCompareDevelopUrl(status.commitTag)
+                        : GITHUB_RELEASES_URL
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -102,9 +110,9 @@ const SettingsAbout = () => {
                 ) : (
                   <a
                     href={
-                      data.version.startsWith('develop-')
-                        ? 'https://github.com/seerr-team/seerr/commits/develop'
-                        : 'https://github.com/seerr-team/seerr/releases'
+                      isDevelopVersion(data.version)
+                        ? GITHUB_COMMITS_DEVELOP_URL
+                        : GITHUB_RELEASES_URL
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -121,9 +129,9 @@ const SettingsAbout = () => {
             ) : (
               <a
                 href={
-                  data.version.startsWith('develop-')
-                    ? 'https://github.com/seerr-team/seerr/commits/develop'
-                    : 'https://github.com/seerr-team/seerr/releases'
+                  isDevelopVersion(data.version)
+                    ? GITHUB_COMMITS_DEVELOP_URL
+                    : GITHUB_RELEASES_URL
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -165,24 +173,24 @@ const SettingsAbout = () => {
               https://docs.seerr.dev
             </a>
           </List.Item>
-          <List.Item title={intl.formatMessage(messages.githubdiscussions)}>
+          <List.Item title={intl.formatMessage(messages.githubissues)}>
             <a
-              href="https://github.com/seerr-team/seerr/discussions"
+              href={GITHUB_ISSUES_URL}
               target="_blank"
               rel="noreferrer"
               className="text-indigo-500 transition duration-300 hover:underline"
             >
-              https://github.com/seerr-team/seerr/discussions
+              {GITHUB_ISSUES_URL}
             </a>
           </List.Item>
           <List.Item title="Discord">
             <a
-              href="https://discord.gg/seerr"
+              href={DISCORD_INVITE_URL}
               target="_blank"
               rel="noreferrer"
               className="text-indigo-500 transition duration-300 hover:underline"
             >
-              https://discord.gg/seerr
+              {DISCORD_INVITE_URL}
             </a>
           </List.Item>
         </List>

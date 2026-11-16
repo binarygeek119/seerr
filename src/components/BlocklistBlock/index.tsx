@@ -12,7 +12,7 @@ import type { MediaType } from '@server/constants/media';
 import type { Blocklist } from '@server/entity/Blocklist';
 import axios from 'axios';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import useSWR from 'swr';
 
@@ -22,7 +22,9 @@ const messages = defineMessages('component.BlocklistBlock', {
 });
 
 interface BlocklistBlockProps {
-  tmdbId: number;
+  tmdbId?: number;
+  mbId?: string;
+  foreignBookId?: string;
   mediaType: MediaType;
   onUpdate?: () => void;
   onDelete?: () => void;
@@ -30,6 +32,8 @@ interface BlocklistBlockProps {
 
 const BlocklistBlock = ({
   tmdbId,
+  mbId,
+  foreignBookId,
   mediaType,
   onUpdate,
   onDelete,
@@ -38,20 +42,38 @@ const BlocklistBlock = ({
   const intl = useIntl();
   const [isUpdating, setIsUpdating] = useState(false);
   const { addToast } = useToasts();
-  const { data } = useSWR<Blocklist>(
-    `/api/v1/blocklist/${tmdbId}?mediaType=${mediaType}`
-  );
 
-  const removeFromBlocklist = async (tmdbId: number, title?: string) => {
+  const swrKey = useMemo(() => {
+    if (mbId != null && mediaType === 'music') {
+      return `/api/v1/blocklist/${encodeURIComponent(mbId)}?mediaType=${mediaType}`;
+    }
+    if (foreignBookId != null && mediaType === 'book') {
+      return `/api/v1/blocklist/${encodeURIComponent(foreignBookId)}?mediaType=${mediaType}`;
+    }
+    if (tmdbId != null) {
+      return `/api/v1/blocklist/${tmdbId}?mediaType=${mediaType}`;
+    }
+    return null;
+  }, [tmdbId, mbId, foreignBookId, mediaType]);
+
+  const { data } = useSWR<Blocklist>(swrKey);
+
+  const removeFromBlocklist = async () => {
+    const id = mbId ?? foreignBookId ?? tmdbId;
+    if (id === undefined) {
+      return;
+    }
     setIsUpdating(true);
 
     try {
-      await axios.delete(`/api/v1/blocklist/${tmdbId}?mediaType=${mediaType}`);
+      await axios.delete(
+        `/api/v1/blocklist/${encodeURIComponent(String(id))}?mediaType=${mediaType}`
+      );
 
       addToast(
         <span>
           {intl.formatMessage(globalMessages.removeFromBlocklistSuccess, {
-            title,
+            title: data?.title,
             strong: (msg: React.ReactNode) => <strong>{msg}</strong>,
           })}
         </span>,
@@ -118,7 +140,7 @@ const BlocklistBlock = ({
           >
             <Button
               buttonType="danger"
-              onClick={() => removeFromBlocklist(data.tmdbId, data.title)}
+              onClick={() => removeFromBlocklist()}
               disabled={isUpdating}
             >
               <TrashIcon className="icon-sm" />

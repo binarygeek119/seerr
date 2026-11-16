@@ -16,12 +16,7 @@ describe('Movie Details', () => {
     cy.visit('/movie/438148');
     cy.visit('/movie/438148?manage=1');
 
-    // Closing it while it's still animating in can leave the panel mounted
-    cy.get('button[aria-label="Close panel"]')
-      .should('be.visible')
-      .parents('[data-transition]')
-      .should('not.exist');
-    cy.get('button[aria-label="Close panel"]').click();
+    cy.get('button[aria-label="Close panel"]').should('be.visible').click();
     cy.location('search').should('eq', '');
     cy.get('button[aria-label="Close panel"]').should('not.exist');
 

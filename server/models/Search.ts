@@ -1,4 +1,8 @@
 import type {
+  MbAlbumResult,
+  MbArtistResult,
+} from '@server/api/musicbrainz/interfaces';
+import type {
   TmdbCollectionResult,
   TmdbMovieDetails,
   TmdbMovieResult,
@@ -9,10 +13,17 @@ import type {
 } from '@server/api/themoviedb/interfaces';
 import { MediaType as MainMediaType } from '@server/constants/media';
 import type Media from '@server/entity/Media';
+import { isTheatrical3dMovie } from '@server/lib/movie3dList';
+export type MediaType =
+  | 'tv'
+  | 'movie'
+  | 'person'
+  | 'collection'
+  | 'artist'
+  | 'album'
+  | 'book';
 
-export type MediaType = 'tv' | 'movie' | 'person' | 'collection';
-
-interface SearchResult {
+interface TmdbSearchResult {
   id: number;
   mediaType: MediaType;
   popularity: number;
@@ -26,17 +37,25 @@ interface SearchResult {
   mediaInfo?: Media;
 }
 
-export interface MovieResult extends SearchResult {
+interface MbSearchResult {
+  id: string;
+  mediaType: MediaType;
+  score: number;
+  mediaInfo?: Media;
+}
+
+export interface MovieResult extends TmdbSearchResult {
   mediaType: 'movie';
   title: string;
   originalTitle: string;
   releaseDate: string;
   adult: boolean;
   video: boolean;
+  hasTheatrical3dVersion?: boolean;
   mediaInfo?: Media;
 }
 
-export interface TvResult extends SearchResult {
+export interface TvResult extends TmdbSearchResult {
   mediaType: 'tv';
   name: string;
   originalName: string;
@@ -66,7 +85,70 @@ export interface PersonResult {
   knownFor: (MovieResult | TvResult)[];
 }
 
-export type Results = MovieResult | TvResult | PersonResult | CollectionResult;
+export interface ArtistResult extends MbSearchResult {
+  mediaType: 'artist';
+  tmdbPersonId?: number;
+  name: string;
+  type: 'Group' | 'Person';
+  'sort-name': string;
+  country?: string;
+  disambiguation?: string;
+  artistThumb?: string | null;
+  artistBackdrop?: string | null;
+  mediaInfo?: Media;
+}
+
+export interface AlbumResult extends MbSearchResult {
+  mediaType: 'album';
+  title: string;
+  'primary-type': 'Album' | 'Single' | 'EP';
+  'first-release-date': string;
+  releaseDate?: string;
+  'artist-credit': {
+    name: string;
+    artist: {
+      id: string;
+      name: string;
+      'sort-name': string;
+    };
+  }[];
+  posterPath?: string;
+  needsCoverArt?: boolean;
+  mediaInfo?: Media;
+}
+
+/** Raw shape produced by search/discover before mapSearchResults */
+export interface ReadarrBookSearchResult {
+  media_type: 'book';
+  id: string;
+  title: string;
+  foreignBookId: string;
+  authorName?: string;
+  posterPath?: string;
+  monitored?: boolean;
+  hasFile?: boolean;
+  score: number;
+}
+
+export interface BookResult extends MbSearchResult {
+  mediaType: 'book';
+  title: string;
+  authorName?: string;
+  posterPath?: string;
+  needsCoverArt?: boolean;
+  monitored?: boolean;
+  hasFile?: boolean;
+  mediaInfo?: Media;
+}
+
+export type Results =
+  | MovieResult
+  | TvResult
+  | PersonResult
+  | CollectionResult
+  | ArtistResult
+  | AlbumResult
+  | BookResult;
 
 export const mapMovieResult = (
   movieResult: TmdbMovieResult,
@@ -87,6 +169,11 @@ export const mapMovieResult = (
   voteCount: movieResult.vote_count,
   backdropPath: movieResult.backdrop_path,
   posterPath: movieResult.poster_path,
+  hasTheatrical3dVersion: isTheatrical3dMovie({
+    title: movieResult.title,
+    originalTitle: movieResult.original_title,
+    releaseDate: movieResult.release_date,
+  }),
   mediaInfo: media,
 });
 
@@ -144,18 +231,169 @@ export const mapPersonResult = (
   }),
 });
 
-export const mapSearchResults = (
+export const mapArtistResult = (
+  artistResult: MbArtistResult
+): ArtistResult => ({
+  id: artistResult.id,
+  score: artistResult.score,
+  mediaType: 'artist',
+  name: artistResult.name,
+  type: artistResult.type,
+  'sort-name': artistResult['sort-name'],
+  country: artistResult.country,
+  disambiguation: artistResult.disambiguation,
+  artistThumb: artistResult.artistThumb,
+  artistBackdrop: artistResult.artistBackdrop,
+});
+
+export const mapAlbumResult = (
+  albumResult: MbAlbumResult,
+  media?: Media
+): AlbumResult => ({
+  id: albumResult.id,
+  score: albumResult.score,
+  mediaType: 'album',
+  title: albumResult.title,
+  'primary-type': albumResult['primary-type'],
+  'first-release-date': albumResult['first-release-date'],
+  'artist-credit': albumResult['artist-credit'],
+  posterPath: albumResult.posterPath,
+  needsCoverArt: !albumResult.posterPath,
+  mediaInfo: media,
+});
+
+export const mapBookResult = (
+  result: ReadarrBookSearchResult,
+  media?: Media
+): BookResult => ({
+  id: result.foreignBookId,
+  score: result.score,
+  mediaType: 'book',
+  title: result.title,
+  authorName: result.authorName,
+  posterPath: result.posterPath,
+  needsCoverArt: !result.posterPath,
+  monitored: result.monitored,
+  hasFile: result.hasFile,
+  mediaInfo: media,
+});
+
+const isTmdbMovie = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is TmdbMovieResult => {
+  return result.media_type === 'movie';
+};
+
+const isTmdbTv = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is TmdbTvResult => {
+  return result.media_type === 'tv';
+};
+
+const isTmdbPerson = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is TmdbPersonResult => {
+  return result.media_type === 'person';
+};
+
+const isTmdbCollection = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is TmdbCollectionResult => {
+  return result.media_type === 'collection';
+};
+
+const isMbArtist = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is MbArtistResult => {
+  return result.media_type === 'artist';
+};
+
+const isMbAlbum = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is MbAlbumResult => {
+  return result.media_type === 'album';
+};
+
+const isReadarrBookSearchResult = (
+  result:
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
+): result is ReadarrBookSearchResult => {
+  return result.media_type === 'book';
+};
+
+export const mapSearchResults = async (
   results: (
     | TmdbMovieResult
     | TmdbTvResult
     | TmdbPersonResult
     | TmdbCollectionResult
+    | MbArtistResult
+    | MbAlbumResult
+    | ReadarrBookSearchResult
   )[],
   media?: Media[]
-): Results[] =>
-  results.map((result) => {
-    switch (result.media_type) {
-      case 'movie':
+): Promise<Results[]> =>
+  Promise.all(
+    results.map(async (result) => {
+      if (isReadarrBookSearchResult(result)) {
+        return mapBookResult(
+          result,
+          media?.find(
+            (req) =>
+              req.foreignBookId === result.foreignBookId &&
+              req.mediaType === MainMediaType.BOOK
+          )
+        );
+      }
+      if (isTmdbMovie(result)) {
         return mapMovieResult(
           result,
           media?.find(
@@ -163,7 +401,7 @@ export const mapSearchResults = (
               req.tmdbId === result.id && req.mediaType === MainMediaType.MOVIE
           )
         );
-      case 'tv':
+      } else if (isTmdbTv(result)) {
         return mapTvResult(
           result,
           media?.find(
@@ -171,12 +409,25 @@ export const mapSearchResults = (
               req.tmdbId === result.id && req.mediaType === MainMediaType.TV
           )
         );
-      case 'collection':
-        return mapCollectionResult(result);
-      default:
+      } else if (isTmdbPerson(result)) {
         return mapPersonResult(result);
-    }
-  });
+      } else if (isTmdbCollection(result)) {
+        return mapCollectionResult(result);
+      } else if (isMbArtist(result)) {
+        return mapArtistResult(result);
+      } else if (isMbAlbum(result)) {
+        return mapAlbumResult(
+          result,
+          media?.find(
+            (req) =>
+              req.mbId === result.id && req.mediaType === MainMediaType.MUSIC
+          )
+        );
+      }
+
+      throw new Error(`Unhandled result type: ${JSON.stringify(result)}`);
+    })
+  );
 
 export const mapMovieDetailsToResult = (
   movieDetails: TmdbMovieDetails
@@ -221,6 +472,7 @@ export const mapPersonDetailsToResult = (
   personDetails: TmdbPersonDetails
 ): TmdbPersonResult => ({
   id: personDetails.id,
+  known_for_department: personDetails.known_for_department,
   media_type: 'person',
   name: personDetails.name,
   popularity: personDetails.popularity,

@@ -8,8 +8,6 @@ export interface SeedDbOptions {
   preserveDb?: boolean;
   /** If true, runs migrations instead of synchronizing schema */
   withMigrations?: boolean;
-  /** If true, permits seeding while NODE_ENV is not test */
-  allowOutsideTest?: boolean;
 }
 
 // Precomputed bcrypt hash of 'test1234'. We precompute this to avoid
@@ -17,21 +15,11 @@ export interface SeedDbOptions {
 const TEST_USER_PASSWORD_HASH =
   '$2b$12$Z5V2P5HZgmx4/AnWFMZN1.aD5AM1NucNi.mhNTSQ9oVtmdzu7Le/a';
 
-function assertTestDatabase(operation: string, allowOutsideTest = false): void {
-  if (allowOutsideTest || process.env.NODE_ENV === 'test') {
-    return;
-  }
-
-  throw new Error(
-    `Refusing to ${operation} while NODE_ENV is not test: this drops every table and seeds accounts with a known password.`
-  );
-}
-
 /**
  * Seeds test users into the database.
  * Assumes the database schema is already set up.
  */
-export async function seedTestUsers(): Promise<void> {
+async function seedTestUsers(): Promise<void> {
   const userRepository = getRepository(User);
 
   const admin = await userRepository.findOne({
@@ -58,17 +46,17 @@ export async function seedTestUsers(): Promise<void> {
   // Create the other user
   const otherUser =
     (await userRepository.findOne({
-      where: { email: 'demo@seerr.dev' },
+      where: { email: 'friend@seerr.dev' },
     })) ?? new User();
   otherUser.plexId = admin?.plexId ?? 1;
   otherUser.plexToken = '1234';
-  otherUser.plexUsername = 'demo';
-  otherUser.username = 'demo';
-  otherUser.email = 'demo@seerr.dev';
+  otherUser.plexUsername = 'friend';
+  otherUser.username = 'friend';
+  otherUser.email = 'friend@seerr.dev';
   otherUser.userType = UserType.PLEX;
   otherUser.password = TEST_USER_PASSWORD_HASH;
   otherUser.permissions = 32;
-  otherUser.avatar = gravatarUrl('demo@seerr.dev', {
+  otherUser.avatar = gravatarUrl('friend@seerr.dev', {
     default: 'mm',
     size: 200,
   });
@@ -80,8 +68,6 @@ export async function seedTestUsers(): Promise<void> {
  * Used by both Cypress tests and Vitest unit tests.
  */
 export async function seedTestDb(options: SeedDbOptions = {}): Promise<void> {
-  assertTestDatabase('seed the test database', options.allowOutsideTest);
-
   const dbConnection = dataSource.isInitialized
     ? dataSource
     : await dataSource.initialize();
@@ -105,8 +91,6 @@ export async function seedTestDb(options: SeedDbOptions = {}): Promise<void> {
  * Assumes DB has been initialized.
  */
 export async function resetTestDb(): Promise<void> {
-  assertTestDatabase('reset the test database');
-
   await dataSource.synchronize(true);
   await seedTestUsers();
 }

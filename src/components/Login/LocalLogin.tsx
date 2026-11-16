@@ -1,4 +1,3 @@
-import Alert from '@app/components/Common/Alert';
 import Button from '@app/components/Common/Button';
 import SensitiveInput from '@app/components/Common/SensitiveInput';
 import useSettings from '@app/hooks/useSettings';
@@ -28,7 +27,6 @@ const messages = defineMessages('components.Login', {
   signingin: 'Signing In…',
   signin: 'Sign In',
   forgotpassword: 'Forgot Password?',
-  demoModeInfo: 'Demo mode is enabled. Use the demo credentials to sign in.',
 });
 
 interface LocalLoginProps {
@@ -56,9 +54,8 @@ const LocalLogin = ({ revalidate }: LocalLoginProps) => {
   return (
     <Formik
       initialValues={{
-        email:
-          process.env.unsafeDoNotUseDemo === 'true' ? 'demo@seerr.dev' : '',
-        password: process.env.unsafeDoNotUseDemo === 'true' ? 'test1234' : '',
+        email: '',
+        password: '',
       }}
       validationSchema={LoginSchema}
       validateOnBlur={false}
@@ -91,12 +88,6 @@ const LocalLogin = ({ revalidate }: LocalLoginProps) => {
                     appName: settings.currentSettings.applicationTitle,
                   })}
                 </h2>
-
-                {process.env.unsafeDoNotUseDemo === 'true' && (
-                  <Alert type="info">
-                    {intl.formatMessage(messages.demoModeInfo)}
-                  </Alert>
-                )}
 
                 <div className="mb-4 mt-1">
                   <div className="form-input-field">

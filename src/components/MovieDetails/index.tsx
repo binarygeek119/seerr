@@ -31,7 +31,7 @@ import globalMessages from '@app/i18n/globalMessages';
 import ErrorPage from '@app/pages/_error';
 import { sortCrewPriority } from '@app/utils/creditHelpers';
 import defineMessages from '@app/utils/defineMessages';
-import { mediaRefreshInterval } from '@app/utils/refreshIntervalHelper';
+import { refreshIntervalHelper } from '@app/utils/refreshIntervalHelper';
 import {
   ArrowRightCircleIcon,
   CloudIcon,
@@ -59,14 +59,7 @@ import 'country-flag-icons/3x2/flags.css';
 import { uniqBy } from 'lodash';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import useSWR from 'swr';
 
@@ -107,6 +100,7 @@ const messages = defineMessages('components.MovieDetails', {
   rtaudiencescore: 'Rotten Tomatoes Audience Score',
   tmdbuserscore: 'TMDB User Score',
   imdbuserscore: 'IMDB User Score – votes: {formattedCount}',
+  theatrical3d: '3D',
   watchlistSuccess: '<strong>{title}</strong> added to watchlist successfully!',
   watchlistDeleted:
     '<strong>{title}</strong> Removed from watchlist successfully!',
@@ -137,7 +131,6 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
     useState<boolean>(false);
   const [showBlocklistModal, setShowBlocklistModal] = useState(false);
   const { addToast } = useToasts();
-  const sawDownload = useRef(false);
 
   const {
     data,
@@ -145,8 +138,13 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
     mutate: revalidate,
   } = useSWR<MovieDetailsType>(`/api/v1/movie/${router.query.movieId}`, {
     fallbackData: movie,
-    refreshInterval: (latest) =>
-      mediaRefreshInterval(latest?.mediaInfo, sawDownload, 15000),
+    refreshInterval: refreshIntervalHelper(
+      {
+        downloadStatus: movie?.mediaInfo?.downloadStatus,
+        downloadStatus4k: movie?.mediaInfo?.downloadStatus4k,
+      },
+      15000
+    ),
   });
 
   const { data: ratingData } = useSWR<RatingResponse>(
@@ -161,14 +159,10 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   useEffect(() => {
     if (router.query.manage === '1') {
       setShowManager(true);
-      router.replace(
-        {
-          pathname: router.pathname,
-          query: { movieId: router.query.movieId },
-        },
-        undefined,
-        { shallow: true }
-      );
+      router.replace({
+        pathname: router.pathname,
+        query: { movieId: router.query.movieId },
+      });
     }
   }, [router, router.query.manage]);
 
@@ -268,6 +262,14 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   if (certification) {
     movieAttributes.push(
       <span className="rounded-md border p-0.5 py-0">{certification}</span>
+    );
+  }
+
+  if (data.hasTheatrical3dVersion) {
+    movieAttributes.push(
+      <span className="rounded-md border p-0.5 py-0">
+        {intl.formatMessage(messages.theatrical3d)}
+      </span>
     );
   }
 
@@ -480,14 +482,10 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
         mediaType="movie"
         onClose={() => {
           setShowManager(false);
-          router.replace(
-            {
-              pathname: router.pathname,
-              query: { movieId: router.query.movieId },
-            },
-            undefined,
-            { shallow: true }
-          );
+          router.replace({
+            pathname: router.pathname,
+            query: { movieId: router.query.movieId },
+          });
         }}
         revalidate={() => revalidate()}
         show={showManager}
@@ -552,6 +550,27 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                   mediaType="movie"
                   plexUrl={plexUrl4k}
                   serviceUrl={data.mediaInfo?.serviceUrl4k}
+                />
+              )}
+            {settings.currentSettings.movie3dEnabled &&
+              data.hasTheatrical3dVersion &&
+              hasPermission(
+                [
+                  Permission.MANAGE_REQUESTS,
+                  Permission.REQUEST,
+                  Permission.REQUEST_MOVIE,
+                ],
+                {
+                  type: 'or',
+                }
+              ) && (
+                <StatusBadge
+                  status={data.mediaInfo?.status3d}
+                  title={data.title}
+                  is3d
+                  tmdbId={data.mediaInfo?.tmdbId}
+                  mediaType="movie"
+                  serviceUrl={data.mediaInfo?.serviceUrl3d}
                 />
               )}
           </div>
@@ -638,6 +657,7 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
             mediaType="movie"
             media={data.mediaInfo}
             tmdbId={data.id}
+            hasTheatrical3dVersion={data.hasTheatrical3dVersion}
             onUpdate={() => revalidate()}
           />
           {(data.mediaInfo?.status === MediaStatus.AVAILABLE ||

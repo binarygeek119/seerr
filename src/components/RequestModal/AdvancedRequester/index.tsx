@@ -2,29 +2,19 @@
 import CachedImage from '@app/components/Common/CachedImage';
 import { SmallLoadingSpinner } from '@app/components/Common/LoadingSpinner';
 import SlideCheckbox from '@app/components/Common/SlideCheckbox';
-import useToasts from '@app/hooks/useToasts';
 import type { User } from '@app/hooks/useUser';
 import { Permission, useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
 import { formatBytes } from '@app/utils/numberHelpers';
-import {
-  Label,
-  Listbox,
-  ListboxButton,
-  ListboxOption,
-  ListboxOptions,
-  Transition,
-} from '@headlessui/react';
+import { Listbox, Transition } from '@headlessui/react';
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import type {
   ServiceCommonServer,
   ServiceCommonServerWithDetails,
 } from '@server/interfaces/api/serviceInterfaces';
 import type { UserResultsResponse } from '@server/interfaces/api/userInterfaces';
-import type { OverrideRulesResult } from '@server/lib/overrideRules';
 import { hasPermission } from '@server/lib/permissions';
-import axios from 'axios';
 import { isEqual } from 'lodash';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -54,6 +44,39 @@ const messages = defineMessages('components.RequestModal.AdvancedRequester', {
     "This request will not count against the user's quota limits. Use with caution.",
 });
 
+const serverMatchesRequestType = (
+  type: 'movie' | 'tv' | 'music' | 'book',
+  server: ServiceCommonServer,
+  is4k: boolean,
+  is3d = false
+): boolean => {
+  if (type === 'music') {
+    return true;
+  }
+  if (type === 'book') {
+    return (server.is4k ?? false) === is4k;
+  }
+  if (type === 'movie') {
+    return (server.is4k ?? false) === is4k && (server.is3d ?? false) === is3d;
+  }
+  return server.is4k === is4k;
+};
+
+const servicePathForType = (
+  type: 'movie' | 'tv' | 'music' | 'book'
+): 'radarr' | 'sonarr' | 'lidarr' | 'readarr' => {
+  if (type === 'movie') {
+    return 'radarr';
+  }
+  if (type === 'tv') {
+    return 'sonarr';
+  }
+  if (type === 'book') {
+    return 'readarr';
+  }
+  return 'lidarr';
+};
+
 export type RequestOverrides = {
   server?: number;
   profile?: number;
@@ -65,33 +88,30 @@ export type RequestOverrides = {
 };
 
 interface AdvancedRequesterProps {
-  type: 'movie' | 'tv';
-  tmdbId?: number;
+  type: 'movie' | 'tv' | 'music' | 'book';
   is4k: boolean;
+  is3d?: boolean;
   isAnime?: boolean;
   defaultOverrides?: RequestOverrides;
   requestUser?: User;
-  requestId?: number;
   quota?: { movie: { limit?: number }; tv: { limit?: number } };
   onChange: (overrides: RequestOverrides) => void;
 }
 
 const AdvancedRequester = ({
   type,
-  tmdbId,
   is4k = false,
+  is3d = false,
   isAnime = false,
   defaultOverrides,
   requestUser,
-  requestId,
   quota,
   onChange,
 }: AdvancedRequesterProps) => {
   const intl = useIntl();
-  const { addToast } = useToasts();
   const { user: currentUser, hasPermission: currentHasPermission } = useUser();
   const { data, error } = useSWR<ServiceCommonServer[]>(
-    `/api/v1/service/${type === 'movie' ? 'radarr' : 'sonarr'}`,
+    `/api/v1/service/${servicePathForType(type)}`,
     {
       refreshInterval: 0,
       refreshWhenHidden: false,
@@ -129,9 +149,7 @@ const AdvancedRequester = ({
   const { data: serverData, isValidating } =
     useSWR<ServiceCommonServerWithDetails>(
       selectedServer !== null
-        ? `/api/v1/service/${
-            type === 'movie' ? 'radarr' : 'sonarr'
-          }/${selectedServer}`
+        ? `/api/v1/service/${servicePathForType(type)}/${selectedServer}`
         : null,
       {
         refreshInterval: 0,
@@ -166,7 +184,11 @@ const AdvancedRequester = ({
                 Permission.REQUEST,
                 type === 'movie'
                   ? Permission.REQUEST_MOVIE
-                  : Permission.REQUEST_TV,
+                  : type === 'tv'
+                    ? Permission.REQUEST_TV
+                    : type === 'book'
+                      ? Permission.REQUEST_BOOK
+                      : Permission.REQUEST_MUSIC,
               ],
           user.permissions,
           { type: 'or' }
@@ -190,7 +212,8 @@ const AdvancedRequester = ({
 
   useEffect(() => {
     let defaultServer = data?.find(
-      (server) => server.isDefault && is4k === server.is4k
+      (server) =>
+        server.isDefault && serverMatchesRequestType(type, server, is4k, is3d)
     );
 
     if (!defaultServer && (data ?? []).length > 0) {
@@ -338,68 +361,6 @@ const AdvancedRequester = ({
     isIgnoreQuotaVisible,
   ]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (tmdbId && serverData?.server.id === selectedServer) {
-        try {
-          const { data: override } = await axios.post<OverrideRulesResult>(
-            '/api/v1/overrideRule/advancedRequest',
-            {
-              mediaType: type,
-              is4k,
-              requestUser:
-                selectedUser?.id ?? requestUser?.id ?? currentUser?.id,
-              tmdbId,
-              tags: selectedTags.length > 0 ? selectedTags : undefined,
-              serviceId: selectedServer ?? undefined,
-              requestId: requestId ?? undefined,
-            }
-          );
-          if (cancelled) {
-            return;
-          }
-          if (!defaultOverrides?.folder && override.rootFolder) {
-            setSelectedFolder(override.rootFolder);
-          }
-          if (!defaultOverrides?.profile && override.profileId) {
-            setSelectedProfile(override.profileId);
-          }
-          if (
-            !defaultOverrides?.tags &&
-            override.tags &&
-            !isEqual(override.tags, selectedTags)
-          ) {
-            setSelectedTags(override.tags);
-          }
-        } catch {
-          if (cancelled) {
-            return;
-          }
-          addToast(intl.formatMessage(globalMessages.error), {
-            appearance: 'error',
-            autoDismiss: true,
-          });
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    tmdbId,
-    type,
-    is4k,
-    serverData?.server.id,
-    selectedServer,
-    selectedUserId,
-    requestUser?.id,
-    currentUser?.id,
-    defaultOverrides?.folder,
-    defaultOverrides?.profile,
-    defaultOverrides?.tags,
-  ]);
-
   if (!data && !error) {
     return (
       <div className="mb-2 w-full">
@@ -411,7 +372,9 @@ const AdvancedRequester = ({
   if (
     (!data ||
       selectedServer === null ||
-      (data.filter((server) => server.is4k === is4k).length < 2 &&
+      (data.filter((server) =>
+        serverMatchesRequestType(type, server, is4k, is3d)
+      ).length < 2 &&
         (!serverData ||
           (serverData.profiles.length < 2 &&
             serverData.rootFolders.length < 2 &&
@@ -430,7 +393,9 @@ const AdvancedRequester = ({
       <div className="rounded-md">
         {!!data && selectedServer !== null && (
           <div className="flex flex-col md:flex-row">
-            {data.filter((server) => server.is4k === is4k).length > 1 && (
+            {data.filter((server) =>
+              serverMatchesRequestType(type, server, is4k, is3d)
+            ).length > 1 && (
               <div className="mb-3 w-full flex-shrink-0 flex-grow last:pr-0 md:w-1/4 md:pr-4">
                 <label htmlFor="server">
                   {intl.formatMessage(messages.destinationserver)}
@@ -444,7 +409,9 @@ const AdvancedRequester = ({
                   className="border-gray-700 bg-gray-800"
                 >
                   {data
-                    .filter((server) => server.is4k === is4k)
+                    .filter((server) =>
+                      serverMatchesRequestType(type, server, is4k, is3d)
+                    )
                     .map((server) => (
                       <option
                         key={`server-list-${server.id}`}
@@ -462,7 +429,9 @@ const AdvancedRequester = ({
             )}
             {(isValidating ||
               !serverData ||
-              serverData.profiles.length > 1) && (
+              (serverData.profiles.length > 1 &&
+                (!serverData.server.isDefault ||
+                  (type !== 'music' && type !== 'book')))) && (
               <div className="mb-3 w-full flex-shrink-0 flex-grow last:pr-0 md:w-1/4 md:pr-4">
                 <label htmlFor="profile">
                   {intl.formatMessage(messages.qualityprofile)}
@@ -696,10 +665,12 @@ const AdvancedRequester = ({
             >
               {({ open }) => (
                 <>
-                  <Label>{intl.formatMessage(messages.requestas)}</Label>
+                  <Listbox.Label>
+                    {intl.formatMessage(messages.requestas)}
+                  </Listbox.Label>
                   <div className="relative">
                     <span className="inline-block w-full rounded-md shadow-sm">
-                      <ListboxButton className="focus:shadow-outline-blue relative w-full cursor-default rounded-md border border-gray-700 bg-gray-800 py-2 pl-3 pr-10 text-left text-white transition duration-150 ease-in-out focus:border-blue-300 focus:outline-none sm:text-sm sm:leading-5">
+                      <Listbox.Button className="focus:shadow-outline-blue relative w-full cursor-default rounded-md border border-gray-700 bg-gray-800 py-2 pl-3 pr-10 text-left text-white transition duration-150 ease-in-out focus:border-blue-300 focus:outline-none sm:text-sm sm:leading-5">
                         <span className="flex items-center">
                           <CachedImage
                             type="avatar"
@@ -722,11 +693,10 @@ const AdvancedRequester = ({
                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-500">
                           <ChevronDownIcon className="h-5 w-5" />
                         </span>
-                      </ListboxButton>
+                      </Listbox.Button>
                     </span>
 
                     <Transition
-                      as="div"
                       show={open}
                       enter="transition-opacity ease-in duration-300"
                       enterFrom="opacity-0"
@@ -736,12 +706,12 @@ const AdvancedRequester = ({
                       leaveTo="opacity-0"
                       className="mt-1 w-full rounded-md border border-gray-700 bg-gray-800 shadow-lg"
                     >
-                      <ListboxOptions
+                      <Listbox.Options
                         static
                         className="shadow-xs max-h-60 overflow-auto rounded-md py-1 text-base leading-6 focus:outline-none sm:text-sm sm:leading-5"
                       >
                         {filteredUserData?.map((user) => (
-                          <ListboxOption key={user.id} value={user}>
+                          <Listbox.Option key={user.id} value={user}>
                             {({ selected, active }) => (
                               <div
                                 className={`${
@@ -784,9 +754,9 @@ const AdvancedRequester = ({
                                 )}
                               </div>
                             )}
-                          </ListboxOption>
+                          </Listbox.Option>
                         ))}
-                      </ListboxOptions>
+                      </Listbox.Options>
                     </Transition>
                   </div>
                 </>

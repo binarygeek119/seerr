@@ -7,8 +7,10 @@ export interface GenreSliderItem {
 export interface WatchlistItem {
   id: number;
   ratingKey: string;
-  tmdbId: number;
-  mediaType: 'movie' | 'tv';
+  tmdbId?: number;
+  mbId?: string;
+  foreignBookId?: string;
+  mediaType: 'movie' | 'tv' | 'music' | 'book';
   title: string;
 }
 

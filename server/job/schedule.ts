@@ -8,6 +8,9 @@ import {
   jellyfinFullScanner,
   jellyfinRecentScanner,
 } from '@server/lib/scanners/jellyfin';
+import { lidarrScanner } from '@server/lib/scanners/lidarr';
+import { readarrScanner } from '@server/lib/scanners/readarr';
+import { audiobookshelfScanner } from '@server/lib/scanners/audiobookshelf';
 import { plexFullScanner, plexRecentScanner } from '@server/lib/scanners/plex';
 import { radarrScanner } from '@server/lib/scanners/radarr';
 import { sonarrScanner } from '@server/lib/scanners/sonarr';
@@ -31,10 +34,6 @@ interface ScheduledJob {
 export const scheduledJobs: ScheduledJob[] = [];
 
 export const startJobs = (): void => {
-  // Reruns once a media server is set after boot
-  scheduledJobs.forEach((scheduledJob) => scheduledJob.job.cancel());
-  scheduledJobs.length = 0;
-
   const jobs = getSettings().jobs;
   const mediaServerType = getSettings().main.mediaServerType;
 
@@ -95,7 +94,7 @@ export const startJobs = (): void => {
       id: 'plex-watchlist-sync',
       name: 'Plex Watchlist Sync',
       type: 'process',
-      interval: 'minutes',
+      interval: 'seconds',
       cronSchedule: jobs['plex-watchlist-sync'].schedule,
       job: schedule.scheduleJob(jobs['plex-watchlist-sync'].schedule, () => {
         logger.info('Starting scheduled job: Plex Watchlist Sync', {
@@ -181,6 +180,51 @@ export const startJobs = (): void => {
     cancelFn: () => sonarrScanner.cancel(),
   });
 
+  // Run full lidarr scan every 24 hours
+  scheduledJobs.push({
+    id: 'lidarr-scan',
+    name: 'Lidarr Scan',
+    type: 'process',
+    interval: 'hours',
+    cronSchedule: jobs['lidarr-scan'].schedule,
+    job: schedule.scheduleJob(jobs['lidarr-scan'].schedule, () => {
+      logger.info('Starting scheduled job: lidarr Scan', { label: 'Jobs' });
+      lidarrScanner.run();
+    }),
+    running: () => lidarrScanner.status().running,
+    cancelFn: () => lidarrScanner.cancel(),
+  });
+
+  scheduledJobs.push({
+    id: 'readarr-scan',
+    name: 'Readarr Scan',
+    type: 'process',
+    interval: 'hours',
+    cronSchedule: jobs['readarr-scan'].schedule,
+    job: schedule.scheduleJob(jobs['readarr-scan'].schedule, () => {
+      logger.info('Starting scheduled job: Readarr Scan', { label: 'Jobs' });
+      readarrScanner.run();
+    }),
+    running: () => readarrScanner.status().running,
+    cancelFn: () => readarrScanner.cancel(),
+  });
+
+  scheduledJobs.push({
+    id: 'audiobookshelf-scan',
+    name: 'Audiobookshelf Scan',
+    type: 'process',
+    interval: 'hours',
+    cronSchedule: jobs['audiobookshelf-scan'].schedule,
+    job: schedule.scheduleJob(jobs['audiobookshelf-scan'].schedule, () => {
+      logger.info('Starting scheduled job: Audiobookshelf Scan', {
+        label: 'Jobs',
+      });
+      audiobookshelfScanner.run();
+    }),
+    running: () => audiobookshelfScanner.status().running,
+    cancelFn: () => audiobookshelfScanner.cancel(),
+  });
+
   // Checks if media is still available in plex/sonarr/radarr libs
   scheduledJobs.push({
     id: 'availability-sync',
@@ -241,7 +285,6 @@ export const startJobs = (): void => {
       });
       // Clean TMDB image cache
       ImageProxy.clearCache('tmdb');
-      ImageProxy.clearCache('tvdb');
 
       // Clean users avatar image cache
       ImageProxy.clearCache('avatar');

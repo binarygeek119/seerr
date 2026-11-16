@@ -31,11 +31,12 @@ export interface PublicSettingsResponse {
   applicationUrl: string;
   hideAvailable: boolean;
   hideBlocklisted: boolean;
-  hideRequested: boolean;
   localLogin: boolean;
   mediaServerLogin: boolean;
   movie4kEnabled: boolean;
+  movie3dEnabled: boolean;
   series4kEnabled: boolean;
+  bookAudiobookEnabled: boolean;
   discoverRegion: string;
   streamingRegion: string;
   originalLanguage: string;
@@ -68,7 +69,7 @@ export interface CacheItem {
 export interface CacheResponse {
   apiCaches: CacheItem[];
   imageCache: Record<
-    'tmdb' | 'tvdb' | 'avatar',
+    'tmdb' | 'avatar' | 'caa' | 'tadb',
     { size: number; imageCount: number }
   >;
   dnsCache: {

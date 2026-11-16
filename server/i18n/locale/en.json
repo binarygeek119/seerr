@@ -32,6 +32,7 @@
   "notifications.agents.webpush.pending": "Approval required for a new {quality}{mediaType} request from {userName}.",
   "notifications.agents.webpush.viewIssue": "View Issue",
   "notifications.agents.webpush.viewMedia": "View Media",
+  "notifications.common.album": "album",
   "notifications.common.available": "Available",
   "notifications.common.commentFrom": "Comment from {userName}",
   "notifications.common.declined": "Declined",

@@ -1,0 +1,61 @@
+﻿=== pnpm typecheck ===
+> seerr@0.1.0 typecheck D:\seerr
+> pnpm typecheck:server && pnpm typecheck:client
+
+> seerr@0.1.0 typecheck:server D:\seerr
+> tsc --project server/tsconfig.json --noEmit
+
+> seerr@0.1.0 typecheck:client D:\seerr
+> tsc --noEmit
+
+TYPECHECK_EXIT=0
+
+=== pnpm build:next ===
+> seerr@0.1.0 build:next D:\seerr
+> next build
+
+Next.js 16.2.6 (Turbopack)
+- Experiments (use with caution):
+  largePageDataBytes: 512000
+  scrollRestoration
+
+  Running TypeScript ...
+  Finished TypeScript in 20.0s ...
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 5 errors:
+./node_modules/.pnpm/file-stream-rotator@0.6.1/node_modules/file-stream-rotator/FileStreamRotator.js:13:10
+Module not found: Can't resolve 'fs'
+Import trace:
+  Browser:
+    ./node_modules/.pnpm/file-stream-rotator@0.6.1/node_modules/file-stream-rotator/FileStreamRotator.js
+    ./node_modules/.pnpm/winston-daily-rotate-file@5.0.0_winston@3.19.0/node_modules/winston-daily-rotate-file/daily-rotate-file.js
+    ./node_modules/.pnpm/winston-daily-rotate-file@5.0.0_winston@3.19.0/node_modules/winston-daily-rotate-file/index.js
+    ./server/logger.ts
+    ./server/lib/movie3dList.ts
+    ./src/components/Discover/constants.ts
+    ./src/components/Discover/TvGenreList/index.tsx
+    ./src/pages/discover/tv/genres.tsx
+
+./node_modules/.pnpm/winston-daily-rotate-file@5.0.0_winston@3.19.0/node_modules/winston-daily-rotate-file/daily-rotate-file.js:1:12
+Module not found: Can't resolve 'fs'
+(same import trace via server/logger.ts -> discover/tv/genres.tsx)
+
+./node_modules/.pnpm/winston@3.19.0/node_modules/winston/dist/winston/tail-file.js:10:10
+Module not found: Can't resolve 'fs'
+(same import trace)
+
+./node_modules/.pnpm/winston@3.19.0/node_modules/winston/dist/winston/transports/file.js:25:10
+Module not found: Can't resolve 'fs'
+(same import trace)
+
+./server/logger.ts:2:1
+Module not found: Can't resolve 'fs'
+  import { existsSync } from 'fs';
+Import traces: Browser and SSR via server/logger.ts -> movie3dList.ts -> Discover/constants.ts -> TvGenreList -> discover/tv/genres.tsx
+
+ELIFECYCLE Command failed with exit code 1.
+BUILD_NEXT_EXIT=1
+=== STOPPED: build:next failed ===
+(build:server not run)

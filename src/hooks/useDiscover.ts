@@ -15,11 +15,10 @@ export interface BaseSearchResult<T> {
 }
 
 interface BaseMedia {
-  id: number;
+  id: number | string;
   mediaType: string;
   mediaInfo?: {
     status: MediaStatus;
-    hasActiveRequest?: boolean;
   };
 }
 
@@ -59,7 +58,15 @@ const useDiscover = <
 >(
   endpoint: string,
   options?: O,
-  { hideAvailable = true, hideBlocklisted = true, hideRequested = true } = {}
+  {
+    hideAvailable = true,
+    hideBlocklisted = true,
+    initialSize = 3,
+  }: {
+    hideAvailable?: boolean;
+    hideBlocklisted?: boolean;
+    initialSize?: number;
+  } = {}
 ): DiscoverResult<T, S> => {
   const settings = useSettings();
   const { hasPermission } = useUser();
@@ -88,14 +95,14 @@ const useDiscover = <
       return `${endpoint}?${finalQueryString}`;
     },
     {
-      initialSize: 3,
+      initialSize,
       revalidateFirstPage: false,
       dedupingInterval: 30000,
       revalidateOnFocus: false,
     }
   );
 
-  const resultIds: Set<number> = new Set<number>();
+  const resultIds: Set<string | number> = new Set<string | number>();
 
   const isLoadingInitialData = !data && !error;
   const isLoadingMore =
@@ -123,12 +130,21 @@ const useDiscover = <
   }, [] as T[]);
 
   if (settings.currentSettings.hideAvailable && hideAvailable) {
-    titles = titles.filter(
-      (i) =>
-        !(i.mediaType === 'movie' || i.mediaType === 'tv') ||
-        (i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
-          i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE)
-    );
+    titles = titles.filter((i) => {
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return (
+          i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
+          i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE
+        );
+      }
+      return true;
+    });
   }
 
   if (
@@ -136,29 +152,26 @@ const useDiscover = <
     hideBlocklisted &&
     hasPermission(Permission.MANAGE_BLOCKLIST)
   ) {
-    titles = titles.filter(
-      (i) =>
-        !(i.mediaType === 'movie' || i.mediaType === 'tv') ||
-        i.mediaInfo?.status !== MediaStatus.BLOCKLISTED
-    );
-  }
-
-  if (settings.currentSettings.hideRequested && hideRequested) {
     titles = titles.filter((i) => {
-      if (i.mediaType !== 'movie' && i.mediaType !== 'tv') {
-        return true;
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return i.mediaInfo?.status !== MediaStatus.BLOCKLISTED;
       }
-
-      return !i.mediaInfo?.hasActiveRequest;
+      return true;
     });
   }
 
   const isEmpty = !isLoadingInitialData && titles?.length === 0;
+  const lastPageData = data?.[data.length - 1];
   const isReachingEnd =
     isEmpty ||
-    (!!data && (data[data?.length - 1]?.results.length ?? 0) < 20) ||
-    (!!data && (data[data?.length - 1]?.totalResults ?? 0) <= size * 20) ||
-    (!!data && (data[data?.length - 1]?.totalResults ?? 0) < 41);
+    (!!lastPageData && lastPageData.page >= lastPageData.totalPages) ||
+    (!!lastPageData && lastPageData.totalResults <= size * 20);
 
   useEffect(() => {
     if (error && titles.length) {
@@ -166,7 +179,6 @@ const useDiscover = <
         appearance: 'error',
         autoDismiss: true,
       });
-      console.error('Error while fetching discover titles:', error);
     }
   }, [data, error, addToast, intl, titles.length]);
 

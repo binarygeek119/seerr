@@ -1,7 +1,7 @@
 import './commands';
 
 before(() => {
-  if (Cypress.expose('SEED_DATABASE')) {
+  if (Cypress.env('SEED_DATABASE')) {
     cy.exec('pnpm cypress:prepare');
   }
 });

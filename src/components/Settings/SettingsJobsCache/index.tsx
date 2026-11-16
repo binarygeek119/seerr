@@ -86,6 +86,9 @@ const messages: { [messageName: string]: MessageDescriptor } = defineMessages(
     'availability-sync': 'Media Availability Sync',
     'radarr-scan': 'Radarr Scan',
     'sonarr-scan': 'Sonarr Scan',
+    'lidarr-scan': 'Lidarr Scan',
+    'readarr-scan': 'Readarr Scan',
+    'audiobookshelf-scan': 'Audiobookshelf Scan',
     'download-sync': 'Download Sync',
     'download-sync-reset': 'Download Sync Reset',
     'image-cache-cleanup': 'Image Cache Cleanup',
@@ -413,7 +416,7 @@ const SettingsJobs = () => {
                         })
                       }
                     >
-                      {[3, 5, 10, 15, 20, 30, 60].map((v) => (
+                      {[5, 10, 15, 20, 30, 60].map((v) => (
                         <option value={v} key={`jobScheduleMinutes-${v}`}>
                           {intl.formatMessage(
                             messages.editJobScheduleSelectorMinutes,
@@ -578,22 +581,33 @@ const SettingsJobs = () => {
             </tr>
           </thead>
           <Table.TBody>
-            {cacheData?.apiCaches?.map((cache) => (
-              <tr key={`cache-list-${cache.id}`}>
-                <Table.TD>{cache.name}</Table.TD>
-                <Table.TD>{intl.formatNumber(cache.stats.hits)}</Table.TD>
-                <Table.TD>{intl.formatNumber(cache.stats.misses)}</Table.TD>
-                <Table.TD>{intl.formatNumber(cache.stats.keys)}</Table.TD>
-                <Table.TD>{formatBytes(cache.stats.ksize)}</Table.TD>
-                <Table.TD>{formatBytes(cache.stats.vsize)}</Table.TD>
-                <Table.TD alignText="right">
-                  <Button buttonType="danger" onClick={() => flushCache(cache)}>
-                    <TrashIcon />
-                    <span>{intl.formatMessage(messages.flushcache)}</span>
-                  </Button>
-                </Table.TD>
-              </tr>
-            ))}
+            {cacheData?.apiCaches
+              ?.filter(
+                (cache) =>
+                  !(
+                    settings.currentSettings.mediaServerType !==
+                      MediaServerType.PLEX && cache.id === 'plexguid'
+                  )
+              )
+              .map((cache) => (
+                <tr key={`cache-list-${cache.id}`}>
+                  <Table.TD>{cache.name}</Table.TD>
+                  <Table.TD>{intl.formatNumber(cache.stats.hits)}</Table.TD>
+                  <Table.TD>{intl.formatNumber(cache.stats.misses)}</Table.TD>
+                  <Table.TD>{intl.formatNumber(cache.stats.keys)}</Table.TD>
+                  <Table.TD>{formatBytes(cache.stats.ksize)}</Table.TD>
+                  <Table.TD>{formatBytes(cache.stats.vsize)}</Table.TD>
+                  <Table.TD alignText="right">
+                    <Button
+                      buttonType="danger"
+                      onClick={() => flushCache(cache)}
+                    >
+                      <TrashIcon />
+                      <span>{intl.formatMessage(messages.flushcache)}</span>
+                    </Button>
+                  </Table.TD>
+                </tr>
+              ))}
           </Table.TBody>
         </Table>
       </div>
@@ -769,6 +783,24 @@ const SettingsJobs = () => {
               </Table.TD>
               <Table.TD>
                 {formatBytes(cacheData?.imageCache.avatar.size ?? 0)}
+              </Table.TD>
+            </tr>
+            <tr>
+              <Table.TD>Cover Art Archive (caa)</Table.TD>
+              <Table.TD>
+                {intl.formatNumber(cacheData?.imageCache.caa.imageCount ?? 0)}
+              </Table.TD>
+              <Table.TD>
+                {formatBytes(cacheData?.imageCache.caa.size ?? 0)}
+              </Table.TD>
+            </tr>
+            <tr>
+              <Table.TD>The Audio Database (tadb)</Table.TD>
+              <Table.TD>
+                {intl.formatNumber(cacheData?.imageCache.tadb.imageCount ?? 0)}
+              </Table.TD>
+              <Table.TD>
+                {formatBytes(cacheData?.imageCache.tadb.size ?? 0)}
               </Table.TD>
             </tr>
           </Table.TBody>

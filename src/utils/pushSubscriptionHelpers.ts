@@ -69,7 +69,7 @@ export const verifyAndResubscribePushSubscription = async (
   userId: number | undefined,
   currentSettings: PublicSettingsResponse
 ): Promise<boolean> => {
-  if (!('serviceWorker' in navigator) || !userId) {
+  if (!userId) {
     return false;
   }
 
@@ -80,37 +80,37 @@ export const verifyAndResubscribePushSubscription = async (
     return true;
   }
 
-  if (!currentSettings.enablePushRegistration) {
+  if (subscription) {
     return false;
   }
 
-  try {
-    // If a browser-level subscription exists but doesn't belong to this
-    // user (or has stale VAPID keys), tear it down before resubscribing.
-    const oldEndpoint = subscription
-      ? await unsubscribeToPushNotifications(userId)
-      : null;
+  if (currentSettings.enablePushRegistration) {
+    try {
+      const oldEndpoint = await unsubscribeToPushNotifications(userId);
 
-    await subscribeToPushNotifications(userId, currentSettings);
+      await subscribeToPushNotifications(userId, currentSettings);
 
-    if (oldEndpoint) {
-      try {
-        await axios.delete(
-          `/api/v1/user/${userId}/pushSubscription/${encodeURIComponent(
-            oldEndpoint
-          )}`
-        );
-      } catch {
-        // Ignore errors when deleting old endpoint (it might not exist)
+      if (oldEndpoint) {
+        try {
+          await axios.delete(
+            `/api/v1/user/${userId}/pushSubscription/${encodeURIComponent(
+              oldEndpoint
+            )}`
+          );
+        } catch {
+          // Ignore errors when deleting old endpoint (it might not exist)
+        }
       }
-    }
 
-    return true;
-  } catch (error) {
-    throw new Error(`[SW] Resubscribe failed: ${error.message}`, {
-      cause: error,
-    });
+      return true;
+    } catch (error) {
+      throw new Error(`[SW] Resubscribe failed: ${error.message}`, {
+        cause: error,
+      });
+    }
   }
+
+  return false;
 };
 
 export const subscribeToPushNotifications = async (

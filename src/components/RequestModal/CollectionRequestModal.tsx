@@ -32,7 +32,7 @@ const messages = defineMessages('components.RequestModal', {
 });
 
 interface RequestModalProps extends React.HTMLAttributes<HTMLDivElement> {
-  tmdbId: number;
+  tmdbId?: number;
   is4k?: boolean;
   onCancel?: () => void;
   onComplete?: (newStatus: MediaStatus) => void;
@@ -517,10 +517,8 @@ const CollectionRequestModal = ({
           </div>
         </div>
       </div>
-      {hasPermission(
-        [Permission.REQUEST_ADVANCED, Permission.MANAGE_REQUESTS],
-        { type: 'or' }
-      ) && (
+      {(hasPermission(Permission.REQUEST_ADVANCED) ||
+        hasPermission(Permission.MANAGE_REQUESTS)) && (
         <AdvancedRequester
           type="movie"
           is4k={is4k}

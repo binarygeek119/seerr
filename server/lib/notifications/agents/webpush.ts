@@ -79,7 +79,9 @@ class WebPushAgent
     const mediaType = payload.media
       ? payload.media.mediaType === MediaType.MOVIE
         ? intl.formatMessage(globalMessages.movie)
-        : intl.formatMessage(globalMessages.series)
+        : payload.media.mediaType === MediaType.TV
+          ? intl.formatMessage(globalMessages.series)
+          : intl.formatMessage(globalMessages.album)
       : undefined;
     const is4k = payload.request?.is4k;
     const quality = is4k ? '4K ' : '';
@@ -175,7 +177,9 @@ class WebPushAgent
     const actionUrl = payload.issue
       ? `/issues/${payload.issue.id}`
       : payload.media
-        ? `/${payload.media.mediaType}/${payload.media.tmdbId}`
+        ? payload.media.mediaType === MediaType.MUSIC
+          ? `/music/${payload.media.mbId}`
+          : `/${payload.media.mediaType}/${payload.media.tmdbId}`
         : undefined;
 
     const actionUrlTitle = actionUrl

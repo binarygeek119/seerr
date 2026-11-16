@@ -244,13 +244,13 @@ router.post<
         const transactionalRepo =
           transactionalEntityManager.getRepository(UserPushSubscription);
 
-        // Check for existing subscription by endpoint within transaction
+        // Check for existing subscription by auth or endpoint within transaction
         const existingSubscription = await transactionalRepo.findOne({
           relations: { user: true },
-          where: {
-            endpoint: req.body.endpoint,
-            user: { id: req.user?.id },
-          },
+          where: [
+            { auth: req.body.auth, user: { id: req.user?.id } },
+            { endpoint: req.body.endpoint, user: { id: req.user?.id } },
+          ],
         });
 
         if (existingSubscription) {
@@ -279,15 +279,17 @@ router.post<
           return;
         }
 
-        // Clean up only true endpoint rotations. Same push-service subscription
-        // (matched by `auth`) but with a stale endpoint. Matching on `auth`
-        // avoids deleting sibling devices that only share a user agent.
-        if (req.body.auth) {
+        // Clean up old subscriptions from the same device (userAgent) for this user
+        // iOS can silently refresh endpoints, leaving stale subscriptions in the database
+        // Only clean up if we're creating a new subscription (not updating an existing one)
+        if (req.body.userAgent) {
           const staleSubscriptions = await transactionalRepo.find({
             relations: { user: true },
             where: {
+              userAgent: req.body.userAgent,
               user: { id: req.user?.id },
-              auth: req.body.auth,
+              // Only remove subscriptions with different endpoints (stale ones)
+              // Keep subscriptions that might be from different browsers/tabs
               endpoint: Not(req.body.endpoint),
             },
           });
@@ -384,13 +386,6 @@ router.delete<{ id: string; endpoint: string }>(
       // (rare scenario where user push sub does not exist)
       if (!userPushSub) {
         return res.status(204).send();
-      }
-
-      if (!canModifyUser(userPushSub.user, req.user)) {
-        return next({
-          status: 403,
-          message: "You do not have permission to modify this user's settings.",
-        });
       }
 
       await userPushSubRepository.remove(userPushSub);
@@ -515,12 +510,6 @@ export const canMakePermissionsChange = (
   // Only let the owner grant admin privileges
   !(hasPermission(Permission.ADMIN, permissions) && user?.id !== 1);
 
-// Only the owner can modify another admin's account
-export const canModifyUser = (user: User, requester?: User): boolean =>
-  !user.hasPermission(Permission.ADMIN) ||
-  requester?.id === 1 ||
-  requester?.id === user.id;
-
 router.put<
   Record<string, never>,
   Partial<User>[],
@@ -538,16 +527,13 @@ router.put<
 
     const userRepository = getRepository(User);
 
-    const requestedUsers = await userRepository.find({
+    const users: User[] = await userRepository.find({
       where: {
         id: In(
           isOwner ? req.body.ids : req.body.ids.filter((id) => Number(id) !== 1)
         ),
       },
     });
-    const users = requestedUsers.filter(
-      (user) => user.id !== req.user?.id && canModifyUser(user, req.user)
-    );
 
     const updatedUsers = await Promise.all(
       users.map(async (user) => {
@@ -577,18 +563,6 @@ router.put<{ id: string }>(
 
       // Only let the owner user modify themselves
       if (user.id === 1 && req.user?.id !== 1) {
-        return next({
-          status: 403,
-          message: 'You do not have permission to modify this user',
-        });
-      }
-
-      if (
-        !canModifyUser(user, req.user) ||
-        (req.user?.id === user.id &&
-          req.body.permissions !== undefined &&
-          req.body.permissions !== user.permissions)
-      ) {
         return next({
           status: 403,
           message: 'You do not have permission to modify this user',

@@ -5,16 +5,19 @@ import type {
 } from '@server/api/jellyfin';
 import JellyfinAPI from '@server/api/jellyfin';
 import { getMetadataProvider } from '@server/api/metadata';
+import MusicBrainz from '@server/api/musicbrainz';
 import TheMovieDb from '@server/api/themoviedb';
 import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
 import type {
   TmdbKeyword,
   TmdbTvDetails,
-  TmdbTvScanDetails,
 } from '@server/api/themoviedb/interfaces';
+import { MediaStatus, MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
+import Media from '@server/entity/Media';
 import { User } from '@server/entity/User';
+import { resolveJellyfinBook } from '@server/lib/jellyfin/resolveJellyfinBook';
 import type {
   ProcessableSeason,
   RunnableScanner,
@@ -74,9 +77,10 @@ class JellyfinScanner
     }
 
     if (imdbId && !tmdbId) {
-      tmdbId = await this.tmdb.resolveImdbIdForScan({
+      const tmdbMovie = await this.tmdb.getMediaByImdbId({
         imdbId: imdbId,
       });
+      tmdbId = tmdbMovie.id;
     }
 
     if (!tmdbId) {
@@ -184,15 +188,15 @@ class JellyfinScanner
   }: {
     tmdbId?: number;
     tvdbId?: number;
-  }): Promise<TmdbTvScanDetails | TmdbTvDetails> {
+  }): Promise<TmdbTvDetails> {
     let tvShow;
 
     if (tmdbId) {
-      tvShow = await this.tmdb.getTvShowForScan({
+      tvShow = await this.tmdb.getTvShow({
         tvId: Number(tmdbId),
       });
     } else if (tvdbId) {
-      tvShow = await this.tmdb.getShowByTvdbIdForScan({
+      tvShow = await this.tmdb.getShowByTvdbId({
         tvdbId: Number(tvdbId),
       });
     } else {
@@ -215,7 +219,7 @@ class JellyfinScanner
   }
 
   private async processJellyfinShow(jellyfinitem: JellyfinLibraryItem) {
-    let tvShow: TmdbTvScanDetails | TmdbTvDetails | null = null;
+    let tvShow: TmdbTvDetails | null = null;
 
     try {
       const Id =
@@ -262,7 +266,7 @@ class JellyfinScanner
         tvdbSeasonFromAnidb = result?.tvdbSeason;
         if (result?.tvdbId) {
           try {
-            tvShow = await this.tmdb.getShowByTvdbIdForScan({
+            tvShow = await this.tmdb.getShowByTvdbId({
               tvdbId: result.tvdbId,
             });
           } catch {
@@ -443,16 +447,166 @@ class JellyfinScanner
     }
   }
 
+  private async processJellyfinBook(jellyfinitem: JellyfinLibraryItem) {
+    if (this.currentLibrary.type !== 'book') {
+      return;
+    }
+
+    try {
+      const metadata = await this.jfClient.getItemData(jellyfinitem.Id);
+
+      if (!metadata?.Id) {
+        this.log('No Id metadata for this book. Skipping', 'debug', {
+          jellyfinItemId: jellyfinitem.Id,
+        });
+        return;
+      }
+
+      const isAudiobook =
+        this.currentLibrary.audiobookCollection ||
+        (this.currentLibrary.isAudiobook ?? false);
+      const resolved = await resolveJellyfinBook(metadata, isAudiobook);
+
+      if (!resolved) {
+        this.log(
+          'Unable to resolve book to a Readarr/Open Library id. Skipping.',
+          'debug',
+          { title: metadata.Name }
+        );
+        return;
+      }
+
+      await this.processBook(resolved.foreignBookId, {
+        is4k: isAudiobook,
+        serviceId: resolved.serviceId,
+        externalServiceId: resolved.externalServiceId,
+        externalServiceSlug: resolved.externalServiceSlug,
+        jellyfinMediaId: metadata.Id,
+        mediaAddedAt: metadata.DateCreated
+          ? new Date(metadata.DateCreated)
+          : undefined,
+        title: resolved.title,
+      });
+    } catch (e) {
+      this.log(
+        `Failed to process Jellyfin book, id: ${jellyfinitem.Id}`,
+        'error',
+        {
+          errorMessage: e.message,
+          jellyfinitem,
+        }
+      );
+    }
+  }
+
   private async processItem(item: JellyfinLibraryItem): Promise<void> {
-    if (item.Type === 'Movie') {
+    if (item.Type === 'Book') {
+      await this.processJellyfinBook(item);
+    } else if (item.Type === 'Movie') {
       await this.processJellyfinMovie(item);
     } else if (item.Type === 'Series') {
       await this.processJellyfinShow(item);
-    } else if (
-      (item.Type === 'Season' || item.Type === 'Episode') &&
-      item.SeriesId
-    ) {
-      await this.processJellyfinShow({ ...item, Id: item.SeriesId });
+    } else if (item.Type === 'MusicAlbum') {
+      await this.processJellyfinMusicAlbum(item);
+    }
+  }
+
+  private async processJellyfinMusicAlbum(jellyfinitem: JellyfinLibraryItem) {
+    const mediaRepository = getRepository(Media);
+    const musicBrainz = new MusicBrainz();
+
+    try {
+      const metadata = await this.jfClient.getItemData(jellyfinitem.Id);
+      const newMedia = new Media();
+
+      if (!metadata?.Id) {
+        this.log('No Id metadata for this title. Skipping', 'debug', {
+          jellyfinItemId: jellyfinitem.Id,
+        });
+        return;
+      }
+
+      newMedia.mbId = metadata.ProviderIds?.MusicBrainzReleaseGroup;
+
+      if (!newMedia.mbId && metadata.ProviderIds?.MusicBrainzAlbum) {
+        try {
+          const releaseGroupId = await musicBrainz.getReleaseGroup({
+            releaseId: metadata.ProviderIds.MusicBrainzAlbum,
+          });
+          if (releaseGroupId) {
+            newMedia.mbId = releaseGroupId;
+          }
+        } catch (e) {
+          this.log('Failed to get release group ID', 'error', {
+            title: metadata.Name,
+            releaseId: metadata.ProviderIds.MusicBrainzAlbum,
+            error: e.message,
+          });
+        }
+      }
+
+      if (!newMedia.mbId) {
+        this.log(
+          'No MusicBrainz Album ID found for this title. Skipping.',
+          'debug',
+          {
+            title: metadata.Name,
+          }
+        );
+        return;
+      }
+
+      await this.asyncLock.dispatch(metadata.Id, async () => {
+        const existing = await mediaRepository.findOne({
+          where: { mbId: newMedia.mbId, mediaType: MediaType.MUSIC },
+        });
+
+        if (existing) {
+          let changedExisting = false;
+
+          if (existing.status !== MediaStatus.AVAILABLE) {
+            existing.status = MediaStatus.AVAILABLE;
+            existing.mediaAddedAt = new Date(metadata.DateCreated ?? '');
+            changedExisting = true;
+          }
+
+          if (!existing.mediaAddedAt && !changedExisting) {
+            existing.mediaAddedAt = new Date(metadata.DateCreated ?? '');
+            changedExisting = true;
+          }
+
+          if (existing.jellyfinMediaId !== metadata.Id) {
+            existing.jellyfinMediaId = metadata.Id;
+            changedExisting = true;
+          }
+
+          if (changedExisting) {
+            await mediaRepository.save(existing);
+            this.log(
+              `Request for ${metadata.Name} exists. New media set to AVAILABLE`,
+              'info'
+            );
+          } else {
+            this.log(`Album already exists: ${metadata.Name}`);
+          }
+        } else {
+          newMedia.status = MediaStatus.AVAILABLE;
+          newMedia.mediaType = MediaType.MUSIC;
+          newMedia.mediaAddedAt = new Date(metadata.DateCreated ?? '');
+          newMedia.jellyfinMediaId = metadata.Id;
+          await mediaRepository.save(newMedia);
+          this.log(`Saved new album: ${metadata.Name}`);
+        }
+      });
+    } catch (e) {
+      this.log(
+        `Failed to process Jellyfin item, id: ${jellyfinitem.Id}`,
+        'error',
+        {
+          errorMessage: e.message,
+          jellyfinitem,
+        }
+      );
     }
   }
 
@@ -526,7 +680,9 @@ class JellyfinScanner
           // Reset AniDB season tracking per library
           this.processedAnidbSeason = new Map();
           this.log(`Beginning to process library: ${library.name}`, 'info');
-          this.items = await this.jfClient.getLibraryContents(library.id);
+          this.items = await this.jfClient.getLibraryContents(library.id, {
+            bookLibrary: library.type === 'book',
+          });
           await this.loop(this.processItem.bind(this), { sessionId });
         }
       }

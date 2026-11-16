@@ -175,7 +175,7 @@ const SettingsNetwork = () => {
                 apiRequestTimeout: Number(values.apiRequestTimeout) * 1000,
               });
               mutate('/api/v1/settings/public');
-              mutate('/api/v1/status?checkUpdateAvailable=false');
+              mutate('/api/v1/status');
 
               addToast(intl.formatMessage(messages.toastSettingsSuccess), {
                 autoDismiss: true,

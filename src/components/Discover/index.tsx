@@ -147,7 +147,6 @@ const Discover = () => {
             </div>
           )}
           <Transition
-            as="div"
             show={!isEditing}
             enter="transition-opacity duration-300"
             enterFrom="opacity-0"
@@ -166,7 +165,6 @@ const Discover = () => {
             </button>
           </Transition>
           <Transition
-            as="div"
             show={isEditing}
             enter="transition duration-300"
             enterFrom="opacity-0 translate-y-6"
@@ -395,6 +393,36 @@ const Discover = () => {
                 linkUrl={`/discover/tv?watchRegion=${
                   slider.data?.split(',')[0]
                 }&watchProviders=${slider.data?.split(',')[1]}`}
+              />
+            );
+            break;
+          case DiscoverSliderType.POPULAR_ALBUMS:
+            sliderComponent = (
+              <MediaSlider
+                sliderKey="popular-albums"
+                title={intl.formatMessage(sliderTitles.popularalbums)}
+                url="/api/v1/discover/music/albums"
+                linkUrl="/discover/albums"
+              />
+            );
+            break;
+          case DiscoverSliderType.POPULAR_ARTISTS:
+            sliderComponent = (
+              <MediaSlider
+                sliderKey="popular-artists"
+                title={intl.formatMessage(sliderTitles.popularartists)}
+                url="/api/v1/discover/music/artists"
+                linkUrl="/discover/artists"
+              />
+            );
+            break;
+          case DiscoverSliderType.POPULAR_BOOKS:
+            sliderComponent = (
+              <MediaSlider
+                sliderKey="popular-books"
+                title={intl.formatMessage(sliderTitles.popularbooks)}
+                url="/api/v1/discover/books"
+                linkUrl="/discover/books"
               />
             );
             break;

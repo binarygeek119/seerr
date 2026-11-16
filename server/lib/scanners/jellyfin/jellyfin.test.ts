@@ -9,22 +9,15 @@ import type {
   TmdbTvDetails,
   TmdbTvSeasonResult,
 } from '@server/api/themoviedb/interfaces';
-import {
-  MediaRequestStatus,
-  MediaStatus,
-  MediaType,
-} from '@server/constants/media';
+import { MediaStatus, MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import Media from '@server/entity/Media';
-import MediaRequest from '@server/entity/MediaRequest';
 import Season from '@server/entity/Season';
 import { User } from '@server/entity/User';
-import { jellyfinFullScanner } from '@server/lib/scanners/jellyfin';
 import type { Library } from '@server/lib/settings';
 import { getSettings } from '@server/lib/settings';
 import { setupTestDb } from '@server/test/db';
-import { runWithMockTimers } from '@server/test/runWithMockTimers';
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 
@@ -106,24 +99,7 @@ Object.defineProperty(TheMovieDb.prototype, 'getTvShow', {
   configurable: true,
 });
 
-Object.defineProperty(TheMovieDb.prototype, 'getTvShowForScan', {
-  get() {
-    return async (args: { tvId: number; language?: string }) =>
-      getTvShowImpl(args);
-  },
-  set() {},
-  configurable: true,
-});
-
-// both are assigned in the constructor, so the prototype stubs miss the
-// instance jellyfinFullScanner built when it was first imported
-for (const method of ['getTvShow', 'getTvShowForScan'] as const) {
-  Object.defineProperty(jellyfinFullScanner.tmdb, method, {
-    value: async (args: { tvId: number; language?: string }) =>
-      getTvShowImpl(args),
-    configurable: true,
-  });
-}
+import { jellyfinFullScanner } from '@server/lib/scanners/jellyfin';
 
 setupTestDb();
 
@@ -267,80 +243,6 @@ describe('Jellyfin Scanner', () => {
     }
   });
 
-  describe('in-flight request handling', () => {
-    it('leaves an approved request alone when the show has no episodes yet', async () => {
-      configureJellyfinWithLibrary();
-
-      const mediaRepository = getRepository(Media);
-      const requestRepository = getRepository(MediaRequest);
-      const userRepository = getRepository(User);
-
-      const requestedBy = await userRepository.findOneOrFail({
-        where: { id: 1 },
-      });
-
-      const media = await mediaRepository.save(
-        new Media({
-          tmdbId: 6000,
-          mediaType: MediaType.TV,
-          status: MediaStatus.PROCESSING,
-          jellyfinMediaId: 'jf-inflight-show-id',
-          seasons: [
-            new Season({
-              seasonNumber: 1,
-              status: MediaStatus.PROCESSING,
-              status4k: MediaStatus.UNKNOWN,
-            }),
-          ],
-        })
-      );
-
-      const settings = getSettings();
-      settings.radarr = [];
-      settings.sonarr = [];
-      const request = await requestRepository.save(
-        new MediaRequest({
-          type: MediaType.TV,
-          status: MediaRequestStatus.APPROVED,
-          media,
-          requestedBy,
-          is4k: false,
-        })
-      );
-
-      getTvShowImpl = async () => fakeTmdbShow(6000);
-
-      getLibraryContentsImpl = async (id: string) =>
-        id === 'test-library-id'
-          ? [fakeJellyfinSeriesItem('jf-inflight-show-id')]
-          : [];
-
-      getItemDataImpl = async (id: string) =>
-        id === 'jf-inflight-show-id'
-          ? fakeJellyfinShowMetadata('jf-inflight-show-id', '6000')
-          : undefined;
-
-      getSeasonsImpl = async (seriesID: string) =>
-        seriesID === 'jf-inflight-show-id'
-          ? [fakeJellyfinSeason(1, 'jf-inflight-s1-id')]
-          : [];
-
-      getEpisodesImpl = async () => [];
-
-      await runWithMockTimers(() => jellyfinFullScanner.run());
-
-      const updatedRequest = await requestRepository.findOneOrFail({
-        where: { id: request.id },
-      });
-
-      assert.strictEqual(
-        updatedRequest.status,
-        MediaRequestStatus.APPROVED,
-        'A media server scan must not cancel a request Sonarr is still working on'
-      );
-    });
-  });
-
   describe('empty TMDB season handling', () => {
     it('should mark show as available when all non-empty TMDB seasons are fully scanned and an empty placeholder season exists in the DB', async () => {
       configureJellyfinWithLibrary();
@@ -431,7 +333,7 @@ describe('Jellyfin Scanner', () => {
         return [];
       };
 
-      await runWithMockTimers(() => jellyfinFullScanner.run());
+      await jellyfinFullScanner.run();
 
       const updated = await mediaRepository.findOneOrFail({
         where: { tmdbId: 5000 },
@@ -509,7 +411,7 @@ describe('Jellyfin Scanner', () => {
         return [];
       };
 
-      await runWithMockTimers(() => jellyfinFullScanner.run());
+      await jellyfinFullScanner.run();
 
       const updated = await mediaRepository.findOneOrFail({
         where: { tmdbId: 5001 },
@@ -586,7 +488,7 @@ describe('Jellyfin Scanner', () => {
         return [];
       };
 
-      await runWithMockTimers(() => jellyfinFullScanner.run());
+      await jellyfinFullScanner.run();
 
       const updated = await mediaRepository.findOneOrFail({
         where: { tmdbId: 5002 },

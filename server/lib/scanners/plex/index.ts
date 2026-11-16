@@ -1,5 +1,6 @@
 import animeList from '@server/api/animelist';
 import { getMetadataProvider } from '@server/api/metadata';
+import MusicBrainz from '@server/api/musicbrainz';
 import type { PlexLibraryItem, PlexMetadata } from '@server/api/plexapi';
 import PlexAPI from '@server/api/plexapi';
 import TheMovieDb from '@server/api/themoviedb';
@@ -7,10 +8,11 @@ import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
 import type {
   TmdbKeyword,
   TmdbTvDetails,
-  TmdbTvScanDetails,
 } from '@server/api/themoviedb/interfaces';
 import { getRepository } from '@server/datasource';
 import { User } from '@server/entity/User';
+import cacheManager from '@server/lib/cache';
+import { resolvePlexAudiobook } from '@server/lib/plex/resolvePlexAudiobook';
 import type {
   MediaIds,
   ProcessableSeason,
@@ -26,10 +28,8 @@ const imdbRegex = new RegExp(/imdb:\/\/(tt[0-9]+)/);
 const tmdbRegex = new RegExp(/tmdb:\/\/([0-9]+)/);
 const tvdbRegex = new RegExp(/tvdb:\/\/([0-9]+)/);
 const tmdbShowRegex = new RegExp(/themoviedb:\/\/([0-9]+)/);
+const mbRegex = new RegExp(/mbid:\/\/([0-9a-f-]+)/);
 const plexRegex = new RegExp(/plex:\/\//);
-const plexCustomProviderRegex = new RegExp(
-  /tv\.plex\.agents\.custom(\.[a-zA-Z0-9]+)+:\/\//
-);
 // Hama agent uses ASS naming, see details here:
 // https://github.com/ZeroQI/Absolute-Series-Scanner/blob/master/README.md#forcing-the-movieseries-id
 const hamaTvdbRegex = new RegExp(/hama:\/\/tvdb[0-9]?-([0-9]+)/);
@@ -82,7 +82,7 @@ class PlexScanner
       this.plexClient = new PlexAPI({ plexToken: admin.plexToken });
 
       this.libraries = settings.plex.libraries.filter(
-        (library) => library.enabled
+        (library) => library.enabled && library.type !== 'book'
       );
 
       const hasHama = await this.hasHamaAgent();
@@ -92,12 +92,17 @@ class PlexScanner
 
       if (this.isRecentOnly) {
         for (const library of this.libraries) {
+          if (library.type === 'book') {
+            continue;
+          }
+
           this.currentLibrary = library;
           this.log(
             `Beginning to process recently added for library: ${library.name}`,
             'info',
             { lastScan: library.lastScan }
           );
+          const mappedType = library.type === 'music' ? 'album' : library.type;
           const libraryItems = await this.plexClient.getRecentlyAdded(
             library.id,
             library.lastScan
@@ -106,7 +111,7 @@ class PlexScanner
                   addedAt: library.lastScan - 1000 * 60 * 10,
                 }
               : undefined,
-            library.type
+            mappedType
           );
 
           // Bundle items up by rating keys
@@ -218,6 +223,19 @@ class PlexScanner
         plexitem.type === 'season'
       ) {
         await this.processPlexShow(plexitem);
+      } else if (
+        plexitem.type === 'artist' ||
+        plexitem.type === 'album' ||
+        plexitem.type === 'track'
+      ) {
+        if (
+          this.currentLibrary.type === 'music' &&
+          this.currentLibrary.isAudiobook
+        ) {
+          await this.processPlexAudiobook(plexitem);
+        } else {
+          await this.processPlexMusic(plexitem);
+        }
       }
     } catch (e) {
       this.log('Failed to process Plex media', 'error', {
@@ -264,15 +282,15 @@ class PlexScanner
   }: {
     tmdbId?: number;
     tvdbId?: number;
-  }): Promise<TmdbTvScanDetails | TmdbTvDetails> {
+  }): Promise<TmdbTvDetails> {
     let tvShow;
 
     if (tmdbId) {
-      tvShow = await this.tmdb.getTvShowForScan({
+      tvShow = await this.tmdb.getTvShow({
         tvId: Number(tmdbId),
       });
     } else if (tvdbId) {
-      tvShow = await this.tmdb.getShowByTvdbIdForScan({
+      tvShow = await this.tmdb.getShowByTvdbId({
         tvdbId: Number(tvdbId),
       });
     } else {
@@ -382,13 +400,128 @@ class PlexScanner
     );
   }
 
+  private async processPlexAudiobook(plexitem: PlexLibraryItem) {
+    const ratingKey =
+      plexitem.grandparentRatingKey ??
+      plexitem.parentRatingKey ??
+      plexitem.ratingKey;
+
+    let metadata;
+    try {
+      metadata = await this.plexClient.getMetadata(ratingKey, {
+        includeChildren: true,
+      });
+
+      if (metadata.Children?.Metadata) {
+        for (const album of metadata.Children.Metadata) {
+          const albumMetadata = await this.plexClient.getMetadata(
+            album.ratingKey
+          );
+
+          const resolved = await resolvePlexAudiobook({
+            title: album.title,
+            artist: metadata.title,
+            guids: albumMetadata.Guid,
+          });
+
+          if (!resolved) {
+            this.log(
+              'Unable to resolve Plex audiobook to a Readarr/Open Library id. Skipping.',
+              'debug',
+              { title: album.title, artist: metadata.title }
+            );
+            continue;
+          }
+
+          await this.processBook(resolved.foreignBookId, {
+            is4k: true,
+            serviceId: resolved.serviceId,
+            externalServiceId: resolved.externalServiceId,
+            externalServiceSlug: resolved.externalServiceSlug,
+            mediaAddedAt: new Date(album.addedAt * 1000),
+            ratingKey: album.ratingKey,
+            title: resolved.title,
+          });
+        }
+      }
+    } catch (e) {
+      this.log('Failed to process Plex audiobook media', 'error', {
+        errorMessage: e.message,
+        title: metadata?.title,
+      });
+    }
+  }
+
+  private async processPlexMusic(plexitem: PlexLibraryItem) {
+    const ratingKey =
+      plexitem.grandparentRatingKey ??
+      plexitem.parentRatingKey ??
+      plexitem.ratingKey;
+
+    let metadata;
+    try {
+      metadata = await this.plexClient.getMetadata(ratingKey, {
+        includeChildren: true,
+      });
+
+      if (metadata.Children?.Metadata) {
+        const musicBrainz = new MusicBrainz();
+
+        for (const album of metadata.Children.Metadata) {
+          const albumMetadata = await this.plexClient.getMetadata(
+            album.ratingKey
+          );
+
+          const mbReleaseId = albumMetadata.Guid?.find((g) => {
+            const id = g.id.toLowerCase();
+            return id.startsWith('mbid://');
+          })?.id.replace('mbid://', '');
+
+          if (!mbReleaseId) {
+            this.log('No MusicBrainz ID found for album', 'debug', {
+              title: album.title,
+              artist: metadata.title,
+            });
+            continue;
+          }
+
+          const releaseGroupId = await musicBrainz.getReleaseGroup({
+            releaseId: mbReleaseId,
+          });
+
+          if (releaseGroupId) {
+            await this.processMusic(releaseGroupId, {
+              mediaAddedAt: new Date(album.addedAt * 1000),
+              ratingKey: album.ratingKey,
+              title: album.title,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      this.log('Failed to process music media', 'error', {
+        errorMessage: e.message,
+        title: metadata?.title,
+      });
+    }
+  }
+
   private async getMediaIds(plexitem: PlexLibraryItem): Promise<MediaIds> {
-    const mediaIds: Partial<MediaIds> = {};
+    let mediaIds: Partial<MediaIds> = {};
     // Check if item is using new plex movie/tv agent
-    if (
-      plexitem.guid.match(plexRegex) ||
-      plexitem.guid.match(plexCustomProviderRegex)
-    ) {
+    if (plexitem.guid.match(plexRegex)) {
+      const guidCache = cacheManager.getCache('plexguid');
+
+      const cachedGuids = guidCache.data.get<MediaIds>(plexitem.ratingKey);
+
+      if (cachedGuids) {
+        this.log('GUIDs are cached. Skipping metadata request.', 'debug', {
+          mediaIds: cachedGuids,
+          title: plexitem.title,
+        });
+        mediaIds = cachedGuids;
+      }
+
       const metadata =
         plexitem.Guid && plexitem.Guid.length > 0
           ? plexitem
@@ -411,31 +544,38 @@ class PlexScanner
         } else if (ref.id.match(tvdbRegex)) {
           const tvdbMatch = ref.id.match(tvdbRegex)?.[1];
           mediaIds.tvdbId = Number(tvdbMatch);
+        } else if (ref.id.match(mbRegex)) {
+          mediaIds.mbId = ref.id.match(mbRegex)?.[1] ?? undefined;
         }
       });
 
       // If we got an IMDb ID, but no TMDB ID, lookup the TMDB ID with the IMDb ID
       if (mediaIds.imdbId && !mediaIds.tmdbId) {
-        mediaIds.tmdbId = await this.tmdb.resolveImdbIdForScan({
+        const tmdbMedia = await this.tmdb.getMediaByImdbId({
           imdbId: mediaIds.imdbId,
         });
+        mediaIds.tmdbId = tmdbMedia.id;
       }
 
       if (mediaIds.tvdbId && !mediaIds.tmdbId) {
-        const show = await this.tmdb.getShowByTvdbIdForScan({
+        const show = await this.tmdb.getShowByTvdbId({
           tvdbId: mediaIds.tvdbId,
         });
         mediaIds.tmdbId = show.id;
       }
+
+      // Cache GUIDs
+      guidCache.data.set(plexitem.ratingKey, mediaIds);
 
       // Check if the agent is IMDb
     } else if (plexitem.guid.match(imdbRegex)) {
       const imdbMatch = plexitem.guid.match(imdbRegex);
       if (imdbMatch) {
         mediaIds.imdbId = imdbMatch[1];
-        mediaIds.tmdbId = await this.tmdb.resolveImdbIdForScan({
+        const tmdbMedia = await this.tmdb.getMediaByImdbId({
           imdbId: mediaIds.imdbId,
         });
+        mediaIds.tmdbId = tmdbMedia.id;
       }
       // Check if the agent is TMDB
     } else if (plexitem.guid.match(tmdbRegex)) {
@@ -447,9 +587,9 @@ class PlexScanner
     } else if (plexitem.guid.match(tvdbRegex)) {
       const matchedtvdb = plexitem.guid.match(tvdbRegex);
 
-      // If we can find a tvdb Id, use it to resolve the tmdb id
+      // If we can find a tvdb Id, use it to get the full tmdb show details
       if (matchedtvdb) {
-        const show = await this.tmdb.getShowByTvdbIdForScan({
+        const show = await this.tmdb.getShowByTvdbId({
           tvdbId: Number(matchedtvdb[1]),
         });
 
@@ -467,7 +607,7 @@ class PlexScanner
       const matchedtvdb = plexitem.guid.match(hamaTvdbRegex);
 
       if (matchedtvdb) {
-        const show = await this.tmdb.getShowByTvdbIdForScan({
+        const show = await this.tmdb.getShowByTvdbId({
           tvdbId: Number(matchedtvdb[1]),
         });
 
@@ -489,19 +629,19 @@ class PlexScanner
       } else if (matchedhama) {
         const anidbId = Number(matchedhama[1]);
         const result = animeList.getFromAnidbId(anidbId);
-        let tvShow: TmdbTvScanDetails | TmdbTvDetails | null = null;
+        let tvShow: TmdbTvDetails | null = null;
 
         // Set isHama to true, so we can know to add special processing to this item
         mediaIds.isHama = true;
 
         // First try to lookup the show by TVDb ID
         if (result?.tvdbId) {
-          const extResponse = await this.tmdb.getByExternalIdForScan({
+          const extResponse = await this.tmdb.getByExternalId({
             externalId: result.tvdbId,
             type: 'tvdb',
           });
           if (extResponse.tv_results[0]) {
-            tvShow = await this.tmdb.getTvShowForScan({
+            tvShow = await this.tmdb.getTvShow({
               tvId: extResponse.tv_results[0].id,
             });
             mediaIds.tvdbId = result.tvdbId;
@@ -520,12 +660,19 @@ class PlexScanner
             mediaIds.tmdbId = result.tmdbId;
             mediaIds.imdbId = result?.imdbId;
           } else if (result?.imdbId) {
-            mediaIds.tmdbId = await this.tmdb.resolveImdbIdForScan({
+            const tmdbMovie = await this.tmdb.getMediaByImdbId({
               imdbId: result.imdbId,
             });
+            mediaIds.tmdbId = tmdbMovie.id;
             mediaIds.imdbId = result.imdbId;
           }
         }
+      }
+      // Check for MusicBrainz
+    } else if (plexitem.guid.match(mbRegex)) {
+      const mbMatch = plexitem.guid.match(mbRegex);
+      if (mbMatch) {
+        mediaIds.mbId = mbMatch[1];
       }
     }
 
@@ -568,10 +715,10 @@ class PlexScanner
             if (special.tmdbId) {
               await this.processPlexMovieByTmdbId(episode, special.tmdbId);
             } else if (special.imdbId) {
-              const tmdbId = await this.tmdb.resolveImdbIdForScan({
+              const tmdbMovie = await this.tmdb.getMediaByImdbId({
                 imdbId: special.imdbId,
               });
-              await this.processPlexMovieByTmdbId(episode, tmdbId);
+              await this.processPlexMovieByTmdbId(episode, tmdbMovie.id);
             }
           }
         }

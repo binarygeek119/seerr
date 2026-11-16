@@ -13,7 +13,16 @@ const migrationArrTags = async (settings: any): Promise<AllSettings> => {
   }
 
   const userRepository = getRepository(User);
-  const users = await userRepository.find();
+  // Only select columns that exist before music/book TypeORM migrations may have run.
+  const users = await userRepository.find({
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      plexUsername: true,
+      jellyfinUsername: true,
+    },
+  });
 
   let errorOccurred = false;
 

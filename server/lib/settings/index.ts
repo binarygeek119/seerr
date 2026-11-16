@@ -14,11 +14,19 @@ const mergeSettings = <T>(current: T, incoming: Partial<T>): T =>
     Array.isArray(srcValue) ? srcValue : undefined
   ) as T;
 
+/** Plex libraries only use show, movie, and music (audiobooks use music). */
+export type PlexLibraryType = 'show' | 'movie' | 'music';
+
 export interface Library {
   id: string;
   name: string;
   enabled: boolean;
-  type: 'show' | 'movie';
+  /** Book libraries are Jellyfin/Emby only; Plex uses music for audiobooks. */
+  type: PlexLibraryType | 'book';
+  /** Jellyfin book shelf mapped to audiobook Readarr (status4k). */
+  isAudiobook?: boolean;
+  /** Emby audiobooks collection; always treated as an audiobook shelf. */
+  audiobookCollection?: boolean;
   lastScan?: number;
 }
 
@@ -65,6 +73,22 @@ export interface TautulliSettings {
   externalUrl?: string;
 }
 
+export interface AudiobookshelfLibrary {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
+export interface AudiobookshelfSettings {
+  hostname: string;
+  port: number;
+  useSsl?: boolean;
+  urlBase?: string;
+  apiKey: string;
+  webAppUrl?: string;
+  libraries: AudiobookshelfLibrary[];
+}
+
 export interface DVRSettings {
   id: number;
   name: string;
@@ -78,6 +102,7 @@ export interface DVRSettings {
   activeDirectory: string;
   tags: number[];
   is4k: boolean;
+  is3d?: boolean;
   isDefault: boolean;
   externalUrl?: string;
   syncEnabled: boolean;
@@ -101,6 +126,15 @@ export interface SonarrSettings extends DVRSettings {
   animeTags?: number[];
   enableSeasonFolders: boolean;
   monitorNewItems: 'all' | 'none';
+}
+
+export interface LidarrSettings extends DVRSettings {
+  activeMetadataProfileId?: number;
+  activeMetadataProfileName?: string;
+}
+
+export interface ReadarrSettings extends LidarrSettings {
+  isAudiobook: boolean;
 }
 
 interface Quota {
@@ -138,10 +172,11 @@ export interface MainSettings {
   defaultQuotas: {
     movie: Quota;
     tv: Quota;
+    music: Quota;
+    book: Quota;
   };
   hideAvailable: boolean;
   hideBlocklisted: boolean;
-  hideRequested: boolean;
   localLogin: boolean;
   mediaServerLogin: boolean;
   newPlexLogin: boolean;
@@ -195,11 +230,12 @@ interface FullPublicSettings extends PublicSettings {
   applicationUrl: string;
   hideAvailable: boolean;
   hideBlocklisted: boolean;
-  hideRequested: boolean;
   localLogin: boolean;
   mediaServerLogin: boolean;
   movie4kEnabled: boolean;
+  movie3dEnabled: boolean;
   series4kEnabled: boolean;
+  bookAudiobookEnabled: boolean;
   discoverRegion: string;
   streamingRegion: string;
   originalLanguage: string;
@@ -314,7 +350,6 @@ export interface NotificationAgentNtfy extends NotificationAgentConfig {
   options: {
     url: string;
     topic: string;
-    tags?: string;
     authMethodUsernamePassword?: boolean;
     username?: string;
     password?: string;
@@ -366,6 +401,9 @@ export type JobId =
   | 'plex-refresh-token'
   | 'radarr-scan'
   | 'sonarr-scan'
+  | 'lidarr-scan'
+  | 'readarr-scan'
+  | 'audiobookshelf-scan'
   | 'download-sync'
   | 'download-sync-reset'
   | 'jellyfin-recently-added-scan'
@@ -383,8 +421,11 @@ export interface AllSettings {
   plex: PlexSettings;
   jellyfin: JellyfinSettings;
   tautulli: TautulliSettings;
+  audiobookshelf: AudiobookshelfSettings;
   radarr: RadarrSettings[];
   sonarr: SonarrSettings[];
+  lidarr: LidarrSettings[];
+  readarr: ReadarrSettings[];
   public: PublicSettings;
   notifications: NotificationSettings;
   jobs: Record<JobId, JobSettings>;
@@ -416,10 +457,11 @@ class Settings {
         defaultQuotas: {
           movie: {},
           tv: {},
+          music: {},
+          book: {},
         },
         hideAvailable: false,
         hideBlocklisted: false,
-        hideRequested: false,
         localLogin: true,
         mediaServerLogin: true,
         newPlexLogin: true,
@@ -457,11 +499,22 @@ class Settings {
         apiKey: '',
       },
       tautulli: {},
+      audiobookshelf: {
+        hostname: '',
+        port: 13378,
+        useSsl: false,
+        urlBase: '',
+        apiKey: '',
+        webAppUrl: '',
+        libraries: [],
+      },
       metadataSettings: {
         tv: MetadataProviderType.TMDB,
         anime: MetadataProviderType.TMDB,
       },
       radarr: [],
+      lidarr: [],
+      readarr: [],
       sonarr: [],
       public: {
         initialized: false,
@@ -567,7 +620,6 @@ class Settings {
             options: {
               url: '',
               topic: '',
-              tags: '',
               priority: 3,
               locale: 'en',
             },
@@ -592,6 +644,15 @@ class Settings {
         },
         'sonarr-scan': {
           schedule: '0 30 4 * * *',
+        },
+        'lidarr-scan': {
+          schedule: '0 30 4 * * *',
+        },
+        'readarr-scan': {
+          schedule: '0 45 4 * * *',
+        },
+        'audiobookshelf-scan': {
+          schedule: '0 15 4 * * *',
         },
         'availability-sync': {
           schedule: '0 0 5 * * *',
@@ -675,6 +736,26 @@ class Settings {
     this.data.tautulli = mergeSettings(this.data.tautulli, data);
   }
 
+  get audiobookshelf(): AudiobookshelfSettings {
+    if (!this.data.audiobookshelf) {
+      this.data.audiobookshelf = {
+        hostname: '',
+        port: 13378,
+        useSsl: false,
+        urlBase: '',
+        apiKey: '',
+        webAppUrl: '',
+        libraries: [],
+      };
+    }
+
+    return this.data.audiobookshelf;
+  }
+
+  set audiobookshelf(data: AudiobookshelfSettings) {
+    this.data.audiobookshelf = mergeSettings(this.data.audiobookshelf, data);
+  }
+
   get metadataSettings(): MetadataSettings {
     return this.data.metadataSettings;
   }
@@ -692,6 +773,22 @@ class Settings {
 
   set radarr(data: RadarrSettings[]) {
     this.data.radarr = data;
+  }
+
+  get lidarr(): LidarrSettings[] {
+    return this.data.lidarr;
+  }
+
+  set lidarr(data: LidarrSettings[]) {
+    this.data.lidarr = data;
+  }
+
+  get readarr(): ReadarrSettings[] {
+    return this.data.readarr;
+  }
+
+  set readarr(data: ReadarrSettings[]) {
+    this.data.readarr = data;
   }
 
   get sonarr(): SonarrSettings[] {
@@ -717,16 +814,21 @@ class Settings {
       applicationUrl: this.data.main.applicationUrl,
       hideAvailable: this.data.main.hideAvailable,
       hideBlocklisted: this.data.main.hideBlocklisted,
-      hideRequested: this.data.main.hideRequested,
       localLogin: this.data.main.localLogin,
       mediaServerLogin: this.data.main.mediaServerLogin,
       jellyfinExternalHost: this.data.jellyfin.externalHostname,
       jellyfinForgotPasswordUrl: this.data.jellyfin.jellyfinForgotPasswordUrl,
       movie4kEnabled: this.data.radarr.some(
-        (radarr) => radarr.is4k && radarr.isDefault
+        (radarr) => radarr.is4k && !radarr.is3d && radarr.isDefault
+      ),
+      movie3dEnabled: this.data.radarr.some(
+        (radarr) => radarr.is3d && !radarr.is4k && radarr.isDefault
       ),
       series4kEnabled: this.data.sonarr.some(
         (sonarr) => sonarr.is4k && sonarr.isDefault
+      ),
+      bookAudiobookEnabled: this.data.readarr.some(
+        (readarr) => (readarr.isAudiobook ?? false) && readarr.isDefault
       ),
       discoverRegion: this.data.main.discoverRegion,
       streamingRegion: this.data.main.streamingRegion,
@@ -816,8 +918,7 @@ class Settings {
    * This will load settings from file unless an optional argument of the object structure
    * is passed in.
    * @param overrideSettings If passed in, will override all existing settings with these
-   * @param raw If true, will load the settings without running migrations or generating missing
-   * values
+   * @param raw If true, will load the settings without running migrations
    */
   public async load(
     overrideSettings?: AllSettings,
@@ -828,10 +929,15 @@ class Settings {
       return this;
     }
 
+    // Always merge onto fresh defaults so new keys (e.g. jobs added in a
+    // release) are filled even after an earlier raw load replaced this.data.
+    const defaults = new Settings().data;
+
     let data;
     try {
       data = await fs.readFile(SETTINGS_PATH, 'utf-8');
     } catch {
+      this.data = defaults;
       await this.save();
     }
 
@@ -839,7 +945,7 @@ class Settings {
     if (data && !raw) {
       const parsedJson = JSON.parse(data);
       const migratedData = await runMigrations(parsedJson, SETTINGS_PATH);
-      const merged = mergeSettings(this.data, migratedData);
+      const merged = mergeSettings(defaults, migratedData);
 
       if (JSON.stringify(merged) !== JSON.stringify(migratedData)) {
         change = true;
@@ -847,7 +953,14 @@ class Settings {
 
       this.data = merged;
     } else if (data) {
-      this.data = JSON.parse(data);
+      const parsedJson = JSON.parse(data);
+      const merged = mergeSettings(defaults, parsedJson);
+
+      if (JSON.stringify(merged) !== JSON.stringify(parsedJson)) {
+        change = true;
+      }
+
+      this.data = merged;
     }
 
     // generate keys and ids if it's missing
@@ -882,6 +995,7 @@ class Settings {
 
   public async save(): Promise<void> {
     const savePromise = this.saveLock.then(async () => {
+      await fs.mkdir(path.dirname(SETTINGS_PATH), { recursive: true });
       const tmp = SETTINGS_PATH + '.tmp';
       await fs.writeFile(tmp, JSON.stringify(this.data, undefined, ' '));
       await fs.rename(tmp, SETTINGS_PATH);

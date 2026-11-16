@@ -1,10 +1,9 @@
+import AudiobookshelfAPI from '@server/api/audiobookshelf';
+import LidarrAPI from '@server/api/servarr/lidarr';
 import RadarrAPI from '@server/api/servarr/radarr';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
-import {
-  MediaRequestStatus,
-  MediaStatus,
-  MediaType,
-} from '@server/constants/media';
+import { MediaStatus, MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import { getRepository } from '@server/datasource';
 import { Blocklist } from '@server/entity/Blocklist';
@@ -12,7 +11,6 @@ import type { User } from '@server/entity/User';
 import { Watchlist } from '@server/entity/Watchlist';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
 import downloadTracker from '@server/lib/downloadtracker';
-import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
@@ -36,59 +34,108 @@ import Season from './Season';
 class Media {
   public static async getRelatedMedia(
     user: User | undefined,
-    items: { tmdbId: number; mediaType: string }[],
-    { includeActiveRequest = false }: { includeActiveRequest?: boolean } = {}
+    items:
+      | { tmdbId: number; mediaType: MediaType }[]
+      | { mbId: string; mediaType: MediaType }[]
+      | { foreignBookId: string; mediaType: MediaType }[]
+      | string[]
   ): Promise<Media[]> {
     const mediaRepository = getRepository(Media);
 
     try {
-      if (items.length === 0) {
+      if (!Array.isArray(items) || items.length === 0) {
         return [];
       }
 
-      const finalIds = [...new Set(items.map((i) => i.tmdbId))];
+      const first = items[0];
+      if (typeof first === 'string') {
+        const mbIds = [...new Set(items as string[])];
+        const media = await mediaRepository
+          .createQueryBuilder('media')
+          .leftJoinAndSelect(
+            'media.watchlists',
+            'watchlist',
+            'media.id = watchlist.media and watchlist.requestedBy = :userId',
+            { userId: user?.id }
+          )
+          .where('media.mbId IN (:...mbIds)', { mbIds })
+          .andWhere('media.mediaType = :music', { music: MediaType.MUSIC })
+          .getMany();
+        return media.filter((m) => mbIds.includes(m.mbId ?? ''));
+      }
+
+      const refs = items as (
+        | { tmdbId: number; mediaType: MediaType }
+        | { mbId: string; mediaType: MediaType }
+        | { foreignBookId: string; mediaType: MediaType }
+      )[];
+
+      if ('foreignBookId' in refs[0]) {
+        const bookRefs = refs as {
+          foreignBookId: string;
+          mediaType: MediaType;
+        }[];
+        const foreignBookIds = [
+          ...new Set(bookRefs.map((r) => r.foreignBookId)),
+        ];
+        const media = await mediaRepository
+          .createQueryBuilder('media')
+          .leftJoinAndSelect(
+            'media.watchlists',
+            'watchlist',
+            'media.id = watchlist.media and watchlist.requestedBy = :userId',
+            { userId: user?.id }
+          )
+          .where('media.foreignBookId IN (:...foreignBookIds)', {
+            foreignBookIds,
+          })
+          .andWhere('media.mediaType = :book', { book: MediaType.BOOK })
+          .getMany();
+        return media.filter((m) =>
+          bookRefs.some(
+            (r) =>
+              r.foreignBookId === m.foreignBookId && r.mediaType === m.mediaType
+          )
+        );
+      }
+
+      if ('mbId' in refs[0]) {
+        const mbRefs = refs as { mbId: string; mediaType: MediaType }[];
+        const mbIds = [...new Set(mbRefs.map((r) => r.mbId))];
+        const media = await mediaRepository
+          .createQueryBuilder('media')
+          .leftJoinAndSelect(
+            'media.watchlists',
+            'watchlist',
+            'media.id = watchlist.media and watchlist.requestedBy = :userId',
+            { userId: user?.id }
+          )
+          .where('media.mbId IN (:...mbIds)', { mbIds })
+          .getMany();
+        return media.filter((m) =>
+          mbRefs.some((r) => r.mbId === m.mbId && r.mediaType === m.mediaType)
+        );
+      }
+
+      const tmdbRefs = refs as { tmdbId: number; mediaType: MediaType }[];
+      const tmdbIds = [...new Set(tmdbRefs.map((r) => r.tmdbId))];
 
       const media = await mediaRepository
         .createQueryBuilder('media')
         .leftJoinAndSelect(
           'media.watchlists',
           'watchlist',
-          'media.id= watchlist.media and watchlist.requestedBy = :userId',
+          'media.id = watchlist.media and watchlist.requestedBy = :userId',
           { userId: user?.id }
         )
-        .where(' media.tmdbId in (:...finalIds)', { finalIds })
+        .where('media.tmdbId IN (:...tmdbIds)', { tmdbIds })
         .getMany();
 
-      const relatedMedia = media.filter((m) =>
-        items.some((i) => i.tmdbId === m.tmdbId && i.mediaType === m.mediaType)
+      return media.filter((m) =>
+        tmdbRefs.some(
+          (i) => i.tmdbId === m.tmdbId && i.mediaType === m.mediaType
+        )
       );
-
-      if (
-        includeActiveRequest &&
-        getSettings().main.hideRequested &&
-        relatedMedia.length > 0
-      ) {
-        const activeRequestMediaIds = await mediaRepository
-          .createQueryBuilder('media')
-          .select('media.id', 'id')
-          .distinct(true)
-          .innerJoin('media.requests', 'request')
-          .where('media.id IN (:...mediaIds)', {
-            mediaIds: relatedMedia.map((m) => m.id),
-          })
-          .andWhere('request.status IN (:...statuses)', {
-            statuses: [MediaRequestStatus.PENDING, MediaRequestStatus.APPROVED],
-          })
-          .getRawMany<{ id: number }>();
-
-        const activeIds = new Set(activeRequestMediaIds.map((row) => row.id));
-
-        relatedMedia.forEach((m) => {
-          m.hasActiveRequest = activeIds.has(m.id);
-        });
-      }
-
-      return relatedMedia;
     } catch (e) {
       logger.error(e.message);
       return [];
@@ -96,14 +143,19 @@ class Media {
   }
 
   public static async getMedia(
-    id: number,
+    id: number | string,
     mediaType: MediaType
   ): Promise<Media | undefined> {
     const mediaRepository = getRepository(Media);
 
     try {
       const media = await mediaRepository.findOne({
-        where: { tmdbId: id, mediaType: mediaType },
+        where:
+          typeof id === 'string'
+            ? mediaType === MediaType.BOOK
+              ? { foreignBookId: id, mediaType }
+              : { mbId: id, mediaType }
+            : { tmdbId: id, mediaType },
         relations: { requests: true, issues: true },
       });
 
@@ -120,9 +172,9 @@ class Media {
   @Column({ type: 'varchar' })
   public mediaType: MediaType;
 
-  @Column()
+  @Column({ nullable: true })
   @Index()
-  public tmdbId: number;
+  public tmdbId?: number;
 
   @Column({ unique: true, nullable: true })
   @Index()
@@ -132,6 +184,14 @@ class Media {
   @Index()
   public imdbId?: string;
 
+  @Column({ nullable: true })
+  @Index()
+  public mbId?: string;
+
+  @Column({ nullable: true })
+  @Index()
+  public foreignBookId?: string;
+
   @Column({ type: 'int', default: MediaStatus.UNKNOWN })
   @Index()
   public status: MediaStatus;
@@ -139,6 +199,10 @@ class Media {
   @Column({ type: 'int', default: MediaStatus.UNKNOWN })
   @Index()
   public status4k: MediaStatus;
+
+  @Column({ type: 'int', default: MediaStatus.UNKNOWN })
+  @Index()
+  public status3d: MediaStatus;
 
   @OneToMany(() => MediaRequest, (request) => request.media, {
     cascade: ['insert', 'remove'],
@@ -188,17 +252,23 @@ class Media {
   })
   public mediaAddedAt: Date;
 
-  @Column({ nullable: true, type: 'int' })
+  @Column({ nullable: true, type: 'int', default: 0 })
   public serviceId?: number | null;
 
   @Column({ nullable: true, type: 'int' })
   public serviceId4k?: number | null;
 
   @Column({ nullable: true, type: 'int' })
+  public serviceId3d?: number | null;
+
+  @Column({ nullable: true, type: 'int' })
   public externalServiceId?: number | null;
 
   @Column({ nullable: true, type: 'int' })
   public externalServiceId4k?: number | null;
+
+  @Column({ nullable: true, type: 'int' })
+  public externalServiceId3d?: number | null;
 
   @Column({ nullable: true, type: 'varchar' })
   public externalServiceSlug?: string | null;
@@ -207,10 +277,16 @@ class Media {
   public externalServiceSlug4k?: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
+  public externalServiceSlug3d?: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
   public ratingKey?: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
   public ratingKey4k?: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  public ratingKey3d?: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
   public jellyfinMediaId?: string | null;
@@ -218,9 +294,15 @@ class Media {
   @Column({ nullable: true, type: 'varchar' })
   public jellyfinMediaId4k?: string | null;
 
+  @Column({ nullable: true, type: 'varchar' })
+  public jellyfinMediaId3d?: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  public audiobookshelfMediaId?: string | null;
+
   public serviceUrl?: string;
   public serviceUrl4k?: string;
-  public hasActiveRequest?: boolean;
+  public serviceUrl3d?: string;
   public downloadStatus?: DownloadingItem[] = [];
   public downloadStatus4k?: DownloadingItem[] = [];
 
@@ -251,6 +333,14 @@ class Media {
       this.externalServiceSlug4k = null;
       this.ratingKey4k = null;
       this.jellyfinMediaId4k = null;
+    }
+    if (is4k === undefined) {
+      this.serviceId3d = null;
+      this.externalServiceId3d = null;
+      this.externalServiceSlug3d = null;
+      this.ratingKey3d = null;
+      this.jellyfinMediaId3d = null;
+      this.audiobookshelfMediaId = null;
     }
   }
 
@@ -338,6 +428,22 @@ class Media {
               );
         }
       }
+
+      if (this.serviceId3d !== null && this.externalServiceSlug3d !== null) {
+        const settings = getSettings();
+        const server = settings.radarr.find(
+          (radarr) => radarr.id === this.serviceId3d
+        );
+
+        if (server) {
+          this.serviceUrl3d = server.externalUrl
+            ? `${server.externalUrl}/movie/${this.externalServiceSlug3d}`
+            : RadarrAPI.buildUrl(
+                server,
+                `/movie/${this.externalServiceSlug3d}`
+              );
+        }
+      }
     }
 
     if (this.mediaType === MediaType.TV) {
@@ -367,6 +473,59 @@ class Media {
                 server,
                 `/series/${this.externalServiceSlug4k}`
               );
+        }
+      }
+    }
+
+    if (this.mediaType === MediaType.MUSIC) {
+      if (this.serviceId !== null && this.externalServiceSlug !== null) {
+        const settings = getSettings();
+        const server = settings.lidarr.find(
+          (lidarr) => lidarr.id === this.serviceId
+        );
+
+        if (server) {
+          this.serviceUrl = server.externalUrl
+            ? `${server.externalUrl}/album/${this.externalServiceSlug}`
+            : LidarrAPI.buildUrl(server, `/album/${this.externalServiceSlug}`);
+        }
+      }
+    }
+
+    if (this.mediaType === MediaType.BOOK) {
+      const settings = getSettings();
+      if (this.serviceId !== null && this.externalServiceSlug !== null) {
+        const server = settings.readarr.find(
+          (readarr) => readarr.id === this.serviceId
+        );
+
+        if (server) {
+          this.serviceUrl = server.externalUrl
+            ? `${server.externalUrl}/book/${this.externalServiceSlug}`
+            : ReadarrAPI.buildUrl(server, `/book/${this.externalServiceSlug}`);
+        }
+      }
+      if (this.serviceId4k !== null && this.externalServiceSlug4k !== null) {
+        const server = settings.readarr.find(
+          (readarr) => readarr.id === this.serviceId4k
+        );
+
+        if (server) {
+          this.serviceUrl4k = server.externalUrl
+            ? `${server.externalUrl}/book/${this.externalServiceSlug4k}`
+            : ReadarrAPI.buildUrl(
+                server,
+                `/book/${this.externalServiceSlug4k}`
+              );
+        }
+      }
+
+      if (this.audiobookshelfMediaId) {
+        const abs = settings.audiobookshelf;
+        if (abs.webAppUrl) {
+          this.mediaUrl4k = `${abs.webAppUrl.replace(/\/$/, '')}/item/${this.audiobookshelfMediaId}`;
+        } else if (abs.hostname && abs.apiKey) {
+          this.mediaUrl4k = `${AudiobookshelfAPI.buildUrl(abs)}/item/${this.audiobookshelfMediaId}`;
         }
       }
     }
@@ -425,38 +584,20 @@ class Media {
         );
       }
     }
-  }
 
-  public filter(user?: User): Media {
-    const canViewIssues =
-      user?.hasPermission(
-        [
-          Permission.MANAGE_ISSUES,
-          Permission.VIEW_ISSUES,
-          Permission.CREATE_ISSUES,
-        ],
-        { type: 'or' }
-      ) ?? false;
-
-    return {
-      ...this,
-      requests: (this.requests ?? []).map((request) => ({
-        ...request,
-        requestedBy: request.requestedBy?.filter(),
-        modifiedBy: request.modifiedBy?.filter(),
-      })),
-      // the detail pages call issues.filter() without a null check
-      issues: canViewIssues
-        ? (this.issues ?? []).map(
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            ({ comments, problemSeason, problemEpisode, ...issue }) => ({
-              ...issue,
-              createdBy: issue.createdBy?.filter(),
-              modifiedBy: issue.modifiedBy?.filter(),
-            })
-          )
-        : [],
-    } as Media;
+    if (this.mediaType === MediaType.MUSIC) {
+      if (
+        this.externalServiceId !== undefined &&
+        this.externalServiceId !== null &&
+        this.serviceId !== undefined &&
+        this.serviceId !== null
+      ) {
+        this.downloadStatus = downloadTracker.getMusicProgress(
+          this.serviceId,
+          this.externalServiceId
+        );
+      }
+    }
   }
 }
 

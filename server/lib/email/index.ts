@@ -88,8 +88,7 @@ class PreparedEmail extends Email {
         },
       },
       send: true,
-      // @types/email-templates still types transports against @types/nodemailer
-      transport: transport as unknown as Email.NodeMailerTransportOptions,
+      transport: transport,
       preview: false,
     });
   }

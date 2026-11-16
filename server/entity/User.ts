@@ -51,8 +51,6 @@ export class User {
     'settings',
   ];
 
-  static readonly serializationExcludedFields: string[] = ['settings'];
-
   public displayName: string;
 
   @PrimaryGeneratedColumn()
@@ -136,6 +134,18 @@ export class User {
   @Column({ nullable: true })
   public tvQuotaDays?: number;
 
+  @Column({ nullable: true })
+  public musicQuotaLimit?: number;
+
+  @Column({ nullable: true })
+  public musicQuotaDays?: number;
+
+  @Column({ nullable: true })
+  public bookQuotaLimit?: number;
+
+  @Column({ nullable: true })
+  public bookQuotaDays?: number;
+
   @OneToOne(() => UserSettings, (settings) => settings.user, {
     cascade: true,
     eager: true,
@@ -173,16 +183,6 @@ export class User {
     );
 
     return filtered;
-  }
-
-  // settings is eager-loaded and would otherwise ride along into every nested User response
-  public toJSON(): Partial<User> {
-    return Object.assign(
-      {},
-      ...(Object.keys(this) as (keyof User)[])
-        .filter((k) => !User.serializationExcludedFields.includes(k))
-        .map((k) => ({ [k]: this[k] }))
-    );
   }
 
   public hasPermission(
@@ -363,6 +363,53 @@ export class User {
         ).reduce((sum: number, req: MediaRequest) => sum + req.seasonCount, 0)
       : 0;
 
+    const musicQuotaLimit = !canBypass
+      ? (this.musicQuotaLimit ?? defaultQuotas.music.quotaLimit)
+      : 0;
+    const musicQuotaDays = this.musicQuotaDays ?? defaultQuotas.music.quotaDays;
+
+    // Count music requests made during quota period
+    const musicDate = new Date();
+    if (musicQuotaDays) {
+      musicDate.setDate(musicDate.getDate() - musicQuotaDays);
+    }
+
+    const musicQuotaUsed = musicQuotaLimit
+      ? await requestRepository.count({
+          where: {
+            requestedBy: {
+              id: this.id,
+            },
+            createdAt: AfterDate(musicDate),
+            type: MediaType.MUSIC,
+            status: Not(MediaRequestStatus.DECLINED),
+          },
+        })
+      : 0;
+
+    const bookQuotaLimit = !canBypass
+      ? (this.bookQuotaLimit ?? defaultQuotas.book.quotaLimit)
+      : 0;
+    const bookQuotaDays = this.bookQuotaDays ?? defaultQuotas.book.quotaDays;
+
+    const bookDate = new Date();
+    if (bookQuotaDays) {
+      bookDate.setDate(bookDate.getDate() - bookQuotaDays);
+    }
+
+    const bookQuotaUsed = bookQuotaLimit
+      ? await requestRepository.count({
+          where: {
+            requestedBy: {
+              id: this.id,
+            },
+            createdAt: AfterDate(bookDate),
+            type: MediaType.BOOK,
+            status: Not(MediaRequestStatus.DECLINED),
+          },
+        })
+      : 0;
+
     return {
       movie: {
         days: movieQuotaDays,
@@ -383,6 +430,27 @@ export class User {
           ? Math.max(0, tvQuotaLimit - tvQuotaUsed)
           : undefined,
         restricted: !!(tvQuotaLimit && tvQuotaLimit - tvQuotaUsed <= 0),
+      },
+      music: {
+        days: musicQuotaDays,
+        limit: musicQuotaLimit,
+        used: musicQuotaUsed,
+        remaining: musicQuotaLimit
+          ? Math.max(0, musicQuotaLimit - musicQuotaUsed)
+          : undefined,
+        restricted:
+          musicQuotaLimit && musicQuotaLimit - musicQuotaUsed <= 0
+            ? true
+            : false,
+      },
+      book: {
+        days: bookQuotaDays,
+        limit: bookQuotaLimit,
+        used: bookQuotaUsed,
+        remaining: bookQuotaLimit
+          ? Math.max(0, bookQuotaLimit - bookQuotaUsed)
+          : undefined,
+        restricted: !!(bookQuotaLimit && bookQuotaLimit - bookQuotaUsed <= 0),
       },
     };
   }

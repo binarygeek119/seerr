@@ -1,15 +1,25 @@
+import MusicBrainz from '@server/api/musicbrainz';
+import type {
+  MbAlbumResult,
+  MbArtistResult,
+} from '@server/api/musicbrainz/interfaces';
+import ReadarrAPI from '@server/api/servarr/readarr';
 import TheMovieDb from '@server/api/themoviedb';
 import type {
+  TmdbCollectionResult,
   TmdbMovieDetails,
   TmdbMovieResult,
   TmdbPersonDetails,
   TmdbPersonResult,
   TmdbSearchMovieResponse,
-  TmdbSearchMultiResponse,
   TmdbSearchTvResponse,
   TmdbTvDetails,
   TmdbTvResult,
 } from '@server/api/themoviedb/interfaces';
+import { getReadarrServer } from '@server/lib/readarr/getReadarrServer';
+import { getSettings } from '@server/lib/settings';
+import { pickReadarrBookCover } from '@server/models/Book';
+import type { ReadarrBookSearchResult } from '@server/models/Search';
 import {
   mapMovieDetailsToResult,
   mapPersonDetailsToResult,
@@ -21,6 +31,20 @@ import {
   isTvDetails,
 } from '@server/utils/typeHelpers';
 
+export type CombinedSearchResponse = {
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: (
+    | MbArtistResult
+    | MbAlbumResult
+    | TmdbMovieResult
+    | TmdbTvResult
+    | TmdbPersonResult
+    | TmdbCollectionResult
+    | ReadarrBookSearchResult
+  )[];
+};
 interface SearchProvider {
   pattern: RegExp;
   search: ({
@@ -31,7 +55,7 @@ interface SearchProvider {
     id: string;
     language?: string;
     query?: string;
-  }) => Promise<TmdbSearchMultiResponse>;
+  }) => Promise<CombinedSearchResponse>;
 }
 
 const searchProviders: SearchProvider[] = [];
@@ -210,5 +234,119 @@ searchProviders.push({
       total_results: results.length,
       results,
     };
+  },
+});
+
+searchProviders.push({
+  pattern: new RegExp(/(?<=musicbrainz:)/),
+  search: async ({ query }) => {
+    const musicbrainz = new MusicBrainz();
+
+    try {
+      const albumResults = await musicbrainz.searchAlbum({
+        query: query || '',
+        limit: 20,
+      });
+
+      const results: CombinedSearchResponse['results'] = albumResults.map(
+        (album) =>
+          ({
+            ...album,
+            media_type: 'album',
+          }) as MbAlbumResult
+      );
+
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: results.length,
+        results,
+      };
+    } catch {
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 0,
+        results: [],
+      };
+    }
+  },
+});
+
+searchProviders.push({
+  pattern: new RegExp(/(?<=readarr:)\S+/),
+  search: async ({ query }) => {
+    const match = query?.trim().match(/^readarr:(\S+)/i);
+    const foreignBookIdRaw = match?.[1];
+    if (!foreignBookIdRaw) {
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 0,
+        results: [],
+      };
+    }
+
+    const settings = getSettings();
+    const readarrServer = getReadarrServer(settings.readarr, false);
+    if (!readarrServer) {
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 0,
+        results: [],
+      };
+    }
+
+    let foreignBookId: string;
+    try {
+      foreignBookId = decodeURIComponent(foreignBookIdRaw);
+    } catch {
+      foreignBookId = foreignBookIdRaw;
+    }
+
+    try {
+      const readarr = new ReadarrAPI({
+        apiKey: readarrServer.apiKey,
+        url: ReadarrAPI.buildUrl(readarrServer, '/api/v1'),
+      });
+      const books = await readarr.lookupBooks(foreignBookId);
+      const book =
+        books.find((b) => b.foreignBookId === foreignBookId) ?? books[0];
+      if (!book?.foreignBookId) {
+        return {
+          page: 1,
+          total_pages: 1,
+          total_results: 0,
+          results: [],
+        };
+      }
+
+      const raw: ReadarrBookSearchResult = {
+        media_type: 'book',
+        id: book.foreignBookId,
+        title: book.title,
+        foreignBookId: book.foreignBookId,
+        authorName: book.author?.authorName,
+        posterPath: pickReadarrBookCover(book),
+        monitored: book.monitored,
+        hasFile: book.hasFile,
+        score: 100,
+      };
+
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 1,
+        results: [raw],
+      };
+    } catch {
+      return {
+        page: 1,
+        total_pages: 1,
+        total_results: 0,
+        results: [],
+      };
+    }
   },
 });

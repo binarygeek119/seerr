@@ -52,7 +52,6 @@ class GotifyAgent
     const settings = this.getSettings();
     const intl = getIntl(settings.options.locale);
     const { applicationUrl, applicationTitle } = getSettings().main;
-    const embedPoster = settings.embedPoster;
     const priority = settings.options.priority ?? 1;
 
     const title = payload.event
@@ -103,10 +102,6 @@ class GotifyAgent
       message += `\n\n**${extra.name}**\n${extra.value}  `;
     }
 
-    if (embedPoster && payload.image) {
-      message += `\n\n![](${payload.image})  `;
-    }
-
     if (applicationUrl && payload.media) {
       const actionUrl = `${applicationUrl}/${payload.media.mediaType}/${payload.media.tmdbId}`;
       const displayUrl =
@@ -119,13 +114,6 @@ class GotifyAgent
         'client::display': {
           contentType: 'text/markdown',
         },
-        ...(embedPoster && payload.image
-          ? {
-              'client::notification': {
-                bigImageUrl: payload.image,
-              },
-            }
-          : {}),
       },
       title,
       message,

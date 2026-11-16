@@ -4,7 +4,8 @@ import type { LanguageProfile } from '@server/api/servarr/sonarr';
 export interface ServiceCommonServer {
   id: number;
   name: string;
-  is4k: boolean;
+  is4k?: boolean;
+  is3d?: boolean;
   isDefault: boolean;
   activeProfileId: number;
   activeDirectory: string;

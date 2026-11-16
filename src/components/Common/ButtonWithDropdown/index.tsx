@@ -1,6 +1,6 @@
 import Dropdown from '@app/components/Common/Dropdown';
 import { withProperties } from '@app/utils/typeHelpers';
-import { Menu, MenuButton } from '@headlessui/react';
+import { Menu } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/24/solid';
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from 'react';
 
@@ -54,13 +54,13 @@ const ButtonWithDropdown = ({
       </TriggerElement>
       {children && (
         <span className="relative -ml-px block">
-          <MenuButton
+          <Menu.Button
             type="button"
             className={`relative z-10 inline-flex h-full items-center rounded-r-md px-2 py-2 text-sm font-medium leading-5 text-white transition duration-150 ease-in-out hover:z-20 focus:z-20 ${styleClasses.dropdownSideButtonClasses}`}
             aria-label="Expand"
           >
             {dropdownIcon ? dropdownIcon : <ChevronDownIcon />}
-          </MenuButton>
+          </Menu.Button>
           <Dropdown.Items dropdownType={buttonType}>{children}</Dropdown.Items>
         </span>
       )}

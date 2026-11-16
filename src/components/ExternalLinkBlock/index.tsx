@@ -13,7 +13,7 @@ import useSettings from '@app/hooks/useSettings';
 import { MediaType } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 
-type ExternalLinkType = 'movie' | 'tv' | 'person';
+type ExternalLinkType = 'movie' | 'tv' | 'person' | 'music';
 
 interface ExternalLinkBlockProps {
   mediaType: ExternalLinkType;

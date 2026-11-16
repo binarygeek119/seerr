@@ -3,13 +3,15 @@ import VersionStatus from '@app/components/Layout/VersionStatus';
 import useClickOutside from '@app/hooks/useClickOutside';
 import { Permission, useUser } from '@app/hooks/useUser';
 import defineMessages from '@app/utils/defineMessages';
-import { Transition, TransitionChild } from '@headlessui/react';
+import { Transition } from '@headlessui/react';
 import {
+  BookOpenIcon,
   ClockIcon,
   CogIcon,
   ExclamationTriangleIcon,
   EyeSlashIcon,
   FilmIcon,
+  MusicalNoteIcon,
   SparklesIcon,
   TvIcon,
   UsersIcon,
@@ -25,11 +27,14 @@ export const menuMessages = defineMessages('components.Layout.Sidebar', {
   dashboard: 'Discover',
   browsemovies: 'Movies',
   browsetv: 'Series',
+  browsemusic: 'Music',
+  browsebooks: 'Books',
   requests: 'Requests',
   blocklist: 'Blocklist',
   issues: 'Issues',
   users: 'Users',
   settings: 'Settings',
+  music: 'Music',
 });
 
 interface SidebarProps {
@@ -70,6 +75,18 @@ const SidebarLinks: SidebarLinkProps[] = [
     messagesKey: 'browsetv',
     svgIcon: <TvIcon className="mr-3 h-6 w-6" />,
     activeRegExp: /^\/discover\/tv$/,
+  },
+  {
+    href: '/discover/music',
+    messagesKey: 'music',
+    svgIcon: <MusicalNoteIcon className="mr-3 h-6 w-6" />,
+    activeRegExp: /^\/discover\/(music|albums|artists)$/,
+  },
+  {
+    href: '/discover/books',
+    messagesKey: 'browsebooks',
+    svgIcon: <BookOpenIcon className="mr-3 h-6 w-6" />,
+    activeRegExp: /^\/discover\/books/,
   },
   {
     href: '/requests',
@@ -152,7 +169,7 @@ const Sidebar = ({
       <div className="lg:hidden">
         <Transition as={Fragment} show={open}>
           <div className="fixed inset-0 z-40 flex">
-            <TransitionChild
+            <Transition.Child
               as="div"
               enter="transition-opacity ease-linear duration-300"
               enterFrom="opacity-0"
@@ -164,8 +181,8 @@ const Sidebar = ({
               <div className="fixed inset-0">
                 <div className="absolute inset-0 bg-gray-900 opacity-90" />
               </div>
-            </TransitionChild>
-            <TransitionChild
+            </Transition.Child>
+            <Transition.Child
               as="div"
               enter="transition-transform ease-in-out duration-300"
               enterFrom="-translate-x-full"
@@ -243,7 +260,7 @@ const Sidebar = ({
                   {/* <!-- Force sidebar to shrink to fit close icon --> */}
                 </div>
               </>
-            </TransitionChild>
+            </Transition.Child>
           </div>
         </Transition>
       </div>

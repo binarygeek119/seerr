@@ -1,4 +1,3 @@
-import type { JellyfinLibrary } from '@server/api/jellyfin';
 import JellyfinAPI from '@server/api/jellyfin';
 import PlexAPI from '@server/api/plexapi';
 import PlexTvAPI from '@server/api/plextv';
@@ -40,7 +39,9 @@ import { rescheduleJob } from 'node-schedule';
 import path from 'path';
 import semver from 'semver';
 import { URL } from 'url';
-import { z } from 'zod';
+import lidarrRoutes from './lidarr';
+import audiobookshelfRoutes from './audiobookshelf';
+import readarrRoutes from './readarr';
 import metadataRoutes from './metadata';
 import notificationRoutes from './notifications';
 import radarrRoutes from './radarr';
@@ -51,12 +52,11 @@ const settingsRoutes = Router();
 settingsRoutes.use('/notifications', notificationRoutes);
 settingsRoutes.use('/radarr', radarrRoutes);
 settingsRoutes.use('/sonarr', sonarrRoutes);
+settingsRoutes.use('/lidarr', lidarrRoutes);
+settingsRoutes.use('/readarr', readarrRoutes);
+settingsRoutes.use('/audiobookshelf', audiobookshelfRoutes);
 settingsRoutes.use('/discover', discoverSettingRoutes);
 settingsRoutes.use('/metadatas', metadataRoutes);
-
-const libraryUpdateSchema = z.object({
-  enabled: z.boolean(),
-});
 
 const filteredMainSettings = (
   user: User,
@@ -235,54 +235,34 @@ settingsRoutes.get('/plex/devices/servers', async (req, res, next) => {
   }
 });
 
-settingsRoutes.get('/plex/library', (_req, res) => {
+settingsRoutes.get('/plex/library', async (req, res) => {
   const settings = getSettings();
 
-  return res.status(200).json(settings.plex.libraries);
-});
-
-settingsRoutes.put('/plex/library/:libraryId', async (req, res, next) => {
-  const settings = getSettings();
-
-  const bodyResult = libraryUpdateSchema.safeParse(req.body);
-
-  if (!bodyResult.success) {
-    return next({ status: 400, message: 'Invalid request body.' });
-  }
-
-  const library = settings.plex.libraries.find(
-    (l) => l.id === req.params.libraryId
-  );
-
-  if (!library) {
-    return next({ status: 404, message: 'Library does not exist.' });
-  }
-
-  library.enabled = bodyResult.data.enabled;
-  await settings.save();
-
-  return res.status(200).json(library);
-});
-
-settingsRoutes.post('/plex/library/sync', async (_req, res, next) => {
-  const settings = getSettings();
-
-  const userRepository = getRepository(User);
-  const admin = await userRepository.findOneOrFail({
-    select: { id: true, plexToken: true },
-    where: { id: 1 },
-  });
-  const plexapi = new PlexAPI({ plexToken: admin.plexToken });
-
-  try {
-    await plexapi.syncLibraries();
-  } catch (e) {
-    return next({
-      status: e.statusCode ?? 500,
-      message: e.errorCode ?? ApiErrorCode.Unknown,
+  if (req.query.sync) {
+    const userRepository = getRepository(User);
+    const admin = await userRepository.findOneOrFail({
+      select: { id: true, plexToken: true },
+      where: { id: 1 },
     });
+    const plexapi = new PlexAPI({ plexToken: admin.plexToken });
+
+    await plexapi.syncLibraries();
   }
 
+  const enabledLibraries = req.query.enable
+    ? (req.query.enable as string).split(',')
+    : [];
+  const audiobookLibraries = req.query.audiobook
+    ? (req.query.audiobook as string).split(',')
+    : undefined;
+  settings.plex.libraries = settings.plex.libraries.map((library) => ({
+    ...library,
+    enabled: enabledLibraries.includes(library.id),
+    ...(audiobookLibraries !== undefined && library.type === 'music'
+      ? { isAudiobook: audiobookLibraries.includes(library.id) }
+      : {}),
+  }));
+  await settings.save();
   return res.status(200).json(settings.plex.libraries);
 });
 
@@ -362,56 +342,25 @@ settingsRoutes.post('/jellyfin', async (req, res, next) => {
   return res.status(200).json(settings.jellyfin);
 });
 
-settingsRoutes.get('/jellyfin/library', (_req, res) => {
+settingsRoutes.get('/jellyfin/library', async (req, res, next) => {
   const settings = getSettings();
 
-  return res.status(200).json(settings.jellyfin.libraries);
-});
+  if (req.query.sync) {
+    const userRepository = getRepository(User);
+    const admin = await userRepository.findOneOrFail({
+      select: ['id', 'jellyfinDeviceId', 'jellyfinUserId'],
+      where: { id: 1 },
+      order: { id: 'ASC' },
+    });
+    const jellyfinClient = new JellyfinAPI(
+      getHostname(),
+      settings.jellyfin.apiKey,
+      admin.jellyfinDeviceId ?? ''
+    );
 
-settingsRoutes.put('/jellyfin/library/:libraryId', async (req, res, next) => {
-  const settings = getSettings();
+    jellyfinClient.setUserId(admin.jellyfinUserId ?? '');
 
-  const bodyResult = libraryUpdateSchema.safeParse(req.body);
-
-  if (!bodyResult.success) {
-    return next({ status: 400, message: 'Invalid request body.' });
-  }
-
-  const library = settings.jellyfin.libraries.find(
-    (l) => l.id === req.params.libraryId
-  );
-
-  if (!library) {
-    return next({ status: 404, message: 'Library does not exist.' });
-  }
-
-  library.enabled = bodyResult.data.enabled;
-  await settings.save();
-
-  return res.status(200).json(library);
-});
-
-settingsRoutes.post('/jellyfin/library/sync', async (_req, res, next) => {
-  const settings = getSettings();
-
-  const userRepository = getRepository(User);
-  const admin = await userRepository.findOneOrFail({
-    select: ['id', 'jellyfinDeviceId', 'jellyfinUserId'],
-    where: { id: 1 },
-    order: { id: 'ASC' },
-  });
-  const jellyfinClient = new JellyfinAPI(
-    getHostname(),
-    settings.jellyfin.apiKey,
-    admin.jellyfinDeviceId ?? ''
-  );
-
-  jellyfinClient.setUserId(admin.jellyfinUserId ?? '');
-
-  let libraries: JellyfinLibrary[];
-
-  try {
-    libraries = await jellyfinClient.getLibraries();
+    const libraries = await jellyfinClient.getLibraries();
 
     if (libraries.length === 0) {
       // Check if no libraries are found due to the fallback to user views
@@ -428,30 +377,44 @@ settingsRoutes.post('/jellyfin/library/sync', async (_req, res, next) => {
 
       return next({ status: 404, message: ApiErrorCode.SyncErrorNoLibraries });
     }
-  } catch (e) {
-    return next({
-      status: e.statusCode ?? 500,
-      message: e.errorCode ?? ApiErrorCode.Unknown,
+
+    const newLibraries: Library[] = libraries.map((library) => {
+      const existing = settings.jellyfin.libraries.find(
+        (l) => l.id === library.key && l.name === library.title
+      );
+
+      const audiobookCollection = library.audiobookCollection ?? false;
+
+      return {
+        id: library.key,
+        name: library.title,
+        enabled: existing?.enabled ?? false,
+        type: library.type,
+        audiobookCollection,
+        isAudiobook:
+          audiobookCollection || (existing?.isAudiobook ?? false),
+      };
     });
+
+    settings.jellyfin.libraries = newLibraries;
   }
 
-  const newLibraries: Library[] = libraries.map((library) => {
-    const existing = settings.jellyfin.libraries.find(
-      (l) => l.id === library.key
-    );
-
-    return {
-      id: library.key,
-      name: library.title,
-      enabled: existing?.enabled ?? false,
-      type: library.type,
-      lastScan: existing?.lastScan,
-    };
-  });
-
-  settings.jellyfin.libraries = newLibraries;
+  const enabledLibraries = req.query.enable
+    ? (req.query.enable as string).split(',')
+    : [];
+  const audiobookLibraries = req.query.audiobook
+    ? (req.query.audiobook as string).split(',')
+    : undefined;
+  settings.jellyfin.libraries = settings.jellyfin.libraries.map((library) => ({
+    ...library,
+    enabled: enabledLibraries.includes(library.id),
+    ...(audiobookLibraries !== undefined &&
+    library.type === 'book' &&
+    !library.audiobookCollection
+      ? { isAudiobook: audiobookLibraries.includes(library.id) }
+      : {}),
+  }));
   await settings.save();
-
   return res.status(200).json(settings.jellyfin.libraries);
 });
 
@@ -822,8 +785,9 @@ settingsRoutes.get('/cache', async (_req, res) => {
   }));
 
   const tmdbImageCache = await ImageProxy.getImageStats('tmdb');
-  const tvdbImageCache = await ImageProxy.getImageStats('tvdb');
   const avatarImageCache = await ImageProxy.getImageStats('avatar');
+  const caaImageCache = await ImageProxy.getImageStats('caa');
+  const tadbImageCache = await ImageProxy.getImageStats('tadb');
 
   const stats: DnsStats | undefined = dnsCache?.getStats();
   const entries: DnsEntries | undefined = dnsCache?.getCacheEntries();
@@ -832,8 +796,9 @@ settingsRoutes.get('/cache', async (_req, res) => {
     apiCaches,
     imageCache: {
       tmdb: tmdbImageCache,
-      tvdb: tvdbImageCache,
       avatar: avatarImageCache,
+      caa: caaImageCache,
+      tadb: tadbImageCache,
     },
     dnsCache: {
       stats,

@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react';
+import ArtistCard from '@app/components/ArtistCard';
 import ShowMoreCard from '@app/components/MediaSlider/ShowMoreCard';
 import PersonCard from '@app/components/PersonCard';
 import Slider from '@app/components/Slider';
@@ -8,6 +10,9 @@ import { ArrowRightCircleIcon } from '@heroicons/react/24/outline';
 import { MediaStatus } from '@server/constants/media';
 import { Permission } from '@server/lib/permissions';
 import type {
+  AlbumResult,
+  ArtistResult,
+  BookResult,
   MovieResult,
   PersonResult,
   TvResult,
@@ -20,7 +25,14 @@ interface MixedResult {
   page: number;
   totalResults: number;
   totalPages: number;
-  results: (TvResult | MovieResult | PersonResult)[];
+  results: (
+    | MovieResult
+    | TvResult
+    | PersonResult
+    | AlbumResult
+    | ArtistResult
+    | BookResult
+  )[];
 }
 
 interface MediaSliderProps {
@@ -31,6 +43,15 @@ interface MediaSliderProps {
   hideWhenEmpty?: boolean;
   extraParams?: string;
   onNewTitles?: (titleCount: number) => void;
+  items?: (
+    | MovieResult
+    | TvResult
+    | PersonResult
+    | AlbumResult
+    | ArtistResult
+    | BookResult
+  )[];
+  totalItems?: number;
 }
 
 const MediaSlider = ({
@@ -41,6 +62,7 @@ const MediaSlider = ({
   sliderKey,
   hideWhenEmpty = false,
   onNewTitles,
+  totalItems,
 }: MediaSliderProps) => {
   const settings = useSettings();
   const { hasPermission } = useUser();
@@ -62,33 +84,46 @@ const MediaSlider = ({
 
   let titles = (data ?? []).reduce(
     (a, v) => [...a, ...v.results],
-    [] as (MovieResult | TvResult | PersonResult)[]
+    [] as (
+      | MovieResult
+      | TvResult
+      | PersonResult
+      | AlbumResult
+      | ArtistResult
+      | BookResult
+    )[]
   );
 
   if (settings.currentSettings.hideAvailable) {
-    titles = titles.filter(
-      (i) =>
-        !(i.mediaType === 'movie' || i.mediaType === 'tv') ||
-        (i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
-          i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE)
-    );
+    titles = titles.filter((i) => {
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return (
+          i.mediaInfo?.status !== MediaStatus.AVAILABLE &&
+          i.mediaInfo?.status !== MediaStatus.PARTIALLY_AVAILABLE
+        );
+      }
+      return true;
+    });
   }
 
   if (settings.currentSettings.hideBlocklisted) {
-    titles = titles.filter(
-      (i) =>
-        !(i.mediaType === 'movie' || i.mediaType === 'tv') ||
-        i.mediaInfo?.status !== MediaStatus.BLOCKLISTED
-    );
-  }
-
-  if (settings.currentSettings.hideRequested) {
     titles = titles.filter((i) => {
-      if (i.mediaType !== 'movie' && i.mediaType !== 'tv') {
-        return true;
+      if (
+        i.mediaType === 'movie' ||
+        i.mediaType === 'tv' ||
+        i.mediaType === 'album' ||
+        i.mediaType === 'artist' ||
+        i.mediaType === 'book'
+      ) {
+        return i.mediaInfo?.status !== MediaStatus.BLOCKLISTED;
       }
-
-      return !i.mediaInfo?.hasActiveRequest;
+      return true;
     });
   }
 
@@ -108,7 +143,7 @@ const MediaSlider = ({
     }
   }, [titles, setSize, size, data, onNewTitles]);
 
-  if (hideWhenEmpty && (data?.[0].results ?? []).length === 0) {
+  if (hideWhenEmpty && (data?.[0]?.results ?? []).length === 0) {
     return null;
   }
 
@@ -122,8 +157,8 @@ const MediaSlider = ({
     .filter((title) => {
       if (!blocklistVisibility)
         return (
-          (title as TvResult | MovieResult).mediaInfo?.status !==
-          MediaStatus.BLOCKLISTED
+          (title as TvResult | MovieResult | AlbumResult | BookResult).mediaInfo
+            ?.status !== MediaStatus.BLOCKLISTED
         );
       return title;
     })
@@ -142,6 +177,7 @@ const MediaSlider = ({
               userScore={title.voteAverage}
               year={title.releaseDate}
               mediaType={title.mediaType}
+              hasTheatrical3dVersion={title.hasTheatrical3dVersion}
               inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
             />
           );
@@ -169,18 +205,76 @@ const MediaSlider = ({
               profilePath={title.profilePath}
             />
           );
+        case 'album':
+          return (
+            <TitleCard
+              key={title.id}
+              id={title.id}
+              isAddedToWatchlist={title.mediaInfo?.watchlists?.length ?? 0}
+              image={title.posterPath}
+              status={title.mediaInfo?.status}
+              title={title.title}
+              year={title['first-release-date']?.split('-')[0]}
+              mediaType={title.mediaType}
+              artist={title['artist-credit']?.[0]?.name}
+              type={title['primary-type']}
+              inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
+              needsCoverArt={title.needsCoverArt}
+            />
+          );
+        case 'book':
+          return (
+            <TitleCard
+              key={title.id}
+              id={title.id}
+              isAddedToWatchlist={title.mediaInfo?.watchlists?.length ?? 0}
+              image={title.posterPath}
+              status={title.mediaInfo?.status}
+              title={title.title}
+              year={undefined}
+              mediaType={title.mediaType}
+              artist={title.authorName}
+              inProgress={(title.mediaInfo?.downloadStatus ?? []).length > 0}
+              needsCoverArt={title.needsCoverArt}
+            />
+          );
+        case 'artist':
+          return title.tmdbPersonId ? (
+            <PersonCard
+              key={title.id}
+              personId={title.tmdbPersonId}
+              name={title.name}
+              profilePath={title.artistThumb ?? undefined}
+            />
+          ) : (
+            <ArtistCard
+              key={title.id}
+              artistId={title.id}
+              name={title.name}
+              artistThumb={title.artistThumb}
+            />
+          );
+        default:
+          return null;
       }
-    });
+    })
+    .filter((item): item is ReactElement => item !== null);
 
-  if (linkUrl && titles.length > 20) {
+  const isLoading = !data && !error;
+
+  if (linkUrl && (totalItems ? totalItems > 20 : titles.length > 20)) {
     finalTitles.push(
       <ShowMoreCard
         url={linkUrl}
-        posters={titles
-          .slice(20, 24)
-          .map((title) =>
-            title.mediaType !== 'person' ? title.posterPath : undefined
-          )}
+        posters={titles.slice(20, 24).map((title) => {
+          if (title.mediaType === 'person') {
+            return undefined;
+          }
+          if (title.mediaType === 'album' || title.mediaType === 'book') {
+            return title.posterPath;
+          }
+          return (title as MovieResult | TvResult).posterPath;
+        })}
       />
     );
   }
@@ -201,8 +295,8 @@ const MediaSlider = ({
       </div>
       <Slider
         sliderKey={sliderKey}
-        isLoading={!data && !error}
-        isEmpty={false}
+        isLoading={isLoading}
+        isEmpty={!isLoading && finalTitles.length === 0}
         items={finalTitles}
       />
     </>

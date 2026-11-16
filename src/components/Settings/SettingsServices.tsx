@@ -1,4 +1,6 @@
+import LidarrLogo from '@app/assets/services/lidarr.svg';
 import RadarrLogo from '@app/assets/services/radarr.svg';
+import ReadarrLogo from '@app/assets/services/readarr.svg';
 import SonarrLogo from '@app/assets/services/sonarr.svg';
 import Alert from '@app/components/Common/Alert';
 import Badge from '@app/components/Common/Badge';
@@ -6,9 +8,11 @@ import Button from '@app/components/Common/Button';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import Modal from '@app/components/Common/Modal';
 import PageTitle from '@app/components/Common/PageTitle';
+import LidarrModal from '@app/components/Settings/LidarrModal';
 import OverrideRuleModal from '@app/components/Settings/OverrideRule/OverrideRuleModal';
 import OverrideRuleTiles from '@app/components/Settings/OverrideRule/OverrideRuleTiles';
 import RadarrModal from '@app/components/Settings/RadarrModal';
+import ReadarrModal from '@app/components/Settings/ReadarrModal';
 import SonarrModal from '@app/components/Settings/SonarrModal';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
@@ -16,7 +20,13 @@ import { Transition } from '@headlessui/react';
 import { PencilIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid';
 import type OverrideRule from '@server/entity/OverrideRule';
 import type { OverrideRuleResultsResponse } from '@server/interfaces/api/overrideRuleInterfaces';
-import type { RadarrSettings, SonarrSettings } from '@server/lib/settings';
+import type {
+  LidarrSettings,
+  RadarrSettings,
+  ReadarrSettings,
+  SonarrSettings,
+} from '@server/lib/settings';
+import type { AxiosError } from 'axios';
 import axios from 'axios';
 import { Fragment, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -26,25 +36,50 @@ const messages = defineMessages('components.Settings', {
   services: 'Services',
   radarrsettings: 'Radarr Settings',
   sonarrsettings: 'Sonarr Settings',
-  serviceSettingsDescription:
+  lidarrsettings: 'Lidarr Settings',
+  readarrsettings: 'Readarr Settings',
+  videoServiceSettingsDescription:
     'Configure your {serverType} server(s) below. You can connect multiple {serverType} servers, but only two of them can be marked as defaults (one non-4K and one 4K). Administrators are able to override the server used to process new requests prior to approval.',
+  musicServiceSettingsDescription:
+    'Configure your {serverType} server(s) below. You can connect multiple {serverType} servers, but only one of them can be marked as default. Administrators are able to override the server used to process new requests prior to approval.',
   deleteserverconfirm: 'Are you sure you want to delete this server?',
   ssl: 'SSL',
   default: 'Default',
   default4k: 'Default 4K',
+  default3d: 'Default 3D',
   is4k: '4K',
+  is3d: '3D',
   address: 'Address',
   activeProfile: 'Active Profile',
   addradarr: 'Add Radarr Server',
   addsonarr: 'Add Sonarr Server',
+  addlidarr: 'Add Lidarr Server',
+  addreadarr: 'Add Readarr Server',
+  addaudiobookreadarr: 'Add Audiobook Readarr Server',
+  readarrUnavailable:
+    'Unable to load Readarr settings. Please verify your server is running the latest code and refresh this page.',
+  readarrRouteUnavailable:
+    'Readarr settings route was not found (404). This usually means your backend is not on a build that includes Readarr settings yet. Restart/update the server, then refresh.',
+  readarrUnauthorized:
+    'Readarr settings request was denied ({status}). Verify you are signed in with an administrator account.',
+  readarrLoadFailedWithStatus: 'Unable to load Readarr settings ({status}).',
   noDefaultServer:
     'At least one {serverType} server must be marked as default in order for {mediaType} requests to be processed.',
   noDefaultNon4kServer:
     'If you only have a single {serverType} server for both non-4K and 4K content (or if you only download 4K content), your {serverType} server should <strong>NOT</strong> be designated as a 4K server.',
   noDefault4kServer:
     'A 4K {serverType} server must be marked as default in order to enable users to submit 4K {mediaType} requests.',
+  noDefault3dServer:
+    'A 3D {serverType} server must be marked as default in order to enable users to submit 3D {mediaType} requests.',
   mediaTypeMovie: 'movie',
   mediaTypeSeries: 'series',
+  mediaTypeMusic: 'music',
+  mediaTypeBook: 'book',
+  mediaTypeAudiobook: 'audiobook',
+  isAudiobook: 'Audiobook',
+  defaultAudiobook: 'Default Audiobook',
+  noDefaultAudiobookServer:
+    'A default audiobook Readarr server must be marked in order to enable audiobook requests.',
   deleteServer: 'Delete {serverType} Server',
   overrideRules: 'Override Rules',
   overrideRulesDescription:
@@ -56,12 +91,16 @@ interface ServerInstanceProps {
   name: string;
   isDefault?: boolean;
   is4k?: boolean;
+  is3d?: boolean;
+  isAudiobook?: boolean;
   hostname: string;
   port: number;
   isSSL?: boolean;
   externalUrl?: string;
   profileName: string;
   isSonarr?: boolean;
+  isLidarr?: boolean;
+  isReadarr?: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -99,9 +138,13 @@ const ServerInstance = ({
   port,
   profileName,
   is4k = false,
+  is3d = false,
+  isAudiobook = false,
   isDefault = false,
   isSSL = false,
   isSonarr = false,
+  isLidarr = false,
+  isReadarr = false,
   externalUrl,
   onEdit,
   onDelete,
@@ -127,15 +170,31 @@ const ServerInstance = ({
                 {name}
               </a>
             </h3>
-            {isDefault && !is4k && (
+            {isDefault && !is4k && !is3d && !isAudiobook && (
               <Badge>{intl.formatMessage(messages.default)}</Badge>
             )}
-            {isDefault && is4k && (
+            {isDefault && is4k && !isAudiobook && (
               <Badge>{intl.formatMessage(messages.default4k)}</Badge>
             )}
-            {!isDefault && is4k && (
+            {isDefault && is3d && !isAudiobook && (
+              <Badge>{intl.formatMessage(messages.default3d)}</Badge>
+            )}
+            {isDefault && isAudiobook && (
+              <Badge>{intl.formatMessage(messages.defaultAudiobook)}</Badge>
+            )}
+            {!isDefault && is4k && !isAudiobook && (
               <Badge badgeType="warning">
                 {intl.formatMessage(messages.is4k)}
+              </Badge>
+            )}
+            {!isDefault && is3d && !isAudiobook && (
+              <Badge badgeType="warning">
+                {intl.formatMessage(messages.is3d)}
+              </Badge>
+            )}
+            {!isDefault && isAudiobook && (
+              <Badge badgeType="warning">
+                {intl.formatMessage(messages.isAudiobook)}
               </Badge>
             )}
             {isSSL && (
@@ -172,6 +231,10 @@ const ServerInstance = ({
         >
           {isSonarr ? (
             <SonarrLogo className="h-10 w-10 flex-shrink-0" />
+          ) : isLidarr ? (
+            <LidarrLogo className="h-10 w-10 flex-shrink-0" />
+          ) : isReadarr ? (
+            <ReadarrLogo className="h-10 w-10 flex-shrink-0" />
           ) : (
             <RadarrLogo className="h-10 w-10 flex-shrink-0" />
           )}
@@ -215,6 +278,16 @@ const SettingsServices = () => {
     error: sonarrError,
     mutate: revalidateSonarr,
   } = useSWR<SonarrSettings[]>('/api/v1/settings/sonarr');
+  const {
+    data: lidarrData,
+    error: lidarrError,
+    mutate: revalidateLidarr,
+  } = useSWR<LidarrSettings[]>('/api/v1/settings/lidarr');
+  const {
+    data: readarrData,
+    error: readarrError,
+    mutate: revalidateReadarr,
+  } = useSWR<ReadarrSettings[]>('/api/v1/settings/readarr');
   const { data: rules, mutate: revalidate } =
     useSWR<OverrideRuleResultsResponse>('/api/v1/overrideRule');
   const [editRadarrModal, setEditRadarrModal] = useState<{
@@ -231,9 +304,25 @@ const SettingsServices = () => {
     open: false,
     sonarr: null,
   });
+  const [editLidarrModal, setEditLidarrModal] = useState<{
+    open: boolean;
+    lidarr: LidarrSettings | null;
+  }>({
+    open: false,
+    lidarr: null,
+  });
+  const [editReadarrModal, setEditReadarrModal] = useState<{
+    open: boolean;
+    readarr: ReadarrSettings | null;
+    createAsAudiobook?: boolean;
+  }>({
+    open: false,
+    readarr: null,
+    createAsAudiobook: false,
+  });
   const [deleteServerModal, setDeleteServerModal] = useState<{
     open: boolean;
-    type: 'radarr' | 'sonarr';
+    type: 'radarr' | 'sonarr' | 'lidarr' | 'readarr';
     serverId: number | null;
   }>({
     open: false,
@@ -248,6 +337,32 @@ const SettingsServices = () => {
     rule: null,
   });
 
+  const getReadarrErrorMessage = () => {
+    const error = readarrError as AxiosError<{ message?: string }> | undefined;
+    const status = error?.response?.status;
+    const apiMessage = error?.response?.data?.message;
+
+    if (status === 404) {
+      return `${intl.formatMessage(messages.readarrRouteUnavailable)}${
+        apiMessage ? ` (${apiMessage})` : ''
+      }`;
+    }
+
+    if (status === 401 || status === 403) {
+      return intl.formatMessage(messages.readarrUnauthorized, {
+        status: String(status),
+      });
+    }
+
+    if (status) {
+      return `${intl.formatMessage(messages.readarrLoadFailedWithStatus, {
+        status: String(status),
+      })}${apiMessage ? ` (${apiMessage})` : ''}`;
+    }
+
+    return intl.formatMessage(messages.readarrUnavailable);
+  };
+
   const deleteServer = async () => {
     await axios.delete(
       `/api/v1/settings/${deleteServerModal.type}/${deleteServerModal.serverId}`
@@ -255,6 +370,8 @@ const SettingsServices = () => {
     setDeleteServerModal({ open: false, serverId: null, type: 'radarr' });
     revalidateRadarr();
     revalidateSonarr();
+    revalidateLidarr();
+    revalidateReadarr();
     mutate('/api/v1/settings/public');
   };
 
@@ -271,7 +388,7 @@ const SettingsServices = () => {
           {intl.formatMessage(messages.radarrsettings)}
         </h3>
         <p className="description">
-          {intl.formatMessage(messages.serviceSettingsDescription, {
+          {intl.formatMessage(messages.videoServiceSettingsDescription, {
             serverType: 'Radarr',
           })}
         </p>
@@ -304,6 +421,39 @@ const SettingsServices = () => {
           }}
         />
       )}
+      {editLidarrModal.open && (
+        <LidarrModal
+          lidarr={editLidarrModal.lidarr}
+          onClose={() => setEditLidarrModal({ open: false, lidarr: null })}
+          onSave={() => {
+            revalidateLidarr();
+            mutate('/api/v1/settings/public');
+            setEditLidarrModal({ open: false, lidarr: null });
+          }}
+        />
+      )}
+      {editReadarrModal.open && (
+        <ReadarrModal
+          readarr={editReadarrModal.readarr}
+          createAsAudiobook={editReadarrModal.createAsAudiobook}
+          onClose={() =>
+            setEditReadarrModal({
+              open: false,
+              readarr: null,
+              createAsAudiobook: false,
+            })
+          }
+          onSave={() => {
+            revalidateReadarr();
+            mutate('/api/v1/settings/public');
+            setEditReadarrModal({
+              open: false,
+              readarr: null,
+              createAsAudiobook: false,
+            });
+          }}
+        />
+      )}
       <Transition
         as={Fragment}
         show={deleteServerModal.open}
@@ -327,7 +477,13 @@ const SettingsServices = () => {
           }
           title={intl.formatMessage(messages.deleteServer, {
             serverType:
-              deleteServerModal.type === 'radarr' ? 'Radarr' : 'Sonarr',
+              deleteServerModal.type === 'radarr'
+                ? 'Radarr'
+                : deleteServerModal.type === 'sonarr'
+                  ? 'Sonarr'
+                  : deleteServerModal.type === 'lidarr'
+                    ? 'Lidarr'
+                    : 'Readarr',
           })}
         >
           {intl.formatMessage(messages.deleteserverconfirm)}
@@ -346,7 +502,8 @@ const SettingsServices = () => {
                   })}
                 />
               ) : !radarrData.some(
-                  (radarr) => radarr.isDefault && !radarr.is4k
+                  (radarr) =>
+                    radarr.isDefault && !radarr.is4k && !(radarr.is3d ?? false)
                 ) ? (
                 <Alert
                   title={intl.formatMessage(messages.noDefaultNon4kServer, {
@@ -359,17 +516,40 @@ const SettingsServices = () => {
                   })}
                 />
               ) : (
-                radarrData.some((radarr) => radarr.is4k) &&
-                !radarrData.some(
-                  (radarr) => radarr.isDefault && radarr.is4k
-                ) && (
-                  <Alert
-                    title={intl.formatMessage(messages.noDefault4kServer, {
-                      serverType: 'Radarr',
-                      mediaType: intl.formatMessage(messages.mediaTypeMovie),
-                    })}
-                  />
-                )
+                <>
+                  {radarrData.some(
+                    (radarr) => radarr.is4k && !(radarr.is3d ?? false)
+                  ) &&
+                    !radarrData.some(
+                      (radarr) =>
+                        radarr.isDefault &&
+                        radarr.is4k &&
+                        !(radarr.is3d ?? false)
+                    ) && (
+                      <Alert
+                        title={intl.formatMessage(messages.noDefault4kServer, {
+                          serverType: 'Radarr',
+                          mediaType: intl.formatMessage(
+                            messages.mediaTypeMovie
+                          ),
+                        })}
+                      />
+                    )}
+                  {radarrData.some((radarr) => radarr.is3d && !radarr.is4k) &&
+                    !radarrData.some(
+                      (radarr) =>
+                        radarr.isDefault && radarr.is3d && !radarr.is4k
+                    ) && (
+                      <Alert
+                        title={intl.formatMessage(messages.noDefault3dServer, {
+                          serverType: 'Radarr',
+                          mediaType: intl.formatMessage(
+                            messages.mediaTypeMovie
+                          ),
+                        })}
+                      />
+                    )}
+                </>
               ))}
             <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {radarrData.map((radarr) => (
@@ -382,6 +562,7 @@ const SettingsServices = () => {
                   isSSL={radarr.useSsl}
                   isDefault={radarr.isDefault}
                   is4k={radarr.is4k}
+                  is3d={radarr.is3d}
                   externalUrl={radarr.externalUrl}
                   onEdit={() => setEditRadarrModal({ open: true, radarr })}
                   onDelete={() =>
@@ -416,7 +597,7 @@ const SettingsServices = () => {
           {intl.formatMessage(messages.sonarrsettings)}
         </h3>
         <p className="description">
-          {intl.formatMessage(messages.serviceSettingsDescription, {
+          {intl.formatMessage(messages.videoServiceSettingsDescription, {
             serverType: 'Sonarr',
           })}
         </p>
@@ -501,6 +682,162 @@ const SettingsServices = () => {
       </div>
       <div className="mb-6 mt-10">
         <h3 className="heading">
+          {intl.formatMessage(messages.lidarrsettings)}
+        </h3>
+        <p className="description">
+          {intl.formatMessage(messages.musicServiceSettingsDescription, {
+            serverType: 'Lidarr',
+          })}
+        </p>
+      </div>
+      <div className="section">
+        {!lidarrData && !lidarrError && <LoadingSpinner />}
+        {lidarrData && !lidarrError && (
+          <>
+            {lidarrData.length > 0 &&
+              (!lidarrData.some((lidarr) => lidarr.isDefault) ? (
+                <Alert
+                  title={intl.formatMessage(messages.noDefaultServer, {
+                    serverType: 'Lidarr',
+                    mediaType: intl.formatMessage(messages.mediaTypeSeries),
+                  })}
+                />
+              ) : null)}
+            <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              {lidarrData.map((lidarr) => (
+                <ServerInstance
+                  key={`lidarr-config-${lidarr.id}`}
+                  name={lidarr.name}
+                  hostname={lidarr.hostname}
+                  port={lidarr.port}
+                  profileName={lidarr.activeProfileName}
+                  isSSL={lidarr.useSsl}
+                  isLidarr={true}
+                  isDefault={lidarr.isDefault}
+                  externalUrl={lidarr.externalUrl}
+                  onEdit={() => setEditLidarrModal({ open: true, lidarr })}
+                  onDelete={() =>
+                    setDeleteServerModal({
+                      open: true,
+                      serverId: lidarr.id,
+                      type: 'lidarr',
+                    })
+                  }
+                />
+              ))}
+              <li className="col-span-1 h-32 rounded-lg border-2 border-dashed border-gray-400 shadow sm:h-44">
+                <div className="flex h-full w-full items-center justify-center">
+                  <Button
+                    buttonType="ghost"
+                    onClick={() =>
+                      setEditLidarrModal({ open: true, lidarr: null })
+                    }
+                  >
+                    <PlusIcon />
+                    <span>{intl.formatMessage(messages.addlidarr)}</span>
+                  </Button>
+                </div>
+              </li>
+            </ul>
+          </>
+        )}
+      </div>
+      <div className="mb-6 mt-10">
+        <h3 className="heading">
+          {intl.formatMessage(messages.readarrsettings)}
+        </h3>
+        <p className="description">
+          {intl.formatMessage(messages.videoServiceSettingsDescription, {
+            serverType: 'Readarr',
+          })}
+        </p>
+      </div>
+      <div className="section">
+        {!readarrData && !readarrError && <LoadingSpinner />}
+        {readarrError && (
+          <Alert title={getReadarrErrorMessage()} type="error" />
+        )}
+        {readarrData && !readarrError && (
+          <>
+            {readarrData.length > 0 &&
+              (!readarrData.some(
+                (readarr) => readarr.isDefault && !readarr.isAudiobook
+              ) ? (
+                <Alert
+                  title={intl.formatMessage(messages.noDefaultServer, {
+                    serverType: 'Readarr',
+                    mediaType: intl.formatMessage(messages.mediaTypeBook),
+                  })}
+                />
+              ) : null)}
+            {readarrData.length > 0 &&
+              readarrData.some((readarr) => readarr.isAudiobook) &&
+              !readarrData.some(
+                (readarr) => readarr.isAudiobook && readarr.isDefault
+              ) && (
+                <Alert
+                  title={intl.formatMessage(messages.noDefaultAudiobookServer)}
+                />
+              )}
+            <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              {readarrData.map((readarr) => (
+                <ServerInstance
+                  key={`readarr-config-${readarr.id}`}
+                  name={readarr.name}
+                  hostname={readarr.hostname}
+                  port={readarr.port}
+                  profileName={readarr.activeProfileName}
+                  isSSL={readarr.useSsl}
+                  isReadarr
+                  isAudiobook={readarr.isAudiobook}
+                  isDefault={readarr.isDefault}
+                  externalUrl={readarr.externalUrl}
+                  onEdit={() => setEditReadarrModal({ open: true, readarr })}
+                  onDelete={() =>
+                    setDeleteServerModal({
+                      open: true,
+                      serverId: readarr.id,
+                      type: 'readarr',
+                    })
+                  }
+                />
+              ))}
+              <li className="col-span-1 h-32 rounded-lg border-2 border-dashed border-gray-400 shadow sm:h-44">
+                <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-4">
+                  <Button
+                    buttonType="ghost"
+                    onClick={() =>
+                      setEditReadarrModal({
+                        open: true,
+                        readarr: null,
+                        createAsAudiobook: false,
+                      })
+                    }
+                  >
+                    <PlusIcon />
+                    <span>{intl.formatMessage(messages.addreadarr)}</span>
+                  </Button>
+                  <Button
+                    buttonType="ghost"
+                    onClick={() =>
+                      setEditReadarrModal({
+                        open: true,
+                        readarr: null,
+                        createAsAudiobook: true,
+                      })
+                    }
+                  >
+                    <PlusIcon />
+                    <span>{intl.formatMessage(messages.addaudiobookreadarr)}</span>
+                  </Button>
+                </div>
+              </li>
+            </ul>
+          </>
+        )}
+      </div>
+      <div className="mb-6 mt-10">
+        <h3 className="heading">
           {intl.formatMessage(messages.overrideRules)}
         </h3>
         <p className="description">
@@ -511,11 +848,12 @@ const SettingsServices = () => {
       </div>
       <div className="section">
         <ul className="grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {rules && radarrData && sonarrData && (
+          {rules && radarrData && sonarrData && readarrData != null && (
             <OverrideRuleTiles
               rules={rules}
               radarrServices={radarrData}
               sonarrServices={sonarrData}
+              readarrServices={readarrData}
               setOverrideRuleModal={setOverrideRuleModal}
               revalidate={revalidate}
             />
@@ -524,7 +862,11 @@ const SettingsServices = () => {
             <div className="flex h-full w-full items-center justify-center">
               <Button
                 buttonType="ghost"
-                disabled={!radarrData?.length && !sonarrData?.length}
+                disabled={
+                  !radarrData?.length &&
+                  !sonarrData?.length &&
+                  !readarrData?.length
+                }
                 onClick={() =>
                   setOverrideRuleModal({
                     open: true,
@@ -539,20 +881,24 @@ const SettingsServices = () => {
           </li>
         </ul>
       </div>
-      {overrideRuleModal.open && radarrData && sonarrData && (
-        <OverrideRuleModal
-          rule={overrideRuleModal.rule}
-          onClose={() => {
-            setOverrideRuleModal({
-              open: false,
-              rule: null,
-            });
-            revalidate();
-          }}
-          radarrServices={radarrData}
-          sonarrServices={sonarrData}
-        />
-      )}
+      {overrideRuleModal.open &&
+        radarrData &&
+        sonarrData &&
+        readarrData != null && (
+          <OverrideRuleModal
+            rule={overrideRuleModal.rule}
+            onClose={() => {
+              setOverrideRuleModal({
+                open: false,
+                rule: null,
+              });
+              revalidate();
+            }}
+            radarrServices={radarrData}
+            sonarrServices={sonarrData}
+            readarrServices={readarrData}
+          />
+        )}
     </>
   );
 };

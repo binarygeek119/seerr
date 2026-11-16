@@ -1,20 +1,20 @@
 # seerr-chart
 
-![Version: 3.11.1](https://img.shields.io/badge/Version-3.11.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.5.2](https://img.shields.io/badge/AppVersion-v3.5.2-informational?style=flat-square)
+![Version: 3.9.0](https://img.shields.io/badge/Version-3.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.4.0](https://img.shields.io/badge/AppVersion-v3.4.0-informational?style=flat-square)
 
 Seerr helm chart for Kubernetes
 
-**Homepage:** <https://github.com/seerr-team/seerr>
+**Homepage:** <https://github.com/binarygeek119/seerr>
 
 ## Maintainers
 
 | Name | Email | Url |
 | ---- | ------ | --- |
-| Seerr Team |  | <https://github.com/orgs/seerr-team/people> |
+| binarygeek119 |  | <https://github.com/binarygeek119> |
 
 ## Source Code
 
-* <https://github.com/seerr-team/seerr/tree/main/charts/seerr-chart>
+* <https://github.com/binarygeek119/seerr/tree/develop/charts/seerr-chart>
 
 ## Requirements
 
@@ -37,7 +37,7 @@ Seerr is a stateful application and it is not designed to have multiple replicas
 - replacing `Deployment` with `StatefulSet`
 - removing `replicaCount` value
 
-If `replicaCount` value was used - remove it (re-added in 3.11.0, limited to `0` or `1`). Helm update should work fine after that.
+If `replicaCount` value was used - remove it. Helm update should work fine after that.
 
 ## Values
 
@@ -61,7 +61,7 @@ If `replicaCount` value was used - remove it (re-added in 3.11.0, limited to `0`
 | hostUsers | bool | `true` | docs: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/ |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
-| image.repository | string | `"seerr-team/seerr"` |  |
+| image.repository | string | `"binarygeek119/seerr"` |  |
 | image.sha | string | `""` |  |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` |  |
@@ -82,7 +82,6 @@ If `replicaCount` value was used - remove it (re-added in 3.11.0, limited to `0`
 | probes.livenessProbe | object | `{"initialDelaySeconds":20,"periodSeconds":15,"timeoutSeconds":3}` | Configure liveness probe |
 | probes.readinessProbe | object | `{"initialDelaySeconds":60,"periodSeconds":15,"timeoutSeconds":3}` | Configure readiness probe |
 | probes.startupProbe | string | `nil` | Configure startup probe |
-| replicaCount | int | `1` | Number of replicas: 0 or 1 only (Seerr does not support multiple replicas). Set to 0 to scale down, e.g. for migrations. |
 | resources | object | `{}` |  |
 | route.main.additionalRules | list | `[]` |  |
 | route.main.annotations | object | `{}` |  |

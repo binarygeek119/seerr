@@ -127,7 +127,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://discord.gg/seerr',
+          href: 'https://discord.gg/xmNs5ecFX',
           label: 'Discord',
           position: 'right',
         },
@@ -172,11 +172,11 @@ const config: Config = {
           items: [
             {
               label: 'Discord',
-              href: 'https://discord.gg/seerr',
+              href: 'https://discord.gg/xmNs5ecFX',
             },
             {
-              label: 'Github Discussions',
-              href: 'https://github.com/seerr-team/seerr/discussions',
+              label: 'GitHub Issues',
+              href: 'https://github.com/binarygeek119/seerr/issues',
             },
           ],
         },

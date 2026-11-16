@@ -12,7 +12,7 @@ Refer to [Configuring Databases](/extending-seerr/database-config#postgresql-opt
 :::
 
 :::info
-An alternative Docker image is available on Docker Hub for this project. You can find it at [Docker Hub Repository Link](https://hub.docker.com/r/seerr/seerr)
+This fork’s Docker image is on Docker Hub: [binarygeek119/seerr](https://hub.docker.com/r/binarygeek119/seerr). Official upstream images remain at [seerr/seerr](https://hub.docker.com/r/seerr/seerr).
 
 Our Docker images are available with the following tags:
 
@@ -68,9 +68,7 @@ docker run -d \
   --health-timeout 3s \
   --health-interval 15s \
   --health-retries 3 \
-  --security-opt no-new-privileges \
-  --cap-drop ALL \
-  ghcr.io/seerr-team/seerr:latest
+  ghcr.io/binarygeek119/seerr:latest
 ```
 
 The argument `-e PORT=5055` is optional.
@@ -85,7 +83,7 @@ docker stop seerr && docker rm seerr
 ```
 Pull the latest image:
 ```bash
-docker pull ghcr.io/seerr-team/seerr:latest
+docker pull ghcr.io/binarygeek119/seerr:latest
 ```
 Finally, run the container with the same parameters originally used to create the container:
 ```bash
@@ -108,7 +106,7 @@ Define the `seerr` service in your `compose.yaml` as follows:
 ---
 services:
   seerr:
-    image: ghcr.io/seerr-team/seerr:latest
+    image: ghcr.io/binarygeek119/seerr:latest
     init: true
     container_name: seerr
     environment:
@@ -125,10 +123,6 @@ services:
       timeout: 3s
       interval: 15s
       retries: 3
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
     restart: unless-stopped
 ```
 
@@ -192,9 +186,7 @@ docker run -d `
   --health-timeout 3s `
   --health-interval 15s `
   --health-retries 3 `
-  --security-opt no-new-privileges `
-  --cap-drop ALL `
-  ghcr.io/seerr-team/seerr:latest
+  ghcr.io/binarygeek119/seerr:latest
 ```
 
 The argument `-e PORT=5055` is optional.
@@ -207,7 +199,7 @@ docker stop seerr; docker rm seerr
 ```
 Pull the latest image:
 ```powershell
-docker pull ghcr.io/seerr-team/seerr:latest
+docker pull ghcr.io/binarygeek119/seerr:latest
 ```
 Finally, run the container with the same parameters originally used to create the container:
 ```powershell
@@ -232,9 +224,7 @@ docker run -d ^
   --health-timeout 3s ^
   --health-interval 15s ^
   --health-retries 3 ^
-  --security-opt no-new-privileges ^
-  --cap-drop ALL ^
-  ghcr.io/seerr-team/seerr:latest
+  ghcr.io/binarygeek119/seerr:latest
 ```
 
 The argument `-e PORT=5055` is optional.
@@ -247,7 +237,7 @@ docker stop seerr && docker rm seerr
 ```
 Pull the latest image:
 ```batch
-docker pull ghcr.io/seerr-team/seerr:latest
+docker pull ghcr.io/binarygeek119/seerr:latest
 ```
 Finally, run the container with the same parameters originally used to create the container:
 ```batch
@@ -261,7 +251,7 @@ docker run -d ...
 ---
 services:
   seerr:
-    image: ghcr.io/seerr-team/seerr:latest
+    image: ghcr.io/binarygeek119/seerr:latest
     init: true
     container_name: seerr
     environment:
@@ -277,10 +267,6 @@ services:
       timeout: 3s
       interval: 15s
       retries: 3
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
     restart: unless-stopped
 
 volumes:

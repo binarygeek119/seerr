@@ -1,9 +1,3 @@
-export const EMBEDDING = {
-  model: 'Xenova/bge-small-en-v1.5',
-  pooling: 'cls',
-  threshold: 0.82,
-};
-
 const GITHUB_API = 'https://api.github.com';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
@@ -18,7 +12,6 @@ function ghHeaders() {
 export async function fetchIssues({
   state = 'open',
   since,
-  creator,
   maxIssues = 5000,
 } = {}) {
   const issues = [];
@@ -34,7 +27,6 @@ export async function fetchIssues({
       direction: 'desc',
     });
     if (since) params.set('since', since);
-    if (creator) params.set('creator', creator);
 
     const url = `${GITHUB_API}/repos/${GITHUB_REPOSITORY}/issues?${params}`;
     const resp = await fetch(url, { headers: ghHeaders() });
@@ -109,12 +101,8 @@ export async function addLabel(issueNumber, label) {
   console.log(`Added label '${label}' to #${issueNumber}`);
 }
 
-const FORM_NOISE = [/^###\s.*$/gm, /^_No response_$/gm, /^- \[[ xX]\] .*$/gm];
-
 export function issueText(title, body) {
   body = (body || '').trim();
-  for (const pattern of FORM_NOISE) body = body.replace(pattern, '');
-  body = body.replace(/\n{3,}/g, '\n\n').trim();
   if (body.length > 2000) body = body.slice(0, 2000) + '...';
   return body ? `${title}\n\n${body}` : title;
 }

@@ -14,6 +14,7 @@ import { useIntl } from 'react-intl';
 const messages = defineMessages('components.StatusBadge', {
   status: '{status}',
   status4k: '4K {status}',
+  status3d: '3D {status}',
   playonplex: 'Play on {mediaServerName}',
   openinarr: 'Open in {arr}',
   managemedia: 'Manage {mediaType}',
@@ -25,11 +26,14 @@ interface StatusBadgeProps {
   status?: MediaStatus;
   downloadItem?: DownloadingItem[];
   is4k?: boolean;
+  is3d?: boolean;
   inProgress?: boolean;
   plexUrl?: string;
   serviceUrl?: string;
   tmdbId?: number;
-  mediaType?: 'movie' | 'tv';
+  mbId?: string;
+  foreignBookId?: string;
+  mediaType?: 'movie' | 'tv' | 'music' | 'book';
   title?: string | string[];
   statusLabelOverride?: string;
 }
@@ -38,10 +42,13 @@ const StatusBadge = ({
   status,
   downloadItem = [],
   is4k = false,
+  is3d = false,
   inProgress = false,
   plexUrl,
   serviceUrl,
   tmdbId,
+  mbId,
+  foreignBookId,
   mediaType,
   title,
   statusLabelOverride,
@@ -49,6 +56,11 @@ const StatusBadge = ({
   const intl = useIntl();
   const { hasPermission } = useUser();
   const settings = useSettings();
+  const statusMessage = is3d
+    ? messages.status3d
+    : is4k
+      ? messages.status4k
+      : messages.status;
 
   let mediaLink: string | undefined;
   let mediaLinkDescription: string | undefined;
@@ -61,27 +73,44 @@ const StatusBadge = ({
     mediaType &&
     plexUrl &&
     hasPermission(
-      is4k
-        ? [
-            Permission.REQUEST_4K,
-            mediaType === 'movie'
-              ? Permission.REQUEST_4K_MOVIE
-              : Permission.REQUEST_4K_TV,
-          ]
-        : [
-            Permission.REQUEST,
-            mediaType === 'movie'
-              ? Permission.REQUEST_MOVIE
-              : Permission.REQUEST_TV,
-          ],
+      mediaType === 'music'
+        ? [Permission.REQUEST, Permission.REQUEST_MUSIC]
+        : mediaType === 'book'
+          ? [Permission.REQUEST, Permission.REQUEST_BOOK]
+          : is3d
+            ? [
+                Permission.REQUEST,
+                mediaType === 'movie'
+                  ? Permission.REQUEST_MOVIE
+                  : Permission.REQUEST_TV,
+              ]
+            : is4k
+              ? [
+                  Permission.REQUEST_4K,
+                  mediaType === 'movie'
+                    ? Permission.REQUEST_4K_MOVIE
+                    : Permission.REQUEST_4K_TV,
+                ]
+              : [
+                  Permission.REQUEST,
+                  mediaType === 'movie'
+                    ? Permission.REQUEST_MOVIE
+                    : Permission.REQUEST_TV,
+                ],
       {
         type: 'or',
       }
     ) &&
-    (!is4k ||
-      (mediaType === 'movie'
-        ? settings.currentSettings.movie4kEnabled
-        : settings.currentSettings.series4kEnabled))
+    ((!is4k && !is3d) ||
+      (is4k &&
+        (mediaType === 'movie'
+          ? settings.currentSettings.movie4kEnabled
+          : mediaType === 'book'
+            ? settings.currentSettings.bookAudiobookEnabled
+            : settings.currentSettings.series4kEnabled)) ||
+      (is3d &&
+        mediaType === 'movie' &&
+        settings.currentSettings.movie3dEnabled))
   ) {
     mediaLink = plexUrl;
     mediaLinkDescription = intl.formatMessage(messages.playonplex, {
@@ -93,17 +122,36 @@ const StatusBadge = ({
             : 'Jellyfin',
     });
   } else if (hasPermission(Permission.MANAGE_REQUESTS)) {
-    if (mediaType && tmdbId) {
-      mediaLink = `/${mediaType}/${tmdbId}?manage=1`;
+    if (mediaType && (tmdbId || mbId || foreignBookId)) {
+      mediaLink = `/${mediaType}/${
+        mediaType === 'music'
+          ? mbId
+          : mediaType === 'book'
+            ? foreignBookId
+            : tmdbId
+      }?manage=1`;
       mediaLinkDescription = intl.formatMessage(messages.managemedia, {
         mediaType: intl.formatMessage(
-          mediaType === 'movie' ? globalMessages.movie : globalMessages.tvshow
+          mediaType === 'movie'
+            ? globalMessages.movie
+            : mediaType === 'tv'
+              ? globalMessages.tvshow
+              : mediaType === 'book'
+                ? globalMessages.book
+                : globalMessages.album
         ),
       });
     } else if (hasPermission(Permission.ADMIN) && serviceUrl) {
       mediaLink = serviceUrl;
       mediaLinkDescription = intl.formatMessage(messages.openinarr, {
-        arr: mediaType === 'movie' ? 'Radarr' : 'Sonarr',
+        arr:
+          mediaType === 'movie'
+            ? 'Radarr'
+            : mediaType === 'tv'
+              ? 'Sonarr'
+              : mediaType === 'book'
+                ? 'Readarr'
+                : 'Lidarr',
       });
     }
   }
@@ -181,7 +229,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)
@@ -246,7 +294,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)
@@ -311,7 +359,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)
@@ -354,7 +402,7 @@ const StatusBadge = ({
       return (
         <Tooltip content={mediaLinkDescription}>
           <Badge badgeType="warning" href={mediaLink}>
-            {intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            {intl.formatMessage(statusMessage, {
               status: intl.formatMessage(globalMessages.pending),
             })}
           </Badge>
@@ -365,7 +413,7 @@ const StatusBadge = ({
       return (
         <Tooltip content={mediaLinkDescription}>
           <Badge badgeType="danger" href={mediaLink}>
-            {intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            {intl.formatMessage(statusMessage, {
               status:
                 statusLabelOverride ??
                 intl.formatMessage(globalMessages.blocklisted),
@@ -400,7 +448,7 @@ const StatusBadge = ({
             >
               <span>
                 {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
+                  statusMessage,
                   {
                     status: inProgress
                       ? intl.formatMessage(globalMessages.processing)

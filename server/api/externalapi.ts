@@ -1,10 +1,8 @@
-import type { CacheStore } from '@server/lib/cache';
-import logger from '@server/logger';
 import { proxyRequestInterceptor } from '@server/utils/customProxyAgent';
-import { userAgentRequestInterceptor } from '@server/utils/userAgent';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import axios from 'axios';
 import rateLimit from 'axios-rate-limit';
+import type NodeCache from 'node-cache';
 
 // 5 minute default TTL (in seconds)
 const DEFAULT_TTL = 300;
@@ -13,7 +11,7 @@ const DEFAULT_TTL = 300;
 const DEFAULT_ROLLING_BUFFER = 10000;
 
 export interface ExternalAPIOptions {
-  nodeCache?: CacheStore;
+  nodeCache?: NodeCache;
   headers?: Record<string, unknown>;
   timeout?: number;
   rateLimit?: {
@@ -25,7 +23,7 @@ export interface ExternalAPIOptions {
 class ExternalAPI {
   protected axios: AxiosInstance;
   private baseUrl: string;
-  private cache?: CacheStore;
+  private cache?: NodeCache;
 
   constructor(
     baseUrl: string,
@@ -43,7 +41,6 @@ class ExternalAPI {
       },
     });
     this.axios.interceptors.request.use(proxyRequestInterceptor);
-    this.axios.interceptors.request.use(userAgentRequestInterceptor);
 
     if (options.rateLimit) {
       this.axios = rateLimit(this.axios, {
@@ -56,33 +53,27 @@ class ExternalAPI {
     this.cache = options.nodeCache;
   }
 
-  // transform runs before the cache write.
   protected async get<T>(
     endpoint: string,
     config?: AxiosRequestConfig,
-    ttl?: number,
-    options?: { cache?: CacheStore; transform?: (data: T) => T }
+    ttl?: number
   ): Promise<T> {
-    const cache = options?.cache ?? this.cache;
     const cacheKey = this.serializeCacheKey(endpoint, {
       ...config?.params,
       headers: config?.headers,
     });
-    const cachedItem = cache?.get<T>(cacheKey);
+    const cachedItem = this.cache?.get<T>(cacheKey);
     if (cachedItem) {
       return cachedItem;
     }
 
     const response = await this.axios.get<T>(endpoint, config);
-    const data = options?.transform
-      ? options.transform(response.data)
-      : response.data;
 
-    if (cache && ttl !== 0) {
-      cache.set(cacheKey, data, ttl ?? DEFAULT_TTL);
+    if (this.cache && ttl !== 0) {
+      this.cache.set(cacheKey, response.data, ttl ?? DEFAULT_TTL);
     }
 
-    return data;
+    return response.data;
   }
 
   protected async post<T>(
@@ -129,19 +120,9 @@ class ExternalAPI {
         keyTtl - (ttl ?? DEFAULT_TTL) * 1000 <
         Date.now() - DEFAULT_ROLLING_BUFFER
       ) {
-        this.axios
-          .get<T>(endpoint, config)
-          .then((response) => {
-            this.cache?.set(cacheKey, response.data, ttl ?? DEFAULT_TTL);
-          })
-          .catch((e) => {
-            logger.warn('Failed to refresh cached response in background', {
-              label: 'External API',
-              baseUrl: e.config?.baseURL,
-              endpoint,
-              errorMessage: e.message,
-            });
-          });
+        this.axios.get<T>(endpoint, config).then((response) => {
+          this.cache?.set(cacheKey, response.data, ttl ?? DEFAULT_TTL);
+        });
       }
       return cachedItem;
     }
